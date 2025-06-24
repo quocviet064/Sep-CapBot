@@ -26,23 +26,23 @@ export const siteSupervisor = [
     items: [
       {
         title: "Tất cả đề tài",
-        url: "/home",
+        url: "/supervisors/topics/all",
       },
       {
         title: "Đang chờ duyệt",
-        url: "/contact",
+        url: "/supervisors/topics/pending",
       },
       {
         title: "Đã được duyệt",
-        url: "#",
+        url: "/supervisors/topics/approved",
       },
       {
         title: "Bị từ chối",
-        url: "#",
+        url: "/supervisors/topics/rejected",
       },
       {
         title: "Bị cảnh báo AI",
-        url: "#",
+        url: "/supervisors/topics/ai-flagged",
       },
     ],
   },
@@ -58,19 +58,19 @@ export const siteSupervisor = [
     items: [
       {
         title: "Cần chỉnh sửa sau phản hồi",
-        url: "#",
+        url: "/supervisors/needs-action/edit-after-feedback",
       },
       {
         title: "Từ chối bởi AI",
-        url: "#",
+        url: "/supervisors/needs-action/rejected-by-ai",
       },
       {
         title: "Sắp tới hạn phản hồi",
-        url: "#",
+        url: "/supervisors/needs-action/deadline-coming",
       },
       {
         title: "Có phản hồi mới",
-        url: "#",
+        url: "/supervisors/needs-action/new-feedback",
       },
     ],
   },
@@ -81,19 +81,19 @@ export const siteSupervisor = [
     items: [
       {
         title: "Hướng nghiên cứu AI",
-        url: "#",
+        url: "/supervisors/approved-library/ai",
       },
       {
         title: "Hướng doanh nghiệp",
-        url: "#",
+        url: "/supervisors/approved-library/enterprise",
       },
       {
         title: "Hướng học thuật",
-        url: "#",
+        url: "/supervisors/approved-library/academic",
       },
       {
         title: "Tìm kiếm đề tài",
-        url: "#",
+        url: "/supervisors/approved-library/search",
       },
     ],
   },
@@ -106,10 +106,13 @@ export const siteAdmin = [
     icon: SquareTerminal,
     isActive: false,
     items: [
-      { title: "Số lượng đề tài theo kỳ", url: "#" },
-      { title: "Tình trạng AI check", url: "#" },
-      { title: "Đề tài có cảnh báo", url: "#" },
-      { title: "Giảng viên chưa hoạt động", url: "#" },
+      { title: "Số lượng đề tài theo kỳ", url: "/admins/dashboard/overview" },
+      { title: "Tình trạng AI check", url: "/admins/dashboard/status-ai" },
+      { title: "Đề tài có cảnh báo", url: "/admins/dashboard/warning-topics" },
+      {
+        title: "Giảng viên chưa hoạt động",
+        url: "/admins/dashboard/inactive-supervisors",
+      },
     ],
   },
   {
@@ -118,10 +121,19 @@ export const siteAdmin = [
     icon: CalendarDays,
     isActive: false,
     items: [
-      { title: "Học kỳ (Semester)", url: "#" },
-      { title: "Phase trong học kỳ", url: "#" },
-      { title: "Phase Type", url: "#" },
-      { title: "Submission Round", url: "#" },
+      {
+        title: "Học kỳ (Semester)",
+        url: "/admins/semester-management/semesters",
+      },
+      {
+        title: "Phase trong học kỳ",
+        url: "/admins/semester-management/phases",
+      },
+      { title: "Phase Type", url: "/admins/semester-management/phase-types" },
+      {
+        title: "Submission Round",
+        url: "/admins/semester-management/submission-rounds",
+      },
     ],
   },
   {
@@ -130,10 +142,16 @@ export const siteAdmin = [
     icon: FileText,
     isActive: false,
     items: [
-      { title: "Tất cả đề tài", url: "#" },
-      { title: "Đề tài mới gửi", url: "#" },
-      { title: "Đề tài bị AI cảnh báo", url: "#" },
-      { title: "Phiên bản đề tài", url: "#" },
+      { title: "Tất cả đề tài", url: "/admins/topics-management/all-topics" },
+      {
+        title: "Đề tài mới gửi",
+        url: "/admins/topics-management/new-submitted",
+      },
+      {
+        title: "Đề tài bị AI cảnh báo",
+        url: "/admins/topics-management/ai-flagged",
+      },
+      { title: "Phiên bản đề tài", url: "/admins/topics-management/versions" },
     ],
   },
   {
@@ -142,10 +160,13 @@ export const siteAdmin = [
     icon: Upload,
     isActive: false,
     items: [
-      { title: "Upload file đề tài", url: "#" },
-      { title: "Gắn metadata & legacy", url: "#" },
-      { title: "Đánh dấu đã được duyệt", url: "#" },
-      { title: "Cho phép AI học", url: "#" },
+      { title: "Upload file đề tài", url: "/admins/legacy-import/upload" },
+      { title: "Gắn metadata & legacy", url: "/admins/legacy-import/metadata" },
+      {
+        title: "Đánh dấu đã được duyệt",
+        url: "/admins/legacy-import/mark-approved",
+      },
+      { title: "Cho phép AI học", url: "/admins/legacy-import/ai-train" },
     ],
   },
   {
@@ -154,9 +175,18 @@ export const siteAdmin = [
     icon: SlidersHorizontal,
     isActive: false,
     items: [
-      { title: "Bộ tiêu chí theo PhaseType", url: "#" },
-      { title: "Cấu hình trọng số & điểm", url: "#" },
-      { title: "Mẫu phiếu review", url: "#" },
+      {
+        title: "Bộ tiêu chí theo PhaseType",
+        url: "/admins/evaluation-criteria/by-phase-type",
+      },
+      {
+        title: "Cấu hình trọng số & điểm",
+        url: "/admins/evaluation-criteria/weights",
+      },
+      {
+        title: "Mẫu phiếu review",
+        url: "/admins/evaluation-criteria/review-template",
+      },
     ],
   },
   {
@@ -165,10 +195,19 @@ export const siteAdmin = [
     icon: Users,
     isActive: false,
     items: [
-      { title: "Danh sách Lecturer", url: "#" },
-      { title: "Gán kỹ năng", url: "#" },
-      { title: "Gán / thu hồi vai trò", url: "#" },
-      { title: "Vô hiệu hóa tài khoản", url: "#" },
+      { title: "Danh sách Lecturer", url: "/admins/lecturer-management/list" },
+      {
+        title: "Gán kỹ năng",
+        url: "/admins/lecturer-management/assign-skills",
+      },
+      {
+        title: "Gán / thu hồi vai trò",
+        url: "/admins/lecturer-management/assign-roles",
+      },
+      {
+        title: "Vô hiệu hóa tài khoản",
+        url: "/admins/lecturer-management/deactivate",
+      },
     ],
   },
   {
@@ -177,10 +216,16 @@ export const siteAdmin = [
     icon: Brain,
     isActive: false,
     items: [
-      { title: "Ngưỡng trùng lặp", url: "#" },
-      { title: "Ngưỡng điểm AI chấm", url: "#" },
-      { title: "Kết quả AI đánh giá", url: "#" },
-      { title: "Tinh chỉnh mô hình", url: "#" },
+      {
+        title: "Ngưỡng trùng lặp",
+        url: "/admins/ai-config/similarity-threshold",
+      },
+      {
+        title: "Ngưỡng điểm AI chấm",
+        url: "/admins/ai-config/score-threshold",
+      },
+      { title: "Kết quả AI đánh giá", url: "/admins/ai-config/results" },
+      { title: "Tinh chỉnh mô hình", url: "/admins/ai-config/tuning" },
     ],
   },
   {
@@ -189,9 +234,18 @@ export const siteAdmin = [
     icon: LockKeyhole,
     isActive: false,
     items: [
-      { title: "Quyền xem kho đề tài", url: "#" },
-      { title: "Ẩn danh vai trò review", url: "#" },
-      { title: "Truy cập đặc biệt", url: "#" },
+      {
+        title: "Quyền xem kho đề tài",
+        url: "/admins/access-control/topic-visibility",
+      },
+      {
+        title: "Ẩn danh vai trò review",
+        url: "/admins/access-control/anonymous-review",
+      },
+      {
+        title: "Truy cập đặc biệt",
+        url: "/admins/access-control/special-access",
+      },
     ],
   },
   {
@@ -200,10 +254,13 @@ export const siteAdmin = [
     icon: BarChart3,
     isActive: false,
     items: [
-      { title: "Tổng hợp đề tài", url: "#" },
-      { title: "Lịch sử phản hồi", url: "#" },
-      { title: "Hiệu suất giảng viên", url: "#" },
-      { title: "Xuất báo cáo", url: "#" },
+      { title: "Tổng hợp đề tài", url: "/admins/reports/summary" },
+      { title: "Lịch sử phản hồi", url: "/admins/reports/feedback-history" },
+      {
+        title: "Hiệu suất giảng viên",
+        url: "/admins/reports/supervisor-performance",
+      },
+      { title: "Xuất báo cáo", url: "/admins/reports/export" },
     ],
   },
   {
@@ -212,76 +269,125 @@ export const siteAdmin = [
     icon: Settings,
     isActive: false,
     items: [
-      { title: "Logo & tên hệ thống", url: "#" },
-      { title: "Cấu hình thời gian", url: "#" },
-      { title: "Cấu hình môi trường", url: "#" },
+      { title: "Logo & tên hệ thống", url: "/admins/system-settings/branding" },
+      { title: "Cấu hình thời gian", url: "/admins/system-settings/timing" },
+      {
+        title: "Cấu hình môi trường",
+        url: "/admins/system-settings/environment",
+      },
     ],
   },
 ];
+
 export const siteModerator = [
   {
     title: "Tổng quan hệ thống",
-    url: "#",
+    url: "/moderators/dashboard/topic-count",
     icon: SquareTerminal,
     isActive: false,
     items: [
-      { title: "Số lượng đề tài theo kỳ", url: "#" },
-      { title: "Tình trạng đề tài chờ duyệt", url: "#" },
-      { title: "Đề tài có cảnh báo", url: "#" },
+      {
+        title: "Số lượng đề tài theo kỳ",
+        url: "/moderators/dashboard/topic-count",
+      },
+      {
+        title: "Tình trạng đề tài chờ duyệt",
+        url: "/moderators/dashboard/pending-status",
+      },
+      {
+        title: "Đề tài có cảnh báo",
+        url: "/moderators/dashboard/warning-topics",
+      },
     ],
   },
   {
     title: "Quản lý học kỳ & Phase",
-    url: "#",
+    url: "/moderators/semester-phase/semester-list",
     icon: CalendarDays,
     isActive: false,
     items: [
-      { title: "Danh sách học kỳ", url: "#" },
-      { title: "Phase trong học kỳ", url: "#" },
-      { title: "Round & thời gian", url: "#" },
+      {
+        title: "Danh sách học kỳ",
+        url: "/moderators/semester-phase/semester-list",
+      },
+      { title: "Phase trong học kỳ", url: "/moderators/semester-phase/phases" },
+      { title: "Round & thời gian", url: "/moderators/semester-phase/rounds" },
     ],
   },
   {
     title: "Xét duyệt đề tài",
-    url: "#",
+    url: "/moderators/topic-approval/pending-topics",
     icon: FileText,
     isActive: false,
     items: [
-      { title: "Đề tài chờ xét duyệt", url: "#" },
-      { title: "Chi tiết đề tài", url: "#" },
-      { title: "Gửi phản hồi / yêu cầu chỉnh sửa", url: "#" },
+      {
+        title: "Đề tài chờ xét duyệt",
+        url: "/moderators/topic-approval/pending-topics",
+      },
+      {
+        title: "Chi tiết đề tài",
+        url: "/moderators/topic-approval/topic-detail",
+      },
+      {
+        title: "Gửi phản hồi / yêu cầu chỉnh sửa",
+        url: "/moderators/topic-approval/request-edit",
+      },
     ],
   },
   {
     title: "Phân công phản biện",
-    url: "#",
+    url: "/moderators/reviewer-assignment/assign-reviewers",
     icon: Users,
     isActive: false,
     items: [
-      { title: "Gán Reviewer cho đề tài", url: "#" },
-      { title: "Theo dõi tiến độ đánh giá", url: "#" },
+      {
+        title: "Gán Reviewer cho đề tài",
+        url: "/moderators/reviewer-assignment/assign-reviewers",
+      },
+      {
+        title: "Theo dõi tiến độ đánh giá",
+        url: "/moderators/reviewer-assignment/progress-tracking",
+      },
     ],
   },
   {
     title: "Phản hồi & đánh giá",
-    url: "#",
+    url: "/moderators/feedback-evaluation/history",
     icon: MessageSquareDiff,
     isActive: false,
     items: [
-      { title: "Lịch sử phản hồi", url: "#" },
-      { title: "Xem đề xuất chỉnh sửa", url: "#" },
-      { title: "Duyệt lại phiên bản mới", url: "#" },
+      {
+        title: "Lịch sử phản hồi",
+        url: "/moderators/feedback-evaluation/history",
+      },
+      {
+        title: "Xem đề xuất chỉnh sửa",
+        url: "/moderators/feedback-evaluation/suggestions",
+      },
+      {
+        title: "Duyệt lại phiên bản mới",
+        url: "/moderators/feedback-evaluation/approve-new-version",
+      },
     ],
   },
   {
     title: "Thống kê & báo cáo",
-    url: "#",
+    url: "/moderators/reports/topic-by-phase",
     icon: BarChart3,
     isActive: false,
     items: [
-      { title: "Số lượng đề tài theo Phase", url: "#" },
-      { title: "Tình trạng đánh giá", url: "#" },
-      { title: "Hiệu suất Reviewer", url: "#" },
+      {
+        title: "Số lượng đề tài theo Phase",
+        url: "/moderators/reports/topic-by-phase",
+      },
+      {
+        title: "Tình trạng đánh giá",
+        url: "/moderators/reports/evaluation-status",
+      },
+      {
+        title: "Hiệu suất Reviewer",
+        url: "/moderators/reports/reviewer-performance",
+      },
     ],
   },
 ];
@@ -289,66 +395,108 @@ export const siteModerator = [
 export const siteReviewer = [
   {
     title: "Tổng quan hệ thống",
-    url: "#",
+    url: "/reviewers/dashboard/assigned-count",
     icon: SquareTerminal,
     isActive: false,
     items: [
-      { title: "Số lượng đề tài được giao", url: "#" },
-      { title: "Tiến độ đánh giá", url: "#" },
-      { title: "Tình trạng phản hồi", url: "#" },
+      {
+        title: "Số lượng đề tài được giao",
+        url: "/reviewers/dashboard/assigned-count",
+      },
+      { title: "Tiến độ đánh giá", url: "/reviewers/dashboard/progress" },
+      {
+        title: "Tình trạng phản hồi",
+        url: "/reviewers/dashboard/feedback-status",
+      },
     ],
   },
   {
     title: "Đề tài được phân công",
-    url: "#",
+    url: "/reviewers/assigned-topics/list",
     icon: FileSearch,
     isActive: false,
     items: [
-      { title: "Danh sách đề tài", url: "#" },
-      { title: "Xem chi tiết nội dung", url: "#" },
-      { title: "Ghi chú nội bộ", url: "#" },
+      { title: "Danh sách đề tài", url: "/reviewers/assigned-topics/list" },
+      {
+        title: "Xem chi tiết nội dung",
+        url: "/reviewers/assigned-topics/detail",
+      },
+      {
+        title: "Ghi chú nội bộ",
+        url: "/reviewers/assigned-topics/internal-notes",
+      },
     ],
   },
   {
     title: "Đánh giá đề tài",
-    url: "#",
+    url: "/reviewers/evaluate-topics/score",
     icon: FileText,
     isActive: false,
     items: [
-      { title: "Chấm điểm theo tiêu chí", url: "#" },
-      { title: "Thêm nhận xét từng đoạn", url: "#" },
-      { title: "Tải file phản biện", url: "#" },
+      {
+        title: "Chấm điểm theo tiêu chí",
+        url: "/reviewers/evaluate-topics/score",
+      },
+      {
+        title: "Thêm nhận xét từng đoạn",
+        url: "/reviewers/evaluate-topics/paragraph-comments",
+      },
+      {
+        title: "Tải file phản biện",
+        url: "/reviewers/evaluate-topics/upload-review-file",
+      },
     ],
   },
   {
     title: "Lịch sử phản hồi",
-    url: "#",
+    url: "/reviewers/feedback-history/responded-topics",
     icon: MessageSquareDiff,
     isActive: false,
     items: [
-      { title: "Xem đề tài đã phản hồi", url: "#" },
-      { title: "Theo dõi chỉnh sửa sau phản biện", url: "#" },
+      {
+        title: "Xem đề tài đã phản hồi",
+        url: "/reviewers/feedback-history/responded-topics",
+      },
+      {
+        title: "Theo dõi chỉnh sửa sau phản biện",
+        url: "/reviewers/feedback-history/post-review-tracking",
+      },
     ],
   },
   {
     title: "Kho lưu trữ đề tài",
-    url: "#",
+    url: "/reviewers/topic-archive/approved-topics",
     icon: FolderSearch,
     isActive: false,
     items: [
-      { title: "Xem đề tài đã duyệt", url: "#" },
-      { title: "Tra cứu nội dung liên quan", url: "#" },
+      {
+        title: "Xem đề tài đã duyệt",
+        url: "/reviewers/topic-archive/approved-topics",
+      },
+      {
+        title: "Tra cứu nội dung liên quan",
+        url: "/reviewers/topic-archive/search-related",
+      },
     ],
   },
   {
     title: "Thống kê đánh giá",
-    url: "#",
+    url: "/reviewers/evaluation-stats/completed",
     icon: BarChart3,
     isActive: false,
     items: [
-      { title: "Số lượt đánh giá đã hoàn thành", url: "#" },
-      { title: "Đề tài có cảnh báo", url: "#" },
-      { title: "Tổng hợp điểm trung bình", url: "#" },
+      {
+        title: "Số lượt đánh giá đã hoàn thành",
+        url: "/reviewers/evaluation-stats/completed",
+      },
+      {
+        title: "Đề tài có cảnh báo",
+        url: "/reviewers/evaluation-stats/warnings",
+      },
+      {
+        title: "Tổng hợp điểm trung bình",
+        url: "/reviewers/evaluation-stats/average-score",
+      },
     ],
   },
 ];
