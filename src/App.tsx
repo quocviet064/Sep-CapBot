@@ -7,9 +7,10 @@ import NotFoundPage from "./pages/not-found-page";
 
 function App() {
   const Home = lazy(() => import("./pages/home-page"));
-  const Contact = lazy(() => import("./pages/contact-page"));
 
-  const CreateProject = lazy(() => import("./pages/supervisor/create-project"));
+  const CreateProject = lazy(
+    () => import("./pages/supervisors/create-project"),
+  );
 
   const Login = lazy(() => import("./pages/login-page"));
 
@@ -19,7 +20,6 @@ function App() {
         <Route element={<LectureLayout />}>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/home" element={<Home />} />
-          <Route path="/contact" element={<Contact />} />
 
           <Route path="/create-project" element={<CreateProject />} />
 
