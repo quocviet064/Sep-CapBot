@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import {
   SidebarGroup,
@@ -16,6 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../atoms/collapsible";
+import { useLocation } from "react-router-dom";
 
 export function NavMain({
   items,
@@ -31,6 +30,8 @@ export function NavMain({
     }[];
   }[];
 }) {
+  const location = useLocation();
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -38,12 +39,17 @@ export function NavMain({
         {items.map((item) => {
           const hasSubItems = item.items && item.items.length > 0;
 
+          const isParentActive =
+            location.pathname === item.url ||
+            (hasSubItems &&
+              item.items!.some((subItem) => location.pathname === subItem.url));
+
           if (hasSubItems) {
             return (
               <Collapsible
                 key={item.title}
                 asChild
-                defaultOpen={item.isActive}
+                defaultOpen={isParentActive}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>
@@ -56,15 +62,28 @@ export function NavMain({
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {item.items!.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild>
-                            <a href={subItem.url}>
-                              <span>{subItem.title}</span>
-                            </a>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {item.items!.map((subItem) => {
+                        const isActive = location.pathname === subItem.url;
+                        return (
+                          <SidebarMenuSubItem
+                            key={subItem.title}
+                            data-active={isActive}
+                          >
+                            <SidebarMenuSubButton asChild>
+                              <a
+                                href={subItem.url}
+                                className={`flex items-center gap-2 ${
+                                  isActive
+                                    ? "text-primary bg-primary/10 font-semibold"
+                                    : ""
+                                }`}
+                              >
+                                <span>{subItem.title}</span>
+                              </a>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -72,10 +91,17 @@ export function NavMain({
             );
           }
 
+          const isActive = location.pathname === item.url;
+
           return (
-            <SidebarMenuItem key={item.title}>
+            <SidebarMenuItem key={item.title} data-active={isActive}>
               <SidebarMenuButton tooltip={item.title} asChild>
-                <a href={item.url} className="flex items-center gap-2">
+                <a
+                  href={item.url}
+                  className={`flex items-center gap-2 ${
+                    isActive ? "text-primary font-semibold" : ""
+                  }`}
+                >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                 </a>
