@@ -17,7 +17,7 @@ function App() {
     <Suspense fallback={<LoadingPage />}>
       <Routes>
         <Route element={<LectureLayout />}>
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/home" element={<Home />} />
           <Route path="/contact" element={<Contact />} />
 
