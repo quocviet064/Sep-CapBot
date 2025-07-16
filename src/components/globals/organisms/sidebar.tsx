@@ -18,7 +18,7 @@ import {
 } from "@/config/site";
 
 const user = {
-  name: "shadcn",
+  name: "viet",
   email: "m@example.com",
   avatar: "/avatars/shadcn.jpg",
 };
@@ -26,7 +26,7 @@ const user = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [auth] = React.useState<
     "supervisor" | "admin" | "moderator" | "reviewer"
-  >("admin");
+  >("supervisor");
 
   const navItems =
     auth === "admin"
