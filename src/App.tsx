@@ -57,7 +57,7 @@ function App() {
   );
 
   // Admin pages
-  const AdminOverview = lazy(() => import("./pages/admins/dashboard/overview"));
+  const AdminOverview = lazy(() => import("./pages/admins/bodashard/overview"));
   const AdminStatusAI = lazy(
     () => import("./pages/admins/dashboard/status-ai"),
   );
@@ -232,60 +232,60 @@ function App() {
 
   // Moderator pages
   const ModeratorTopicCount = lazy(
-    () => import("./pages/moderators/dashboard/topic-count"),
+    () => import("./pages/moderators/dashboard/TopicCountCard"),
   );
   const ModeratorPendingStatus = lazy(
-    () => import("./pages/moderators/dashboard/pending-status"),
+    () => import("./pages/moderators/dashboard/PendingStatusCard"),
   );
   const ModeratorWarningTopics = lazy(
-    () => import("./pages/moderators/dashboard/warning-topics"),
+    () => import("./pages/moderators/dashboard/WarningTopicsCard"),
   );
 
   const ModeratorSemesterList = lazy(
-    () => import("./pages/moderators/semester-phase/semester-list"),
+    () => import("./pages/moderators/semester-phase/SemesterList"),
   );
   const ModeratorPhases = lazy(
-    () => import("./pages/moderators/semester-phase/phases"),
+    () => import("./pages/moderators/semester-phase/Phases"),
   );
   const ModeratorRounds = lazy(
-    () => import("./pages/moderators/semester-phase/rounds"),
+    () => import("./pages/moderators/semester-phase/Rounds"),
   );
 
   const ModeratorPendingTopics = lazy(
-    () => import("./pages/moderators/topic-approval/pending-topics"),
+    () => import("./pages/moderators/topic-approval/PendingTopicsTable"),
   );
   const ModeratorTopicDetail = lazy(
-    () => import("./pages/moderators/topic-approval/topic-detail"),
+    () => import("./pages/moderators/topic-approval/TopicDetail"),
   );
   const ModeratorRequestEdit = lazy(
-    () => import("./pages/moderators/topic-approval/request-edit"),
+    () => import("./pages/moderators/topic-approval/RequestEditModal"),
   );
 
   const ModeratorAssignReviewers = lazy(
-    () => import("./pages/moderators/reviewer-assignment/assign-reviewers"),
+    () => import("./pages/moderators/reviewer-assignment/AssignDrawer"),
   );
   const ModeratorProgressTracking = lazy(
-    () => import("./pages/moderators/reviewer-assignment/progress-tracking"),
+    () => import("./pages/moderators/reviewer-assignment/ReviewerList"),
   );
 
   const ModeratorFeedbackHistory = lazy(
-    () => import("./pages/moderators/feedback-evaluation/history"),
+    () => import("./pages/moderators/feedback-evaluation/HistoryTimeline"),
   );
   const ModeratorSuggestions = lazy(
-    () => import("./pages/moderators/feedback-evaluation/suggestions"),
+    () => import("./pages/moderators/feedback-evaluation/Suggestions"),
   );
   const ModeratorApproveNewVersion = lazy(
-    () => import("./pages/moderators/feedback-evaluation/approve-new-version"),
+    () => import("./pages/moderators/feedback-evaluation/ApproveNewVersion"),
   );
 
   const ModeratorTopicByPhase = lazy(
-    () => import("./pages/moderators/reports/topic-by-phase"),
+    () => import("./pages/moderators/reports/TopicByPhase"),
   );
   const ModeratorEvaluationStatus = lazy(
-    () => import("./pages/moderators/reports/evaluation-status"),
+    () => import("./pages/moderators/reports/EvaluationStatus"),
   );
   const ModeratorReviewerPerformance = lazy(
-    () => import("./pages/moderators/reports/reviewer-performance"),
+    () => import("./pages/moderators/reports/ReviewerPerformance"),
   );
 
   return (

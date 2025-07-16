@@ -26,7 +26,7 @@ const user = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [auth] = React.useState<
     "supervisor" | "admin" | "moderator" | "reviewer"
-  >("supervisor");
+  >("moderator");
 
   const navItems =
     auth === "admin"
