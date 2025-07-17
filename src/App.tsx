@@ -231,62 +231,12 @@ function App() {
   );
 
   // Moderator pages
-  const ModeratorTopicCount = lazy(
-    () => import("./pages/moderators/dashboard/TopicCountCard"),
-  );
-  const ModeratorPendingStatus = lazy(
-    () => import("./pages/moderators/dashboard/PendingStatusCard"),
-  );
-  const ModeratorWarningTopics = lazy(
-    () => import("./pages/moderators/dashboard/WarningTopicsCard"),
-  );
-
-  const ModeratorSemesterList = lazy(
-    () => import("./pages/moderators/semester-phase/SemesterList"),
-  );
-  const ModeratorPhases = lazy(
-    () => import("./pages/moderators/semester-phase/Phases"),
-  );
-  const ModeratorRounds = lazy(
-    () => import("./pages/moderators/semester-phase/Rounds"),
-  );
-
-  const ModeratorPendingTopics = lazy(
-    () => import("./pages/moderators/topic-approval/PendingTopicsTable"),
-  );
-  const ModeratorTopicDetail = lazy(
-    () => import("./pages/moderators/topic-approval/TopicDetail"),
-  );
-  const ModeratorRequestEdit = lazy(
-    () => import("./pages/moderators/topic-approval/RequestEditModal"),
-  );
-
-  const ModeratorAssignReviewers = lazy(
-    () => import("./pages/moderators/reviewer-assignment/AssignDrawer"),
-  );
-  const ModeratorProgressTracking = lazy(
-    () => import("./pages/moderators/reviewer-assignment/ReviewerList"),
-  );
-
-  const ModeratorFeedbackHistory = lazy(
-    () => import("./pages/moderators/feedback-evaluation/HistoryTimeline"),
-  );
-  const ModeratorSuggestions = lazy(
-    () => import("./pages/moderators/feedback-evaluation/Suggestions"),
-  );
-  const ModeratorApproveNewVersion = lazy(
-    () => import("./pages/moderators/feedback-evaluation/ApproveNewVersion"),
-  );
-
-  const ModeratorTopicByPhase = lazy(
-    () => import("./pages/moderators/reports/TopicByPhase"),
-  );
-  const ModeratorEvaluationStatus = lazy(
-    () => import("./pages/moderators/reports/EvaluationStatus"),
-  );
-  const ModeratorReviewerPerformance = lazy(
-    () => import("./pages/moderators/reports/ReviewerPerformance"),
-  );
+  const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
+  const ModeratorSemesterPhase = lazy(() => import("./pages/moderators/semester-phase"));
+  const ModeratorTopicApproval = lazy(() => import("./pages/moderators/topic-approval"));
+  const ModeratorReviewerAssign = lazy(() => import("./pages/moderators/reviewer-assignment"));
+  const ModeratorFeedbackEval = lazy(() => import("./pages/moderators/feedback-evaluation"));
+  const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
 
   return (
     <Suspense fallback={<LoadingPage />}>
@@ -586,79 +536,12 @@ function App() {
           />
 
           {/* Moderator routes */}
-          <Route
-            path="/moderators/dashboard/topic-count"
-            element={<ModeratorTopicCount />}
-          />
-          <Route
-            path="/moderators/dashboard/pending-status"
-            element={<ModeratorPendingStatus />}
-          />
-          <Route
-            path="/moderators/dashboard/warning-topics"
-            element={<ModeratorWarningTopics />}
-          />
-
-          <Route
-            path="/moderators/semester-phase/semester-list"
-            element={<ModeratorSemesterList />}
-          />
-          <Route
-            path="/moderators/semester-phase/phases"
-            element={<ModeratorPhases />}
-          />
-          <Route
-            path="/moderators/semester-phase/rounds"
-            element={<ModeratorRounds />}
-          />
-
-          <Route
-            path="/moderators/topic-approval/pending-topics"
-            element={<ModeratorPendingTopics />}
-          />
-          <Route
-            path="/moderators/topic-approval/topic-detail"
-            element={<ModeratorTopicDetail />}
-          />
-          <Route
-            path="/moderators/topic-approval/request-edit"
-            element={<ModeratorRequestEdit />}
-          />
-
-          <Route
-            path="/moderators/reviewer-assignment/assign-reviewers"
-            element={<ModeratorAssignReviewers />}
-          />
-          <Route
-            path="/moderators/reviewer-assignment/progress-tracking"
-            element={<ModeratorProgressTracking />}
-          />
-
-          <Route
-            path="/moderators/feedback-evaluation/history"
-            element={<ModeratorFeedbackHistory />}
-          />
-          <Route
-            path="/moderators/feedback-evaluation/suggestions"
-            element={<ModeratorSuggestions />}
-          />
-          <Route
-            path="/moderators/feedback-evaluation/approve-new-version"
-            element={<ModeratorApproveNewVersion />}
-          />
-
-          <Route
-            path="/moderators/reports/topic-by-phase"
-            element={<ModeratorTopicByPhase />}
-          />
-          <Route
-            path="/moderators/reports/evaluation-status"
-            element={<ModeratorEvaluationStatus />}
-          />
-          <Route
-            path="/moderators/reports/reviewer-performance"
-            element={<ModeratorReviewerPerformance />}
-          />
+          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
+          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
+          <Route path="/moderators/topic-approval" element={<ModeratorTopicApproval />} />
+          <Route path="/moderators/reviewer-assignment" element={<ModeratorReviewerAssign />} />
+          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
+          <Route path="/moderators/reports" element={<ModeratorReports />} />
 
           {/* 404 fallback */}
           <Route path="/*" element={<NotFoundPage />} />

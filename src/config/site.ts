@@ -282,113 +282,33 @@ export const siteAdmin = [
 export const siteModerator = [
   {
     title: "Tổng quan hệ thống",
-    url: "/moderators/dashboard/topic-count",
+    url: "/moderators/dashboard",
     icon: SquareTerminal,
-    isActive: false,
-    items: [
-      {
-        title: "Số lượng đề tài theo kỳ",
-        url: "/moderators/dashboard/topic-count",
-      },
-      {
-        title: "Tình trạng đề tài chờ duyệt",
-        url: "/moderators/dashboard/pending-status",
-      },
-      {
-        title: "Đề tài có cảnh báo",
-        url: "/moderators/dashboard/warning-topics",
-      },
-    ],
   },
   {
     title: "Quản lý học kỳ & Phase",
-    url: "/moderators/semester-phase/semester-list",
+    url: "/moderators/semester-phase",
     icon: CalendarDays,
-    isActive: false,
-    items: [
-      {
-        title: "Danh sách học kỳ",
-        url: "/moderators/semester-phase/semester-list",
-      },
-      { title: "Phase trong học kỳ", url: "/moderators/semester-phase/phases" },
-      { title: "Round & thời gian", url: "/moderators/semester-phase/rounds" },
-    ],
   },
   {
     title: "Xét duyệt đề tài",
-    url: "/moderators/topic-approval/pending-topics",
+    url: "/moderators/topic-approval",
     icon: FileText,
-    isActive: false,
-    items: [
-      {
-        title: "Đề tài chờ xét duyệt",
-        url: "/moderators/topic-approval/pending-topics",
-      },
-      {
-        title: "Chi tiết đề tài",
-        url: "/moderators/topic-approval/topic-detail",
-      },
-      {
-        title: "Gửi phản hồi / yêu cầu chỉnh sửa",
-        url: "/moderators/topic-approval/request-edit",
-      },
-    ],
   },
   {
     title: "Phân công phản biện",
-    url: "/moderators/reviewer-assignment/assign-reviewers",
+    url: "/moderators/reviewer-assignment",
     icon: Users,
-    isActive: false,
-    items: [
-      {
-        title: "Gán Reviewer cho đề tài",
-        url: "/moderators/reviewer-assignment/assign-reviewers",
-      },
-      {
-        title: "Theo dõi tiến độ đánh giá",
-        url: "/moderators/reviewer-assignment/progress-tracking",
-      },
-    ],
   },
   {
     title: "Phản hồi & đánh giá",
-    url: "/moderators/feedback-evaluation/history",
+    url: "/moderators/feedback-evaluation",
     icon: MessageSquareDiff,
-    isActive: false,
-    items: [
-      {
-        title: "Lịch sử phản hồi",
-        url: "/moderators/feedback-evaluation/history",
-      },
-      {
-        title: "Xem đề xuất chỉnh sửa",
-        url: "/moderators/feedback-evaluation/suggestions",
-      },
-      {
-        title: "Duyệt lại phiên bản mới",
-        url: "/moderators/feedback-evaluation/approve-new-version",
-      },
-    ],
   },
   {
     title: "Thống kê & báo cáo",
-    url: "/moderators/reports/topic-by-phase",
+    url: "/moderators/reports",
     icon: BarChart3,
-    isActive: false,
-    items: [
-      {
-        title: "Số lượng đề tài theo Phase",
-        url: "/moderators/reports/topic-by-phase",
-      },
-      {
-        title: "Tình trạng đánh giá",
-        url: "/moderators/reports/evaluation-status",
-      },
-      {
-        title: "Hiệu suất Reviewer",
-        url: "/moderators/reports/reviewer-performance",
-      },
-    ],
   },
 ];
 
