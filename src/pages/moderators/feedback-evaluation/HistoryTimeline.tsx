@@ -1,6 +1,5 @@
 import { Timeline, Card } from "antd";
 
-// Giả lập data audit log
 const logs = [
   { time: "2024-07-10 14:03", action: "Assigned reviewer R01" },
   { time: "2024-07-11 09:20", action: "Reviewer accepted" },

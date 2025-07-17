@@ -41,7 +41,7 @@ const columns = [
     title: "Reviewers",
     dataIndex: "assignedReviewers",
     key: "assignedReviewers",
-    render: arr => (
+    render: (arr: string[]) => (
       <Space>{arr.length ? arr.map(r => <Tag key={r}>{r}</Tag>) : <Tag color="gray">None</Tag>}</Space>
     ),
   },
