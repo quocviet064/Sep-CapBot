@@ -1,6 +1,5 @@
-import React from "react";
 import { Card, List, Tag } from "antd";
-import { topics } from "../mock/topics";
+import { topics } from "../../../mock/topics";
 
 export default function WarningTopicsCard() {
   // Giả lập: những topic UNDER_REVIEW > 5 ngày thì warning

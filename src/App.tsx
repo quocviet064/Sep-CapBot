@@ -57,7 +57,7 @@ function App() {
   );
 
   // Admin pages
-  const AdminOverview = lazy(() => import("./pages/admins/bodashard/overview"));
+  const AdminOverview = lazy(() => import("./pages/admins/dashboard/overview"));
   const AdminStatusAI = lazy(
     () => import("./pages/admins/dashboard/status-ai"),
   );

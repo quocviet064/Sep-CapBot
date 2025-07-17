@@ -1,6 +1,5 @@
-import React from "react";
 import { Card, Statistic } from "antd";
-import { topics } from "../mock/topics";
+import { topics } from "../../../mock/topics";
 
 export default function TopicCountCard() {
   return (

@@ -1,6 +1,5 @@
-import React from "react";
 import { Card, Tag, Progress } from "antd";
-import { topics } from "../mock/topics";
+import { topics } from "../../../mock/topics";
 
 export default function PendingStatusCard() {
   const pending = topics.filter(t => t.status === "PENDING");
