@@ -231,12 +231,34 @@ function App() {
   );
 
   // Moderator pages
-  const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
-  const ModeratorSemesterPhase = lazy(() => import("./pages/moderators/semester-phase"));
-  const ModeratorTopicApproval = lazy(() => import("./pages/moderators/topic-approval"));
-  const ModeratorReviewerAssign = lazy(() => import("./pages/moderators/reviewer-assignment"));
-  const ModeratorFeedbackEval = lazy(() => import("./pages/moderators/feedback-evaluation"));
-  const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
+  // Dashboard
+  const ModDashboard = lazy(() => import("./pages/moderators/dashboard"));
+
+  // Topic Approval
+  const ModSupervisorSent = lazy(() => import("./pages/moderators/topic-approval/SupervisorSent"));
+  const ModPendingTopics = lazy(() => import("./pages/moderators/topic-approval/PendingTopics"));
+  const ModAssignedTopics = lazy(() => import("./pages/moderators/topic-approval/AssignedTopics"));
+  const ModRejectedTopics = lazy(() => import("./pages/moderators/topic-approval/RejectedTopics"));
+  const ModArchivedTopics = lazy(() => import("./pages/moderators/topic-approval/ArchivedTopics"));
+
+  // Reviewer Assignment
+  const ModAssignDrawer = lazy(() => import("./pages/moderators/reviewer-assignment/AssignDrawer"));
+  const ModReviewerList = lazy(() => import("./pages/moderators/reviewer-assignment/ReviewerList"));
+
+  // Feedback & Evaluation
+  const ModHistoryTimeline = lazy(() => import("./pages/moderators/feedback-evaluation/HistoryTimeline"));
+  const ModSuggestions = lazy(() => import("./pages/moderators/feedback-evaluation/Suggestions"));
+  const ModApproveNewVersion = lazy(() => import("./pages/moderators/feedback-evaluation/ApproveNewVersion"));
+
+  // Reports
+  const ModTopicByPhase = lazy(() => import("./pages/moderators/reports/TopicByPhase"));
+  const ModEvaluationStatus = lazy(() => import("./pages/moderators/reports/EvaluationStatus"));
+  const ModReviewerPerf = lazy(() => import("./pages/moderators/reports/ReviewerPerformance"));
+
+  // Semester & Phase
+  const ModSemesterList = lazy(() => import("./pages/moderators/semester-phase/SemesterList"));
+  const ModPhases = lazy(() => import("./pages/moderators/semester-phase/Phases"));
+  const ModRounds = lazy(() => import("./pages/moderators/semester-phase/Rounds"));
 
   return (
     <Suspense fallback={<LoadingPage />}>
@@ -536,12 +558,81 @@ function App() {
           />
 
           {/* Moderator routes */}
-          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
-          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
-          <Route path="/moderators/topic-approval" element={<ModeratorTopicApproval />} />
-          <Route path="/moderators/reviewer-assignment" element={<ModeratorReviewerAssign />} />
-          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
-          <Route path="/moderators/reports" element={<ModeratorReports />} />
+          <Route path="/moderators/dashboard" element={<ModDashboard />} />
+
+          {/* Topic-Approval */}
+          <Route
+            path="/moderators/topic-approval/supervisor-sent"
+            element={<ModSupervisorSent />}
+          />
+          <Route
+            path="/moderators/topic-approval/pending"
+            element={<ModPendingTopics />}
+          />
+          <Route
+            path="/moderators/topic-approval/assigned"
+            element={<ModAssignedTopics />}
+          />
+          <Route
+            path="/moderators/topic-approval/rejected"
+            element={<ModRejectedTopics />}
+          />
+          <Route
+            path="/moderators/topic-approval/archived"
+            element={<ModArchivedTopics />}
+          />
+
+          {/* Reviewer-Assignment */}
+          <Route
+            path="/moderators/reviewer-assignment/assign-reviewers"
+            element={<ModAssignDrawer />}
+          />
+          <Route
+            path="/moderators/reviewer-assignment/progress-tracking"
+            element={<ModReviewerList />}
+          />
+
+          {/* Feedback-Evaluation */}
+          <Route
+            path="/moderators/feedback-evaluation/history"
+            element={<ModHistoryTimeline />}
+          />
+          <Route
+            path="/moderators/feedback-evaluation/suggestions"
+            element={<ModSuggestions />}
+          />
+          <Route
+            path="/moderators/feedback-evaluation/approve-new-version"
+            element={<ModApproveNewVersion />}
+          />
+
+          {/* Reports */}
+          <Route
+            path="/moderators/reports/topic-by-phase"
+            element={<ModTopicByPhase />}
+          />
+          <Route
+            path="/moderators/reports/evaluation-status"
+            element={<ModEvaluationStatus />}
+          />
+          <Route
+            path="/moderators/reports/reviewer-performance"
+            element={<ModReviewerPerf />}
+          />
+
+          {/* Semester-Phase */}
+          <Route
+            path="/moderators/semester-phase/semester-list"
+            element={<ModSemesterList />}
+          />
+          <Route
+            path="/moderators/semester-phase/phases"
+            element={<ModPhases />}
+          />
+          <Route
+            path="/moderators/semester-phase/rounds"
+            element={<ModRounds />}
+          />
 
           {/* 404 fallback */}
           <Route path="/*" element={<NotFoundPage />} />

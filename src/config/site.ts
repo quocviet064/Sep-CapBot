@@ -289,26 +289,52 @@ export const siteModerator = [
     title: "Quản lý học kỳ & Phase",
     url: "/moderators/semester-phase",
     icon: CalendarDays,
+    items: [
+      { title: "Danh sách học kỳ", url: "/moderators/semester-phase/semester-list" },
+      { title: "Phase trong học kỳ", url: "/moderators/semester-phase/phases" },
+      { title: "Round & thời gian", url: "/moderators/semester-phase/rounds" },
+    ],
   },
   {
     title: "Xét duyệt đề tài",
     url: "/moderators/topic-approval",
     icon: FileText,
+    items: [
+      { title: "Supervisor Sent", url: "/moderators/topic-approval/supervisor-sent" },
+      { title: "Chờ phân công reviewer", url: "/moderators/topic-approval/pending" },
+      { title: "Đã phân công reviewer", url: "/moderators/topic-approval/assigned" },
+      { title: "Đề tài bị từ chối", url: "/moderators/topic-approval/rejected" },
+      { title: "Kho lưu trữ đề tài", url: "/moderators/topic-approval/archived" },
+    ],
   },
   {
     title: "Phân công phản biện",
     url: "/moderators/reviewer-assignment",
     icon: Users,
+    items: [
+      { title: "Gán Reviewer", url: "/moderators/reviewer-assignment/assign-reviewers" },
+      { title: "Theo dõi tiến độ", url: "/moderators/reviewer-assignment/progress-tracking" },
+    ],
   },
   {
     title: "Phản hồi & đánh giá",
     url: "/moderators/feedback-evaluation",
     icon: MessageSquareDiff,
+    items: [
+      { title: "Lịch sử phản hồi", url: "/moderators/feedback-evaluation/history" },
+      { title: "Xem đề xuất chỉnh sửa", url: "/moderators/feedback-evaluation/suggestions" },
+      { title: "Duyệt phiên bản mới", url: "/moderators/feedback-evaluation/approve-new-version" },
+    ],
   },
   {
     title: "Thống kê & báo cáo",
     url: "/moderators/reports",
     icon: BarChart3,
+    items: [
+      { title: "Số lượng theo Phase", url: "/moderators/reports/topic-by-phase" },
+      { title: "Tình trạng đánh giá", url: "/moderators/reports/evaluation-status" },
+      { title: "Hiệu suất Reviewer", url: "/moderators/reports/reviewer-performance" },
+    ],
   },
 ];
 
