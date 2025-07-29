@@ -4,7 +4,6 @@ export const uuidSchema = z.string().uuid({ message: "ID không hợp lệ" });
 
 export const timestampFields = {
   createdAt: z.string(),
-  updatedAt: z.string(),
 };
 
 export const auditFields = {

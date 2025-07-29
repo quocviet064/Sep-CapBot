@@ -4,7 +4,7 @@ import { auditFields, uuidSchema } from "./baseSchema";
 
 export const roles = ["Member", "Subscription Member", "Consultant", "Admin"];
 
-export const userSchema = z.object({
+export const userBaseSchema = z.object({
   userId: uuidSchema,
 
   fullName: z
@@ -37,6 +37,10 @@ export const userSchema = z.object({
       message: "Password must contain at least one special character",
     }),
 
+  emailOrUsername: z
+    .string()
+    .nonempty({ message: "Email or Username must not be empty" }),
+
   avatarUrl: z.string().optional(),
 
   role: z.string().refine((val) => roles.includes(val), {
@@ -48,7 +52,7 @@ export const userSchema = z.object({
   ...auditFields,
 });
 
-export const createUserSchema = userSchema.pick({
+export const createUserSchema = userBaseSchema.pick({
   fullName: true,
   email: true,
   phoneNumber: true,
@@ -57,19 +61,19 @@ export const createUserSchema = userSchema.pick({
   status: true,
 });
 
-export const userInfoSchema = userSchema.pick({
+export const userInfoSchema = userBaseSchema.pick({
   fullName: true,
   email: true,
   phoneNumber: true,
   avatarUrl: true,
 });
 
-export const loginUserSchema = userSchema.pick({
-  email: true,
+export const loginUserSchema = userBaseSchema.pick({
+  emailOrUsername: true,
   password: true,
 });
 
-export const registerSchema = userSchema.pick({
+export const registerSchema = userBaseSchema.pick({
   fullName: true,
   phoneNumber: true,
   email: true,
@@ -77,11 +81,11 @@ export const registerSchema = userSchema.pick({
 });
 
 export const userProductSchema = z.object({
-  name: userSchema.shape.fullName,
-  avatar: userSchema.shape.avatarUrl,
+  name: userBaseSchema.shape.fullName,
+  avatar: userBaseSchema.shape.avatarUrl,
 });
 
-export type UserType = z.infer<typeof userSchema>;
+export type UserType = z.infer<typeof userBaseSchema>;
 export type CreateUserType = z.infer<typeof createUserSchema>;
 export type RegisterType = z.infer<typeof registerSchema>;
 export type LoginUserType = z.infer<typeof loginUserSchema>;

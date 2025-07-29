@@ -85,7 +85,7 @@ export const createColumns = (
     ),
     cell: ({ row }) => {
       const titleTopic = row.original.title;
-      const supervisorTopic = row.original.supervisor;
+      const supervisorTopic = row.original.supervisorName;
       return (
         <DataTableCellTopic title={titleTopic} supervisor={supervisorTopic} />
       );
@@ -168,18 +168,6 @@ export const createColumns = (
     cell: ({ row }) => {
       const createdAt = row.original.createdAt;
       return <DataTableDate date={createdAt} />;
-    },
-  },
-
-  {
-    accessorKey: "updatedAt",
-    meta: { title: "Ngày cập nhật" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Ngày cập nhật" />
-    ),
-    cell: ({ row }) => {
-      const updatedAt = row.original.updatedAt;
-      return <DataTableDate date={updatedAt} />;
     },
   },
 
