@@ -16,24 +16,23 @@ import {
   siteReviewer,
   siteSupervisor,
 } from "@/config/site";
+import { useAuth } from "@/contexts/AuthContext";
 
-const user = {
+const userData = {
   name: "viet",
   email: "m@example.com",
   avatar: "/avatars/shadcn.jpg",
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [auth] = React.useState<
-    "supervisor" | "admin" | "moderator" | "reviewer"
-  >("moderator");
+  const { user } = useAuth();
 
   const navItems =
-    auth === "admin"
+    user?.role === "Administrator"
       ? siteAdmin
-      : auth === "moderator"
+      : user?.role === "Moderator"
         ? siteModerator
-        : auth === "supervisor"
+        : user?.role === "Supervisor"
           ? siteSupervisor
           : siteReviewer;
 
@@ -43,7 +42,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser user={userData} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

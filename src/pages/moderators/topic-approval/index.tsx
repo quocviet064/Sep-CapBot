@@ -1,10 +1,11 @@
 import { useState } from "react";
 
-import { topicDataEx } from "@/constants/data/topic";
 import { createColumns } from "./columns";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import TopicDetailDialog from "./TopicDetailDialog";
 import TopicAnalysis from "./TopicAnalysis";
+import { useTopics } from "@/hooks/useTopic";
+import LoadingPage from "@/pages/loading-page";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -17,11 +18,17 @@ const DEFAULT_VISIBILITY = {
 };
 
 function Index() {
-  const bookingsData = topicDataEx;
-
-  const [page, setPage] = useState<number>(1);
-  const [limit, setLimit] = useState<number>(10);
+  const [semesterId, setSemesterId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const {
+    data: topicsData,
+    isLoading,
+    error,
+  } = useTopics(semesterId, categoryId, pageNumber, pageSize, searchTerm);
 
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState<boolean>(false);
@@ -38,30 +45,34 @@ function Index() {
 
   const columns = createColumns({ onViewDetail: handleViewDetail });
 
+  if (isLoading) return <LoadingPage />;
+  if (error) return <p>Error: {error.message}</p>;
+
+  console.log(searchTerm)
+
   return (
     <div className="space-y-2">
       <TopicAnalysis />
-      <div>
-        <DataTable
-          data={bookingsData}
-          columns={columns}
-          visibility={DEFAULT_VISIBILITY}
-          search={searchTerm}
-          setSearch={setSearchTerm}
-          placeholder="Tìm kiếm người dùng hoặc chuyên viên..."
-          page={page}
-          setPage={setPage}
-          totalPages={Math.ceil(bookingsData.length / limit)}
-          limit={limit}
-          setLimit={setLimit}
-        />
 
-        <TopicDetailDialog
-          isOpen={isDetailDialogOpen}
-          onClose={handleCloseDetailDialog}
-          topicId={selectedBooking}
-        />
-      </div>
+      <DataTable
+        data={topicsData?.listObjects || []}
+        columns={columns}
+        visibility={DEFAULT_VISIBILITY}
+        search={searchTerm}
+        setSearch={setSearchTerm}
+        placeholder="Tìm kiếm người dùng hoặc chuyên viên..."
+        page={pageNumber}
+        setPage={setPageNumber}
+        totalPages={topicsData?.totalPages || 1}
+        limit={pageSize}
+        setLimit={setPageSize}
+      />
+
+      {/* <TopicDetailDialog
+        isOpen={isDetailDialogOpen}
+        onClose={handleCloseDetailDialog}
+        topicId={selectedBooking}
+      /> */}
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/globals/atoms/tabs";
+import { parseJwt, useAuth } from "@/contexts/AuthContext";
 import {
   loginUserSchema,
   LoginUserType,
@@ -34,6 +35,8 @@ function LoginPage() {
   const [isVisibleLogin, setIsVisibleLogin] = useState<boolean>(false);
   const [isVisibleRegister, setIsVisibleRegister] = useState<boolean>(false);
 
+  const { login, user } = useAuth();
+
   const toggleVisibilityLogin = () =>
     setIsVisibleLogin((prevState) => !prevState);
   const toggleVisibilityRegister = () =>
@@ -42,8 +45,8 @@ function LoginPage() {
   const loginForm = useForm<LoginUserType>({
     resolver: zodResolver(loginUserSchema),
     defaultValues: {
-      email: "asd@gmail.com",
-      password: "123As@",
+      emailOrUsername: "viet@gmail.com",
+      password: "123Aa@",
     },
   });
 
@@ -72,9 +75,24 @@ function LoginPage() {
   const onSubmitLogin = async (data: LoginUserType) => {
     setIsLoading(true);
     try {
-      console.log("login", JSON.stringify(data, null, 2));
-      // await login(data.email, data.password);
-      navigate("/home");
+      await login(data.emailOrUsername, data.password);
+
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("Không tìm thấy accessToken");
+
+      const payload = parseJwt(token);
+      if (!payload?.role) throw new Error("Token không hợp lệ");
+
+      const role = payload.role;
+
+      const roleRoutes: Record<string, string> = {
+        Supervisor: "/supervisors/topics/all",
+        Administrator: "/admins/dashboard/overview",
+        Moderator: "/moderators/dashboard",
+        Reviewer: "/reviewers/dashboard/assigned-count",
+      };
+
+      navigate(roleRoutes[role] || "/");
     } catch (error) {
       console.error("Login error:", error);
     } finally {
@@ -92,6 +110,8 @@ function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  console.log(JSON.stringify(user, null, 2));
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -132,13 +152,13 @@ function LoginPage() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="Enter your email"
-                      {...loginRegister("email")}
+                      placeholder="Enter your email or user name"
+                      {...loginRegister("emailOrUsername")}
                     />
                   </div>
-                  {loginErrors.email && (
+                  {loginErrors.emailOrUsername && (
                     <p className="mt-1 ml-1 text-sm text-red-600">
-                      {loginErrors.email.message}
+                      {loginErrors.emailOrUsername.message}
                     </p>
                   )}
                 </div>

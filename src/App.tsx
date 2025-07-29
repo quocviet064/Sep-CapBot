@@ -4,8 +4,13 @@ import LectureLayout from "./components/globals/layouts/lecture";
 
 import LoadingPage from "./pages/loading-page";
 import NotFoundPage from "./pages/not-found-page";
+import { useAuth } from "./contexts/AuthContext";
 
 function App() {
+  const { isAuthenticated } = useAuth();
+
+  // if (loading) return <LoadingPage />;
+
   const Home = lazy(() => import("./pages/home-page"));
   const Login = lazy(() => import("./pages/login-page"));
 
@@ -232,323 +237,362 @@ function App() {
 
   // Moderator pages
   const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
-  const ModeratorSemesterPhase = lazy(() => import("./pages/moderators/semester-phase"));
-  const ModeratorTopicApproval = lazy(() => import("./pages/moderators/topic-approval"));
-  const ModeratorReviewerAssign = lazy(() => import("./pages/moderators/reviewer-assignment"));
-  const ModeratorFeedbackEval = lazy(() => import("./pages/moderators/feedback-evaluation"));
+  const ModeratorSemesterPhase = lazy(
+    () => import("./pages/moderators/semester-phase"),
+  );
+  const ModeratorTopicApproval = lazy(
+    () => import("./pages/moderators/topic-approval"),
+  );
+  const ModeratorReviewerAssign = lazy(
+    () => import("./pages/moderators/reviewer-assignment"),
+  );
+  const ModeratorFeedbackEval = lazy(
+    () => import("./pages/moderators/feedback-evaluation"),
+  );
   const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
 
   return (
     <Suspense fallback={<LoadingPage />}>
       <Routes>
         <Route element={<LectureLayout />}>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/home" element={<Home />} />
+          {!isAuthenticated ? (
+            <>
+              {/* Login (outside layout) */}
 
-          {/* Supervisor routes */}
-          <Route path="/create-project" element={<CreateProject />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Navigate to="/login" replace />} />
+            </>
+          ) : (
+            <>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Navigate to="/login" replace />} />
 
-          {/* Quản lý đề tài */}
-          <Route path="/supervisors/topics/all" element={<AllTopics />} />
-          <Route
-            path="/supervisors/topics/pending"
-            element={<PendingTopics />}
-          />
-          <Route
-            path="/supervisors/topics/approved"
-            element={<ApprovedTopics />}
-          />
-          <Route
-            path="/supervisors/topics/rejected"
-            element={<RejectedTopics />}
-          />
-          <Route
-            path="/supervisors/topics/ai-flagged"
-            element={<AIFlaggedTopics />}
-          />
+              <Route path="/home" element={<Home />} />
 
-          {/* Đề tài cần xử lý */}
-          <Route
-            path="/supervisors/needs-action/edit-after-feedback"
-            element={<EditAfterFeedback />}
-          />
-          <Route
-            path="/supervisors/needs-action/rejected-by-ai"
-            element={<RejectedByAI />}
-          />
-          <Route
-            path="/supervisors/needs-action/deadline-coming"
-            element={<DeadlineComing />}
-          />
-          <Route
-            path="/supervisors/needs-action/new-feedback"
-            element={<NewFeedback />}
-          />
+              {/* Supervisor routes */}
+              <Route path="/create-project" element={<CreateProject />} />
 
-          {/* Kho đề tài được duyệt */}
-          <Route
-            path="/supervisors/approved-library/ai"
-            element={<AITrack />}
-          />
-          <Route
-            path="/supervisors/approved-library/enterprise"
-            element={<EnterpriseTrack />}
-          />
-          <Route
-            path="/supervisors/approved-library/academic"
-            element={<AcademicTrack />}
-          />
-          <Route
-            path="/supervisors/approved-library/search"
-            element={<SearchLibrary />}
-          />
+              {/* Quản lý đề tài */}
+              <Route path="/supervisors/topics/all" element={<AllTopics />} />
+              <Route
+                path="/supervisors/topics/pending"
+                element={<PendingTopics />}
+              />
+              <Route
+                path="/supervisors/topics/approved"
+                element={<ApprovedTopics />}
+              />
+              <Route
+                path="/supervisors/topics/rejected"
+                element={<RejectedTopics />}
+              />
+              <Route
+                path="/supervisors/topics/ai-flagged"
+                element={<AIFlaggedTopics />}
+              />
 
-          {/* Admin routes */}
-          <Route
-            path="/admins/dashboard/overview"
-            element={<AdminOverview />}
-          />
-          <Route
-            path="/admins/dashboard/status-ai"
-            element={<AdminStatusAI />}
-          />
-          <Route
-            path="/admins/dashboard/warning-topics"
-            element={<AdminWarningTopics />}
-          />
-          <Route
-            path="/admins/dashboard/inactive-supervisors"
-            element={<AdminInactiveSupervisors />}
-          />
+              {/* Đề tài cần xử lý */}
+              <Route
+                path="/supervisors/needs-action/edit-after-feedback"
+                element={<EditAfterFeedback />}
+              />
+              <Route
+                path="/supervisors/needs-action/rejected-by-ai"
+                element={<RejectedByAI />}
+              />
+              <Route
+                path="/supervisors/needs-action/deadline-coming"
+                element={<DeadlineComing />}
+              />
+              <Route
+                path="/supervisors/needs-action/new-feedback"
+                element={<NewFeedback />}
+              />
 
-          <Route
-            path="/admins/semester-management/semesters"
-            element={<AdminSemesters />}
-          />
-          <Route
-            path="/admins/semester-management/phases"
-            element={<AdminPhases />}
-          />
-          <Route
-            path="/admins/semester-management/phase-types"
-            element={<AdminPhaseTypes />}
-          />
-          <Route
-            path="/admins/semester-management/submission-rounds"
-            element={<AdminSubmissionRounds />}
-          />
+              {/* Kho đề tài được duyệt */}
+              <Route
+                path="/supervisors/approved-library/ai"
+                element={<AITrack />}
+              />
+              <Route
+                path="/supervisors/approved-library/enterprise"
+                element={<EnterpriseTrack />}
+              />
+              <Route
+                path="/supervisors/approved-library/academic"
+                element={<AcademicTrack />}
+              />
+              <Route
+                path="/supervisors/approved-library/search"
+                element={<SearchLibrary />}
+              />
 
-          <Route
-            path="/admins/topics-management/all-topics"
-            element={<AdminAllTopics />}
-          />
-          <Route
-            path="/admins/topics-management/new-submitted"
-            element={<AdminNewSubmitted />}
-          />
-          <Route
-            path="/admins/topics-management/ai-flagged"
-            element={<AdminFlagged />}
-          />
-          <Route
-            path="/admins/topics-management/versions"
-            element={<AdminVersions />}
-          />
+              {/* Admin routes */}
+              <Route
+                path="/admins/dashboard/overview"
+                element={<AdminOverview />}
+              />
+              <Route
+                path="/admins/dashboard/status-ai"
+                element={<AdminStatusAI />}
+              />
+              <Route
+                path="/admins/dashboard/warning-topics"
+                element={<AdminWarningTopics />}
+              />
+              <Route
+                path="/admins/dashboard/inactive-supervisors"
+                element={<AdminInactiveSupervisors />}
+              />
 
-          <Route
-            path="/admins/legacy-import/upload"
-            element={<AdminLegacyUpload />}
-          />
-          <Route
-            path="/admins/legacy-import/metadata"
-            element={<AdminMetadata />}
-          />
-          <Route
-            path="/admins/legacy-import/mark-approved"
-            element={<AdminMarkApproved />}
-          />
-          <Route
-            path="/admins/legacy-import/ai-train"
-            element={<AdminTrainAI />}
-          />
+              <Route
+                path="/admins/semester-management/semesters"
+                element={<AdminSemesters />}
+              />
+              <Route
+                path="/admins/semester-management/phases"
+                element={<AdminPhases />}
+              />
+              <Route
+                path="/admins/semester-management/phase-types"
+                element={<AdminPhaseTypes />}
+              />
+              <Route
+                path="/admins/semester-management/submission-rounds"
+                element={<AdminSubmissionRounds />}
+              />
 
-          <Route
-            path="/admins/evaluation-criteria/by-phase-type"
-            element={<AdminCriteriaByPhase />}
-          />
-          <Route
-            path="/admins/evaluation-criteria/weights"
-            element={<AdminCriteriaWeights />}
-          />
-          <Route
-            path="/admins/evaluation-criteria/review-template"
-            element={<AdminReviewTemplate />}
-          />
+              <Route
+                path="/admins/topics-management/all-topics"
+                element={<AdminAllTopics />}
+              />
+              <Route
+                path="/admins/topics-management/new-submitted"
+                element={<AdminNewSubmitted />}
+              />
+              <Route
+                path="/admins/topics-management/ai-flagged"
+                element={<AdminFlagged />}
+              />
+              <Route
+                path="/admins/topics-management/versions"
+                element={<AdminVersions />}
+              />
 
-          <Route
-            path="/admins/lecturer-management/list"
-            element={<AdminLecturerList />}
-          />
-          <Route
-            path="/admins/lecturer-management/assign-skills"
-            element={<AdminAssignSkills />}
-          />
-          <Route
-            path="/admins/lecturer-management/assign-roles"
-            element={<AdminAssignRoles />}
-          />
-          <Route
-            path="/admins/lecturer-management/deactivate"
-            element={<AdminDeactivateLecturer />}
-          />
+              <Route
+                path="/admins/legacy-import/upload"
+                element={<AdminLegacyUpload />}
+              />
+              <Route
+                path="/admins/legacy-import/metadata"
+                element={<AdminMetadata />}
+              />
+              <Route
+                path="/admins/legacy-import/mark-approved"
+                element={<AdminMarkApproved />}
+              />
+              <Route
+                path="/admins/legacy-import/ai-train"
+                element={<AdminTrainAI />}
+              />
 
-          <Route
-            path="/admins/ai-config/similarity-threshold"
-            element={<AdminSimilarityThreshold />}
-          />
-          <Route
-            path="/admins/ai-config/score-threshold"
-            element={<AdminScoreThreshold />}
-          />
-          <Route
-            path="/admins/ai-config/results"
-            element={<AdminAIResults />}
-          />
-          <Route path="/admins/ai-config/tuning" element={<AdminAITuning />} />
+              <Route
+                path="/admins/evaluation-criteria/by-phase-type"
+                element={<AdminCriteriaByPhase />}
+              />
+              <Route
+                path="/admins/evaluation-criteria/weights"
+                element={<AdminCriteriaWeights />}
+              />
+              <Route
+                path="/admins/evaluation-criteria/review-template"
+                element={<AdminReviewTemplate />}
+              />
 
-          <Route
-            path="/admins/access-control/topic-visibility"
-            element={<AdminTopicVisibility />}
-          />
-          <Route
-            path="/admins/access-control/anonymous-review"
-            element={<AdminAnonymousReview />}
-          />
-          <Route
-            path="/admins/access-control/special-access"
-            element={<AdminSpecialAccess />}
-          />
+              <Route
+                path="/admins/lecturer-management/list"
+                element={<AdminLecturerList />}
+              />
+              <Route
+                path="/admins/lecturer-management/assign-skills"
+                element={<AdminAssignSkills />}
+              />
+              <Route
+                path="/admins/lecturer-management/assign-roles"
+                element={<AdminAssignRoles />}
+              />
+              <Route
+                path="/admins/lecturer-management/deactivate"
+                element={<AdminDeactivateLecturer />}
+              />
 
-          <Route
-            path="/admins/reports/summary"
-            element={<AdminReportSummary />}
-          />
-          <Route
-            path="/admins/reports/feedback-history"
-            element={<AdminFeedbackHistory />}
-          />
-          <Route
-            path="/admins/reports/supervisor-performance"
-            element={<AdminSupervisorPerformance />}
-          />
-          <Route
-            path="/admins/reports/export"
-            element={<AdminReportExport />}
-          />
+              <Route
+                path="/admins/ai-config/similarity-threshold"
+                element={<AdminSimilarityThreshold />}
+              />
+              <Route
+                path="/admins/ai-config/score-threshold"
+                element={<AdminScoreThreshold />}
+              />
+              <Route
+                path="/admins/ai-config/results"
+                element={<AdminAIResults />}
+              />
+              <Route
+                path="/admins/ai-config/tuning"
+                element={<AdminAITuning />}
+              />
 
-          <Route
-            path="/admins/system-settings/branding"
-            element={<AdminBranding />}
-          />
-          <Route
-            path="/admins/system-settings/timing"
-            element={<AdminTiming />}
-          />
-          <Route
-            path="/admins/system-settings/environment"
-            element={<AdminEnvironment />}
-          />
+              <Route
+                path="/admins/access-control/topic-visibility"
+                element={<AdminTopicVisibility />}
+              />
+              <Route
+                path="/admins/access-control/anonymous-review"
+                element={<AdminAnonymousReview />}
+              />
+              <Route
+                path="/admins/access-control/special-access"
+                element={<AdminSpecialAccess />}
+              />
 
-          {/* Reviewer - Dashboard */}
-          <Route
-            path="/reviewers/dashboard/assigned-count"
-            element={<ReviewerAssignedCount />}
-          />
-          <Route
-            path="/reviewers/dashboard/progress"
-            element={<ReviewerProgress />}
-          />
-          <Route
-            path="/reviewers/dashboard/feedback-status"
-            element={<ReviewerFeedbackStatus />}
-          />
+              <Route
+                path="/admins/reports/summary"
+                element={<AdminReportSummary />}
+              />
+              <Route
+                path="/admins/reports/feedback-history"
+                element={<AdminFeedbackHistory />}
+              />
+              <Route
+                path="/admins/reports/supervisor-performance"
+                element={<AdminSupervisorPerformance />}
+              />
+              <Route
+                path="/admins/reports/export"
+                element={<AdminReportExport />}
+              />
 
-          {/* Reviewer - Assigned Topics */}
-          <Route
-            path="/reviewers/assigned-topics/list"
-            element={<ReviewerAssignedList />}
-          />
-          <Route
-            path="/reviewers/assigned-topics/detail"
-            element={<ReviewerAssignedDetail />}
-          />
-          <Route
-            path="/reviewers/assigned-topics/internal-notes"
-            element={<ReviewerInternalNotes />}
-          />
+              <Route
+                path="/admins/system-settings/branding"
+                element={<AdminBranding />}
+              />
+              <Route
+                path="/admins/system-settings/timing"
+                element={<AdminTiming />}
+              />
+              <Route
+                path="/admins/system-settings/environment"
+                element={<AdminEnvironment />}
+              />
 
-          {/* Reviewer - Evaluate Topics */}
-          <Route
-            path="/reviewers/evaluate-topics/score"
-            element={<ReviewerScore />}
-          />
-          <Route
-            path="/reviewers/evaluate-topics/paragraph-comments"
-            element={<ReviewerParagraphComments />}
-          />
-          <Route
-            path="/reviewers/evaluate-topics/upload-review-file"
-            element={<ReviewerUploadReviewFile />}
-          />
+              {/* Reviewer - Dashboard */}
+              <Route
+                path="/reviewers/dashboard/assigned-count"
+                element={<ReviewerAssignedCount />}
+              />
+              <Route
+                path="/reviewers/dashboard/progress"
+                element={<ReviewerProgress />}
+              />
+              <Route
+                path="/reviewers/dashboard/feedback-status"
+                element={<ReviewerFeedbackStatus />}
+              />
 
-          {/* Reviewer - Feedback History */}
-          <Route
-            path="/reviewers/feedback-history/responded-topics"
-            element={<ReviewerRespondedTopics />}
-          />
-          <Route
-            path="/reviewers/feedback-history/post-review-tracking"
-            element={<ReviewerPostReviewTracking />}
-          />
+              {/* Reviewer - Assigned Topics */}
+              <Route
+                path="/reviewers/assigned-topics/list"
+                element={<ReviewerAssignedList />}
+              />
+              <Route
+                path="/reviewers/assigned-topics/detail"
+                element={<ReviewerAssignedDetail />}
+              />
+              <Route
+                path="/reviewers/assigned-topics/internal-notes"
+                element={<ReviewerInternalNotes />}
+              />
 
-          {/* Reviewer - Topic Archive */}
-          <Route
-            path="/reviewers/topic-archive/approved-topics"
-            element={<ReviewerApprovedTopics />}
-          />
-          <Route
-            path="/reviewers/topic-archive/search-related"
-            element={<ReviewerSearchRelated />}
-          />
+              {/* Reviewer - Evaluate Topics */}
+              <Route
+                path="/reviewers/evaluate-topics/score"
+                element={<ReviewerScore />}
+              />
+              <Route
+                path="/reviewers/evaluate-topics/paragraph-comments"
+                element={<ReviewerParagraphComments />}
+              />
+              <Route
+                path="/reviewers/evaluate-topics/upload-review-file"
+                element={<ReviewerUploadReviewFile />}
+              />
 
-          {/* Reviewer - Evaluation Stats */}
-          <Route
-            path="/reviewers/evaluation-stats/completed"
-            element={<ReviewerCompletedStats />}
-          />
-          <Route
-            path="/reviewers/evaluation-stats/warnings"
-            element={<ReviewerWarningsStats />}
-          />
-          <Route
-            path="/reviewers/evaluation-stats/average-score"
-            element={<ReviewerAverageScore />}
-          />
+              {/* Reviewer - Feedback History */}
+              <Route
+                path="/reviewers/feedback-history/responded-topics"
+                element={<ReviewerRespondedTopics />}
+              />
+              <Route
+                path="/reviewers/feedback-history/post-review-tracking"
+                element={<ReviewerPostReviewTracking />}
+              />
 
-          {/* Moderator routes */}
-          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
-          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
-          <Route path="/moderators/topic-approval" element={<ModeratorTopicApproval />} />
-          <Route path="/moderators/reviewer-assignment" element={<ModeratorReviewerAssign />} />
-          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
-          <Route path="/moderators/reports" element={<ModeratorReports />} />
+              {/* Reviewer - Topic Archive */}
+              <Route
+                path="/reviewers/topic-archive/approved-topics"
+                element={<ReviewerApprovedTopics />}
+              />
+              <Route
+                path="/reviewers/topic-archive/search-related"
+                element={<ReviewerSearchRelated />}
+              />
 
-          {/* 404 fallback */}
-          <Route path="/*" element={<NotFoundPage />} />
+              {/* Reviewer - Evaluation Stats */}
+              <Route
+                path="/reviewers/evaluation-stats/completed"
+                element={<ReviewerCompletedStats />}
+              />
+              <Route
+                path="/reviewers/evaluation-stats/warnings"
+                element={<ReviewerWarningsStats />}
+              />
+              <Route
+                path="/reviewers/evaluation-stats/average-score"
+                element={<ReviewerAverageScore />}
+              />
+
+              {/* Moderator routes */}
+              <Route
+                path="/moderators/dashboard"
+                element={<ModeratorDashboard />}
+              />
+              <Route
+                path="/moderators/semester-phase"
+                element={<ModeratorSemesterPhase />}
+              />
+              <Route
+                path="/moderators/topic-approval"
+                element={<ModeratorTopicApproval />}
+              />
+              <Route
+                path="/moderators/reviewer-assignment"
+                element={<ModeratorReviewerAssign />}
+              />
+              <Route
+                path="/moderators/feedback-evaluation"
+                element={<ModeratorFeedbackEval />}
+              />
+              <Route
+                path="/moderators/reports"
+                element={<ModeratorReports />}
+              />
+
+              {/* 404 fallback */}
+              <Route path="/*" element={<NotFoundPage />} />
+            </>
+          )}
         </Route>
-
-        {/* Login (outside layout) */}
-        <Route path="/login" element={<Login />} />
       </Routes>
     </Suspense>
   );
