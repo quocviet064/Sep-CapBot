@@ -48,7 +48,7 @@ function Index() {
   if (isLoading) return <LoadingPage />;
   if (error) return <p>Error: {error.message}</p>;
 
-  console.log(searchTerm)
+  console.log(searchTerm);
 
   return (
     <div className="space-y-2">
