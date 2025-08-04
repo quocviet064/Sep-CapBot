@@ -1,10 +1,14 @@
 import capBotAPI from "@/lib/CapBotApi";
 import type { AxiosResponse } from "axios";
+import axios from "axios";
+import { toast } from "sonner";
+import { SemesterType } from "@/schemas/semesterSchema";
 
+// DTO definitions
 export interface CreateSemesterDTO {
   name: string;
-  startDate: string; 
-  endDate: string;   
+  startDate: string;
+  endDate: string;
 }
 
 export interface UpdateSemesterDTO extends CreateSemesterDTO {
@@ -18,11 +22,12 @@ export interface SemesterDTO {
   endDate: string;
 }
 
+// API response wrapper
 interface ApiResponse<T> {
   statusCode: number;
   success: boolean;
   data: T;
-  errors: any;
+  errors: unknown;
   message: string | null;
 }
 
@@ -54,3 +59,29 @@ export const deleteSemester = (
   id: number
 ): Promise<AxiosResponse<ApiResponse<null>>> =>
   capBotAPI.delete(`/semester/delete/${id}`);
+
+// 6. Fetch học kỳ async với toast xử lý lỗi
+export const fetchAllSemesters = async (): Promise<SemesterType[]> => {
+  try {
+    const response =
+      await capBotAPI.get<ApiResponse<SemesterType[]>>(`/semester/all`);
+
+    const { success, message, data } = response.data;
+
+    if (!success) {
+      throw new Error(message || "Failed to fetch semester");
+    }
+
+    return data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to fetch semester";
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    toast.error("An unknown error occurred");
+    throw new Error("An unknown error occurred");
+  }
+};

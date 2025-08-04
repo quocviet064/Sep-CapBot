@@ -10,7 +10,7 @@ import TopicDetailDialog from "./TopicDetailDialog";
 import { createMyTopicColumns } from "./columnsMyTopics";
 
 const DEFAULT_VISIBILITY = {
-  id: true,
+  id: false,
   title: true,
   supervisorName: true,
   categoryName: true,
@@ -68,6 +68,7 @@ function MyTopicPage() {
 
   return (
     <div className="space-y-4">
+      <div className="min-h-[600px] rounded-2xl border px-4 py-4">
       <h2 className="text-xl font-bold">Danh sách đề tài của tôi</h2>
 
       <DataTable
@@ -83,6 +84,7 @@ function MyTopicPage() {
         limit={pageSize}
         setLimit={setPageSize}
       />
+      </div>
 
       <TopicDetailDialog
         isOpen={isDetailOpen}

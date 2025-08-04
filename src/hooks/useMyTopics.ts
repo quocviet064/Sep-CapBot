@@ -1,6 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMyTopics } from "@/services/myTopicService";
 import { RawMyTopicResponse } from "@/services/myTopicService";
+import {
+  updateTopic,
+  UpdateTopicPayload,
+  UpdateTopicResponse,
+} from "@/services/topicUpdateService";
 
 export const useMyTopics = (
   SemesterId?: number,
@@ -31,3 +36,17 @@ export const useMyTopics = (
       ),
     staleTime: 1000 * 60 * 5,
   });
+
+export const useUpdateTopic = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<UpdateTopicResponse, Error, UpdateTopicPayload>({
+    mutationFn: updateTopic,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["my-topics"] });
+    },
+    onError: (error) => {
+      console.error("❌ Lỗi khi cập nhật đề tài:", error.message);
+    },
+  });
+};

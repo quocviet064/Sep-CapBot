@@ -6,6 +6,11 @@ export const timestampFields = {
   createdAt: z.string(),
 };
 
+export const createdFields = {
+  createdAt: z.string(),
+  createdBy: z.string(),
+};
+
 export const auditFields = {
   ...timestampFields,
   createdBy: z.string(),
