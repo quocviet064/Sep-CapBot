@@ -24,7 +24,7 @@ import {
 } from "@/schemas/userSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
@@ -35,7 +35,11 @@ function LoginPage() {
   const [isVisibleLogin, setIsVisibleLogin] = useState<boolean>(false);
   const [isVisibleRegister, setIsVisibleRegister] = useState<boolean>(false);
 
-  const { login, user } = useAuth();
+  const { login, logout } = useAuth();
+
+  useEffect(() => {
+    logout();
+  }, []);
 
   const toggleVisibilityLogin = () =>
     setIsVisibleLogin((prevState) => !prevState);
@@ -110,8 +114,6 @@ function LoginPage() {
       setIsLoading(false);
     }
   };
-
-  console.log(JSON.stringify(user, null, 2));
 
   return (
     <div className="flex min-h-screen items-center justify-center">

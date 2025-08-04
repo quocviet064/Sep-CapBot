@@ -34,7 +34,9 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-white">
+        CapBot SEP490
+      </SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const hasSubItems = item.items && item.items.length > 0;
@@ -72,10 +74,10 @@ export function NavMain({
                             <SidebarMenuSubButton asChild>
                               <a
                                 href={subItem.url}
-                                className={`flex items-center gap-2 ${
+                                className={`flex items-center gap-2 py-4 ${
                                   isActive
-                                    ? "text-primary bg-primary/10 font-semibold"
-                                    : ""
+                                    ? "text-primary bg-accent font-semibold"
+                                    : "text-white"
                                 }`}
                               >
                                 <span>{subItem.title}</span>
@@ -98,8 +100,8 @@ export function NavMain({
               <SidebarMenuButton tooltip={item.title} asChild>
                 <a
                   href={item.url}
-                  className={`flex items-center gap-2 ${
-                    isActive ? "text-primary font-semibold" : ""
+                  className={`flex items-center gap-2 py-4 ${
+                    isActive ? "text-primary bg-accent font-semibold" : ""
                   }`}
                 >
                   {item.icon && <item.icon />}

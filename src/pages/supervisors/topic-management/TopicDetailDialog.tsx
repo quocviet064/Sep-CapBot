@@ -11,8 +11,8 @@ import {
 import { Label } from "@/components/globals/atoms/label";
 import { formatDateTime } from "@/utils/formatter";
 import { TopicDetailResponse } from "@/services/topicDetailService";
-import { updateTopic } from "@/services/topicUpdateService";
 import { toast } from "sonner";
+import { useUpdateTopic } from "@/hooks/useMyTopics";
 
 interface TopicDetailDialogProps {
   isOpen: boolean;
@@ -40,6 +40,8 @@ function TopicDetailDialog({
       setIsEditing(false);
     }
   }, [isOpen]);
+
+  const { mutateAsync: updateTopic } = useUpdateTopic();
 
   useEffect(() => {
     if (data) {

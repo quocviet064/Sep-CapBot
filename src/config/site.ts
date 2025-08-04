@@ -1,9 +1,11 @@
 import {
+  AlignEndHorizontal,
   BarChart3,
   BookOpen,
   Bot,
   Brain,
   CalendarDays,
+  CalendarSearch,
   FileSearch,
   FileText,
   FolderSearch,
@@ -25,7 +27,7 @@ export const siteSupervisor = [
     isActive: false,
     items: [
       {
-        title: "Tất cả đề tài",
+        title: "Tất cả đề tài của tôi",
         url: "/supervisors/topics/all",
       },
       {
@@ -50,6 +52,16 @@ export const siteSupervisor = [
     title: "Tạo đề tài mới",
     url: "/create-project",
     icon: Bot,
+  },
+  {
+    title: "Kì học",
+    url: "/supervisors/semester",
+    icon: CalendarSearch,
+  },
+  {
+    title: "Danh mục đề tài",
+    url: "/supervisors/category",
+    icon: AlignEndHorizontal,
   },
   {
     title: "Đề tài cần được xử lý",
