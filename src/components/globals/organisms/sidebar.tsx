@@ -17,6 +17,8 @@ import {
   siteSupervisor,
 } from "@/config/site";
 import { useAuth } from "@/contexts/AuthContext";
+import { NavSecondary } from "./nav-footer";
+import { LogOut } from "lucide-react";
 
 const userData = {
   name: "viet",
@@ -36,14 +38,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           ? siteSupervisor
           : siteReviewer;
 
+  const navSecondary = [
+    {
+      title: "Logout",
+      url: "/login",
+      icon: LogOut,
+    },
+  ];
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarContent>
-        <NavMain items={navItems} />
-      </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="bg-primary">
         <NavUser user={userData} />
       </SidebarFooter>
+
+      <SidebarContent className="bg-primary text-white">
+        <NavMain items={navItems} />
+      </SidebarContent>
+
+      <NavSecondary items={navSecondary} />
+
       <SidebarRail />
     </Sidebar>
   );

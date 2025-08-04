@@ -53,32 +53,8 @@ export const updateTopic = async (
     return data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
       const errorMessage =
         error.response?.data?.message || "Cập nhật đề tài thất bại";
-
-      switch (status) {
-        case 400:
-          toast.error("❌ Dữ liệu gửi đi không hợp lệ");
-          break;
-        case 401:
-          toast.error("⛔ Bạn chưa đăng nhập hoặc token hết hạn");
-          break;
-        case 403:
-          toast.error("🚫 Bạn không có quyền cập nhật đề tài này");
-          break;
-        case 404:
-          toast.error("📭 Không tìm thấy đề tài cần cập nhật");
-          break;
-        case 422:
-          toast.error("📌 Dữ liệu không đúng định dạng (model error)");
-          break;
-        case 500:
-          toast.error("💥 Lỗi máy chủ, vui lòng thử lại sau");
-          break;
-        default:
-          toast.error(errorMessage);
-      }
 
       throw new Error(errorMessage);
     }
