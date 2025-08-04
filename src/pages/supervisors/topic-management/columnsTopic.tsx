@@ -1,5 +1,6 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
+import { Checkbox } from "@/components/globals/atoms/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,12 +8,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/globals/atoms/dropdown-menu";
-import { Copy, Eye, MoreHorizontal } from "lucide-react";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
-import { CategoryType } from "@/schemas/categorySchema";
 import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
-import { Checkbox } from "@/components/globals/atoms/checkbox";
+import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
+import { TopicType } from "@/schemas/topicSchema";
+
+import { ColumnDef } from "@tanstack/react-table";
+
+import { Copy, Eye, MoreHorizontal } from "lucide-react";
 
 export type ColumnActionsHandlers = {
   onViewDetail: (id: string) => void;
@@ -20,7 +24,7 @@ export type ColumnActionsHandlers = {
 
 export const createColumns = (
   handlers: ColumnActionsHandlers,
-): ColumnDef<CategoryType>[] => [
+): ColumnDef<TopicType>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -52,15 +56,34 @@ export const createColumns = (
       <DataTableColumnHeader column={column} title="Mã đề tài" />
     ),
   },
-
   {
-    accessorKey: "name",
-    meta: { title: "Tên danh mục" },
+    accessorKey: "title",
+    meta: { title: "Tên đề tài" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tên danh mục" />
+      <DataTableColumnHeader column={column} title="Tên đề tài" />
+    ),
+    cell: ({ row }) => {
+      const titleTopic = row.original.title;
+      const supervisorTopic = row.original.supervisorName;
+      return (
+        <DataTableCellTopic title={titleTopic} supervisor={supervisorTopic} />
+      );
+    },
+  },
+  {
+    accessorKey: "categoryName",
+    meta: { title: "Danh mục" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Danh mục" />
     ),
   },
-
+  {
+    accessorKey: "semesterName",
+    meta: { title: "Kỳ học" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Kỳ học" />
+    ),
+  },
   {
     accessorKey: "description",
     header: "Ghi chú",
@@ -69,13 +92,47 @@ export const createColumns = (
       return notes ? <DataTableCellDescription description={notes} /> : "--";
     },
   },
-
   {
-    accessorKey: "topicsCount",
-    meta: { title: "Số lượng đề tài" },
+    accessorKey: "maxStudents",
+    meta: { title: "Số lượng SV tối đa" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Số lượng đề tài" />
+      <DataTableColumnHeader column={column} title="Số lượng SV tối đa" />
     ),
+  },
+  {
+    accessorKey: "isLegacy",
+    meta: { title: "Reviewer" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Reviewer" center />
+    ),
+    cell: ({ row }) => {
+      const isLegacy = row.original.isLegacy;
+      return (
+        <div className="flex justify-center pr-4">
+          <Badge
+            className="text-white"
+            style={{ backgroundColor: isLegacy ? "green" : "red" }}
+          >
+            {isLegacy ? "Đã gán" : "Chưa gán"}
+          </Badge>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "isApproved",
+    meta: { title: "Trạng thái" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Trạng thái" center />
+    ),
+    cell: ({ row }) => {
+      const isApproved = row.original.isApproved;
+      return (
+        <div className="flex justify-center pr-4">
+          {isApproved ? "Đã duyệt" : "Chưa duyệt"}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "createdAt",
@@ -83,16 +140,18 @@ export const createColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
-    cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
+    cell: ({ row }) => {
+      const createdAt = row.original.createdAt;
+      return <DataTableDate date={createdAt} />;
+    },
   },
   {
     id: "actions",
-    enableSorting: false,
-    enableHiding: false,
-    header: () => <span className="flex justify-center">Thao tác</span>,
+    header: () => (
+      <span className="flex items-center justify-center">Thao tác</span>
+    ),
     cell: ({ row }) => {
-      const topic = row.original;
-
+      const topicData = row.original;
       return (
         <div className="flex justify-center">
           <DropdownMenu>
@@ -105,15 +164,13 @@ export const createColumns = (
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() =>
-                  navigator.clipboard.writeText(topic.id.toString())
-                }
+                onClick={() => navigator.clipboard.writeText(topicData.id)}
               >
                 <Copy className="h-4 w-4" />
                 Sao chép mã
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handlers.onViewDetail(topic.id.toString())}
+                onClick={() => handlers.onViewDetail(topicData.id)}
               >
                 <Eye className="h-4 w-4" />
                 Xem chi tiết
@@ -123,5 +180,7 @@ export const createColumns = (
         </div>
       );
     },
+    enableSorting: false,
+    enableHiding: false,
   },
 ];

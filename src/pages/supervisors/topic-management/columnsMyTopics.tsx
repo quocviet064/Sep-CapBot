@@ -13,6 +13,7 @@ import { TopicType } from "@/schemas/topicSchema";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
 import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
+import { Checkbox } from "@/components/globals/atoms/checkbox";
 
 export type ColumnActionsHandlers = {
   onViewDetail: (id: string) => void;
@@ -24,19 +25,20 @@ export const createMyTopicColumns = (
   {
     id: "select",
     header: ({ table }) => (
-      <input
-        type="checkbox"
-        checked={table.getIsAllPageRowsSelected()}
-        onChange={() => table.toggleAllPageRowsSelected()}
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
         className="mb-2"
       />
     ),
     cell: ({ row }) => (
-      <input
-        type="checkbox"
+      <Checkbox
         checked={row.getIsSelected()}
-        onChange={() => row.toggleSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
         className="mb-2"
       />

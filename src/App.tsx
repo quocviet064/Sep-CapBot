@@ -18,9 +18,12 @@ function App() {
   const CreateProject = lazy(
     () => import("./pages/supervisors/create-project"),
   );
-
   const AllTopics = lazy(
-    () => import("./pages/supervisors/topic-management/all"),
+    () => import("./pages/supervisors/topic-management/topic-page"),
+  );
+
+  const AllMyTopics = lazy(
+    () => import("./pages/supervisors/topic-management/myTopic-page"),
   );
   const PendingTopics = lazy(
     () => import("./pages/supervisors/topic-management/pending"),
@@ -280,7 +283,14 @@ function App() {
           <Route path="/create-project" element={<CreateProject />} />
 
           {/* Quản lý đề tài */}
-          <Route path="/supervisors/topics/all" element={<AllTopics />} />
+          <Route
+            path="/supervisors/topics/topic-page"
+            element={<AllTopics />}
+          />
+          <Route
+            path="/supervisors/topics/myTopic-page"
+            element={<AllMyTopics />}
+          />
           <Route
             path="/supervisors/topics/pending"
             element={<PendingTopics />}
