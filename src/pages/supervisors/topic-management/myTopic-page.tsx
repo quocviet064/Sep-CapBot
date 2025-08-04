@@ -6,8 +6,9 @@ import {
   getTopicDetail,
   TopicDetailResponse,
 } from "@/services/topicDetailService";
-import TopicDetailDialog from "./TopicDetailDialog";
 import { createMyTopicColumns } from "./columnsMyTopics";
+import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
+import MyTopicDetailDialog from "./myTopicDetailDialog";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -22,11 +23,15 @@ const DEFAULT_VISIBILITY = {
 };
 
 function MyTopicPage() {
-  const [semesterId, setSemesterId] = useState<number>(1);
-  const [categoryId, setCategoryId] = useState<number>(1);
+  const [semesterId] = useState<number>(1);
+  const [categoryId] = useState<number>(1);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "approved" | "pending" | "rejecting"
+  >("all");
 
   const {
     data: myTopicsData,
@@ -41,7 +46,6 @@ function MyTopicPage() {
     undefined,
   );
 
-  // Chi tiết đề tài
   const [selectedTopic, setSelectedTopic] =
     useState<TopicDetailResponse | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
@@ -52,7 +56,7 @@ function MyTopicPage() {
       setSelectedTopic(topicDetail);
       setIsDetailOpen(true);
     } catch (err) {
-      console.error(err);
+      console.error("Lỗi khi lấy chi tiết đề tài:", err);
     }
   };
 
@@ -63,30 +67,50 @@ function MyTopicPage() {
 
   const columns = createMyTopicColumns({ onViewDetail: handleViewDetail });
 
+  const filteredData =
+    myTopicsData?.listObjects.filter((topic) => {
+      if (filterStatus === "approved") return topic.isApproved === true;
+      if (filterStatus === "pending") return topic.isApproved === false;
+      if (filterStatus === "rejecting") return false;
+      return true;
+    }) || [];
+
+  const stats = {
+    approved:
+      myTopicsData?.listObjects.filter((t) => t.isApproved)?.length || 0,
+    pending:
+      myTopicsData?.listObjects.filter((t) => t.isApproved === false)?.length ||
+      0,
+    rejecting: 0,
+    total: myTopicsData?.listObjects.length || 0,
+  };
+
   if (isLoading) return <LoadingPage />;
   if (error) return <p className="text-red-500">Lỗi: {error.message}</p>;
 
   return (
     <div className="space-y-4">
       <div className="min-h-[600px] rounded-2xl border px-4 py-4">
-      <h2 className="text-xl font-bold">Danh sách đề tài của tôi</h2>
+        <h2 className="mb-4 text-xl font-bold">Danh sách đề tài của tôi</h2>
 
-      <DataTable
-        data={myTopicsData?.listObjects || []}
-        columns={columns}
-        visibility={DEFAULT_VISIBILITY}
-        search={searchTerm}
-        setSearch={setSearchTerm}
-        placeholder="Tìm kiếm đề tài..."
-        page={pageNumber}
-        setPage={setPageNumber}
-        totalPages={myTopicsData?.totalPages || 1}
-        limit={pageSize}
-        setLimit={setPageSize}
-      />
+        <TopicAnalysis data={stats} onFilterClick={setFilterStatus} />
+
+        <DataTable
+          data={filteredData}
+          columns={columns}
+          visibility={DEFAULT_VISIBILITY}
+          search={searchTerm}
+          setSearch={setSearchTerm}
+          placeholder="Tìm kiếm đề tài..."
+          page={pageNumber}
+          setPage={setPageNumber}
+          totalPages={myTopicsData?.totalPages || 1}
+          limit={pageSize}
+          setLimit={setPageSize}
+        />
       </div>
 
-      <TopicDetailDialog
+      <MyTopicDetailDialog
         isOpen={isDetailOpen}
         onClose={handleCloseDetailDialog}
         data={selectedTopic}

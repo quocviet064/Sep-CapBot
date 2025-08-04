@@ -11,6 +11,8 @@ import {
 import { Label } from "@/components/globals/atoms/label";
 import { formatDateTime } from "@/utils/formatter";
 import { TopicDetailResponse } from "@/services/topicDetailService";
+import { toast } from "sonner";
+import { useUpdateTopic } from "@/hooks/useMyTopics";
 
 interface TopicDetailDialogProps {
   isOpen: boolean;
@@ -19,19 +21,27 @@ interface TopicDetailDialogProps {
   onUpdate?: (updated: TopicDetailResponse) => void;
 }
 
-function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
+function MyTopicDetailDialog({
+  isOpen,
+  onClose,
+  data,
+  onUpdate,
+}: TopicDetailDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [objectives, setObjectives] = useState("");
   const [categoryId, setCategoryId] = useState<number>(0);
   const [maxStudents, setMaxStudents] = useState<number>(1);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setIsEditing(false);
     }
   }, [isOpen]);
+
+  const { mutateAsync: updateTopic } = useUpdateTopic();
 
   useEffect(() => {
     if (data) {
@@ -45,6 +55,34 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
 
   if (!data) return null;
   const current = data.currentVersion;
+
+  const handleSubmit = async () => {
+    if (!data) return;
+
+    setIsUpdating(true);
+
+    const toastId = toast.loading("Đang lưu thay đổi...");
+
+    try {
+      const updated = await updateTopic({
+        id: data.id,
+        title,
+        description,
+        objectives,
+        categoryId,
+        maxStudents,
+      });
+
+      toast.success("✅ Lưu thành công!", { id: toastId });
+
+      onUpdate?.({ ...data, ...updated });
+      setIsEditing(false);
+    } catch {
+      toast.error("❌ Lưu thất bại, vui lòng thử lại!", { id: toastId });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const InfoBlock = ({
     label,
@@ -143,6 +181,9 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
           ) : (
             <>
               <InfoBlock label="Tiêu đề">{title}</InfoBlock>
+              <InfoBlock label="Giảng viên hướng dẫn">
+                {data.supervisorName}
+              </InfoBlock>
               <InfoBlock label="Danh mục">{data.categoryName}</InfoBlock>
               <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
               <InfoBlock label="Tóm tắt đề tài">{description}</InfoBlock>
@@ -154,6 +195,7 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
           <InfoBlock label="Ngày tạo">
             {formatDateTime(data.createdAt)}
           </InfoBlock>
+          <InfoBlock label="Người tạo">{data.createdBy}</InfoBlock>
 
           <div className="col-span-2 border-b pt-4" />
 
@@ -187,6 +229,9 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
               <InfoBlock label="Ngày tạo phiên bản">
                 {formatDateTime(current.createdAt)}
               </InfoBlock>
+              <InfoBlock label="Người tạo phiên bản">
+                {current.createdBy}
+              </InfoBlock>
             </>
           )}
         </div>
@@ -195,10 +240,33 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
           <Button variant="outline" onClick={onClose}>
             Đóng
           </Button>
+
+          {isEditing ? (
+            <>
+              <Button
+                variant="ghost"
+                onClick={() => setIsEditing(false)}
+                disabled={isUpdating}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleSubmit}
+                disabled={isUpdating}
+              >
+                {isUpdating ? "Đang lưu..." : "Lưu thay đổi"}
+              </Button>
+            </>
+          ) : (
+            <Button variant="default" onClick={() => setIsEditing(true)}>
+              Chỉnh sửa
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-export default TopicDetailDialog;
+export default MyTopicDetailDialog;

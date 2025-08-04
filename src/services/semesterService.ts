@@ -1,8 +1,8 @@
-import capBotAPI from "@/lib/CapBotApi";
 import type { AxiosResponse } from "axios";
 import axios from "axios";
 import { toast } from "sonner";
 import { SemesterType } from "@/schemas/semesterSchema";
+import capBotAPI from "@/lib/CapBotApi";
 
 // DTO definitions
 export interface CreateSemesterDTO {
@@ -33,7 +33,7 @@ interface ApiResponse<T> {
 
 // 1. Tạo học kỳ
 export const createSemester = (
-  dto: CreateSemesterDTO
+  dto: CreateSemesterDTO,
 ): Promise<AxiosResponse<ApiResponse<SemesterDTO>>> =>
   capBotAPI.post("/semester/create", dto);
 
@@ -44,19 +44,19 @@ export const getAllSemesters = (): Promise<
 
 // 3. Cập nhật học kỳ
 export const updateSemester = (
-  dto: UpdateSemesterDTO
+  dto: UpdateSemesterDTO,
 ): Promise<AxiosResponse<ApiResponse<SemesterDTO>>> =>
   capBotAPI.put("/semester/update", dto);
 
 // 4. Lấy chi tiết 1 học kỳ
 export const getSemesterDetail = (
-  id: number
+  id: number,
 ): Promise<AxiosResponse<ApiResponse<SemesterDTO>>> =>
   capBotAPI.get(`/semester/detail/${id}`);
 
 // 5. Xóa học kỳ
 export const deleteSemester = (
-  id: number
+  id: number,
 ): Promise<AxiosResponse<ApiResponse<null>>> =>
   capBotAPI.delete(`/semester/delete/${id}`);
 

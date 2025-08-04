@@ -12,7 +12,6 @@ import {
   LockKeyhole,
   MessageSquareDiff,
   Settings,
-  Settings2,
   SlidersHorizontal,
   SquareTerminal,
   Upload,
@@ -27,24 +26,12 @@ export const siteSupervisor = [
     isActive: false,
     items: [
       {
+        title: "Tất cả đề tài",
+        url: "/supervisors/topics/topic-page",
+      },
+      {
         title: "Tất cả đề tài của tôi",
-        url: "/supervisors/topics/all",
-      },
-      {
-        title: "Đang chờ duyệt",
-        url: "/supervisors/topics/pending",
-      },
-      {
-        title: "Đã được duyệt",
-        url: "/supervisors/topics/approved",
-      },
-      {
-        title: "Bị từ chối",
-        url: "/supervisors/topics/rejected",
-      },
-      {
-        title: "Bị cảnh báo AI",
-        url: "/supervisors/topics/ai-flagged",
+        url: "/supervisors/topics/myTopic-page",
       },
     ],
   },
@@ -83,29 +70,6 @@ export const siteSupervisor = [
       {
         title: "Có phản hồi mới",
         url: "/supervisors/needs-action/new-feedback",
-      },
-    ],
-  },
-  {
-    title: "Kho đề tài được duyệt",
-    url: "#",
-    icon: Settings2,
-    items: [
-      {
-        title: "Hướng nghiên cứu AI",
-        url: "/supervisors/approved-library/ai",
-      },
-      {
-        title: "Hướng doanh nghiệp",
-        url: "/supervisors/approved-library/enterprise",
-      },
-      {
-        title: "Hướng học thuật",
-        url: "/supervisors/approved-library/academic",
-      },
-      {
-        title: "Tìm kiếm đề tài",
-        url: "/supervisors/approved-library/search",
       },
     ],
   },
