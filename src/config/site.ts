@@ -16,6 +16,7 @@ import {
   SquareTerminal,
   Upload,
   Users,
+  FolderKanban,
 } from "lucide-react";
 
 export const siteSupervisor = [
@@ -265,6 +266,11 @@ export const siteModerator = [
     title: "Quản lý học kỳ & Phase",
     url: "/moderators/semester-phase",
     icon: CalendarDays,
+  },
+  {
+    title: "Quản lý danh mục đề tài",
+    url: "/moderators/category-manager",
+    icon: FolderKanban,
   },
   {
     title: "Xét duyệt đề tài",

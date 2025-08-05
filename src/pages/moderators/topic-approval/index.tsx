@@ -1,9 +1,9 @@
 import { useState } from "react";
-
 import { createColumns } from "./columns";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import { useTopics } from "@/hooks/useTopic";
 import LoadingPage from "@/pages/loading-page";
+import TopicDetailDialog from "./TopicDetailDialog";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -28,23 +28,24 @@ function Index() {
     error,
   } = useTopics(semesterId, categoryId, pageNumber, pageSize, searchTerm);
 
-  const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState<boolean>(false);
+  // modal detail
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
 
-  const handleViewDetail = (bookingId: string) => {
-    setSelectedBooking(bookingId);
-    setIsDetailDialogOpen(true);
+  const handleViewDetail = (topicId: string) => {
+    setSelectedTopicId(topicId);
+    setIsDetailOpen(true);
   };
 
-  const handleCloseDetailDialog = () => {
-    setIsDetailDialogOpen(false);
-    setSelectedBooking(null);
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setSelectedTopicId(null);
   };
 
   const columns = createColumns({ onViewDetail: handleViewDetail });
 
   if (isLoading) return <LoadingPage />;
-  if (error) return <p>Error: {error.message}</p>;
+  if (error) return <p className="text-red-600">Error: {error.message}</p>;
 
   return (
     <div className="space-y-2">
@@ -54,7 +55,7 @@ function Index() {
         visibility={DEFAULT_VISIBILITY}
         search={searchTerm}
         setSearch={setSearchTerm}
-        placeholder="Tìm kiếm người dùng hoặc chuyên viên..."
+        placeholder="Tìm kiếm đề tài..."
         page={pageNumber}
         setPage={setPageNumber}
         totalPages={topicsData?.totalPages || 1}
@@ -62,11 +63,13 @@ function Index() {
         setLimit={setPageSize}
       />
 
-      {/* <TopicDetailDialog
-        isOpen={isDetailDialogOpen}
-        onClose={handleCloseDetailDialog}
-        topicId={selectedBooking}
-      /> */}
+      {selectedTopicId && (
+        <TopicDetailDialog
+          isOpen={isDetailOpen}
+          onClose={handleCloseDetail}
+          topicId={selectedTopicId}
+        />
+      )}
     </div>
   );
 }
