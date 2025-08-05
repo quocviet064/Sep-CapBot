@@ -2,8 +2,6 @@ import { useState } from "react";
 
 import { createColumns } from "./columns";
 import { DataTable } from "@/components/globals/atoms/data-table";
-import TopicDetailDialog from "./TopicDetailDialog";
-import TopicAnalysis from "./TopicAnalysis";
 import { useTopics } from "@/hooks/useTopic";
 import LoadingPage from "@/pages/loading-page";
 
@@ -50,8 +48,6 @@ function Index() {
 
   return (
     <div className="space-y-2">
-      <TopicAnalysis />
-
       <DataTable
         data={topicsData?.listObjects || []}
         columns={columns}

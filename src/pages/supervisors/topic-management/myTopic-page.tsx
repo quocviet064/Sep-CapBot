@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useMyTopics } from "@/hooks/useMyTopics";
+import { useEffect, useState } from "react";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
 import {
@@ -9,6 +8,8 @@ import {
 import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
 import MyTopicDetailDialog from "./myTopicDetailDialog";
+import { fetchAllMyTopics } from "@/hooks/useAllMyTopics";
+import { TopicType } from "@/schemas/topicSchema";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -33,22 +34,13 @@ function MyTopicPage() {
     "all" | "approved" | "pending" | "rejecting"
   >("all");
 
-  const {
-    data: myTopicsData,
-    isLoading,
-    error,
-  } = useMyTopics(
-    semesterId,
-    categoryId,
-    pageNumber,
-    pageSize,
-    searchTerm,
-    undefined,
-  );
-
   const [selectedTopic, setSelectedTopic] =
     useState<TopicDetailResponse | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
+
+  const [allTopics, setAllTopics] = useState<TopicType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const handleViewDetail = async (topicId: string) => {
     try {
@@ -67,23 +59,54 @@ function MyTopicPage() {
 
   const columns = createMyTopicColumns({ onViewDetail: handleViewDetail });
 
-  const filteredData =
-    myTopicsData?.listObjects.filter((topic) => {
-      if (filterStatus === "approved") return topic.isApproved === true;
-      if (filterStatus === "pending") return topic.isApproved === false;
-      if (filterStatus === "rejecting") return false;
-      return true;
-    }) || [];
-
-  const stats = {
-    approved:
-      myTopicsData?.listObjects.filter((t) => t.isApproved)?.length || 0,
-    pending:
-      myTopicsData?.listObjects.filter((t) => t.isApproved === false)?.length ||
-      0,
+  const [stats, setStats] = useState({
+    approved: 0,
+    pending: 0,
     rejecting: 0,
-    total: myTopicsData?.listObjects.length || 0,
-  };
+    total: 0,
+  });
+
+  useEffect(() => {
+    const loadAllTopics = async () => {
+      try {
+        setIsLoading(true);
+        const all = await fetchAllMyTopics(semesterId, categoryId, searchTerm);
+        setAllTopics(all);
+
+        const approved = all.filter((t) => t.isApproved === true).length;
+        const pending = all.filter((t) => t.isApproved === false).length;
+        const rejecting = all.filter((t) => t.currentStatus === 2).length;
+        const total = all.length;
+        setStats({ approved, pending, rejecting, total });
+        setIsLoading(false);
+      } catch (err) {
+        setError(err as Error);
+        setIsLoading(false);
+      }
+    };
+
+    loadAllTopics();
+  }, [semesterId, categoryId, searchTerm]);
+
+  useEffect(() => {
+    setPageNumber(1);
+  }, [filterStatus]);
+
+  const topicsAfterFilter =
+    filterStatus === "approved"
+      ? allTopics.filter((t) => t.isApproved === true)
+      : filterStatus === "pending"
+        ? allTopics.filter((t) => t.isApproved === false)
+        : filterStatus === "rejecting"
+          ? allTopics.filter((t) => t.currentStatus === 2)
+          : allTopics;
+
+  const filteredData = topicsAfterFilter.slice(
+    (pageNumber - 1) * pageSize,
+    pageNumber * pageSize,
+  );
+
+  const totalFilteredPages = Math.ceil(topicsAfterFilter.length / pageSize);
 
   if (isLoading) return <LoadingPage />;
   if (error) return <p className="text-red-500">Lỗi: {error.message}</p>;
@@ -104,7 +127,7 @@ function MyTopicPage() {
           placeholder="Tìm kiếm đề tài..."
           page={pageNumber}
           setPage={setPageNumber}
-          totalPages={myTopicsData?.totalPages || 1}
+          totalPages={totalFilteredPages}
           limit={pageSize}
           setLimit={setPageSize}
         />

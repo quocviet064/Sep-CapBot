@@ -90,7 +90,7 @@ function LoginPage() {
       const role = payload.role;
 
       const roleRoutes: Record<string, string> = {
-        Supervisor: "/supervisors/topics/all",
+        Supervisor: "/supervisors/topics/myTopic-page",
         Administrator: "/admins/dashboard/overview",
         Moderator: "/moderators/dashboard",
         Reviewer: "/reviewers/dashboard/assigned-count",

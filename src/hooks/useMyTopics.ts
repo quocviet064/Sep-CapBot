@@ -42,7 +42,7 @@ export const useUpdateTopic = () => {
 
   return useMutation<UpdateTopicResponse, Error, UpdateTopicPayload>({
     mutationFn: updateTopic,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-topics"] });
     },
     onError: (error) => {
