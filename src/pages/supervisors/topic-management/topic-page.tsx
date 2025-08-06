@@ -4,10 +4,7 @@ import { DataTable } from "@/components/globals/atoms/data-table";
 import { useTopics } from "@/hooks/useTopic";
 import LoadingPage from "@/pages/loading-page";
 import { createColumns } from "./columnsTopic";
-import {
-  getTopicDetail,
-  TopicDetailResponse,
-} from "@/services/topicDetailService";
+import { getTopicDetail, TopicDetailResponse } from "@/services/topicService";
 import TopicDetailDialog from "./TopicDetailDialog";
 
 const DEFAULT_VISIBILITY = {

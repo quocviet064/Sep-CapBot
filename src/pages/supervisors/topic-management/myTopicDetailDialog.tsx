@@ -10,9 +10,9 @@ import {
 } from "@/components/globals/atoms/dialog";
 import { Label } from "@/components/globals/atoms/label";
 import { formatDateTime } from "@/utils/formatter";
-import { TopicDetailResponse } from "@/services/topicDetailService";
 import { toast } from "sonner";
-import { useUpdateTopic } from "@/hooks/useMyTopics";
+import { useUpdateTopic } from "@/hooks/useTopic";
+import { TopicDetailResponse } from "@/services/topicService";
 
 interface TopicDetailDialogProps {
   isOpen: boolean;
@@ -164,19 +164,6 @@ function MyTopicDetailDialog({
                   rows={3}
                 />
               </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm font-semibold">
-                  Số lượng SV tối đa
-                </Label>
-                <input
-                  type="number"
-                  value={maxStudents}
-                  onChange={(e) => setMaxStudents(Number(e.target.value))}
-                  className="w-full rounded border px-3 py-2 text-sm"
-                  min={1}
-                />
-              </div>
             </>
           ) : (
             <>
@@ -188,7 +175,6 @@ function MyTopicDetailDialog({
               <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
               <InfoBlock label="Tóm tắt đề tài">{description}</InfoBlock>
               <InfoBlock label="Mục tiêu">{objectives}</InfoBlock>
-              <InfoBlock label="Số lượng SV tối đa">{maxStudents}</InfoBlock>
             </>
           )}
 

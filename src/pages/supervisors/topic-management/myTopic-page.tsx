@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
-import {
-  getTopicDetail,
-  TopicDetailResponse,
-} from "@/services/topicDetailService";
 import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
 import MyTopicDetailDialog from "./myTopicDetailDialog";
-import { fetchAllMyTopics } from "@/hooks/useAllMyTopics";
+import { fetchAllMyTopics } from "@/hooks/useTopic";
 import { TopicType } from "@/schemas/topicSchema";
+import { getTopicDetail, TopicDetailResponse } from "@/services/topicService";
 
 const DEFAULT_VISIBILITY = {
   id: false,

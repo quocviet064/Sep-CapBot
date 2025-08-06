@@ -69,14 +69,14 @@ function CategoryDetailDialog({
               <div className="w-full space-y-2">
                 <Label className="text-sm font-medium">Ngày cập nhật</Label>
                 <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-                  {formatDateTime(categoryData.lastModifiedAt) || "Không có"}
+                  {formatDateTime(categoryData.createdAt) || "Không có"}
                 </div>
               </div>
 
               <div className="w-full space-y-2">
-                <Label className="text-sm font-medium">Người cập nhật</Label>
+                <Label className="text-sm font-medium">Ngày cập nhật</Label>
                 <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-                  {categoryData.lastModifiedBy || "Không có"}
+                  {formatDateTime(categoryData.lastModifiedAt) || "Không có"}
                 </div>
               </div>
             </div>
@@ -85,7 +85,7 @@ function CategoryDetailDialog({
               <div className="w-full space-y-2">
                 <Label className="text-sm font-medium">Người tạo</Label>
                 <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-                  {formatDateTime(categoryData.createdAt)}
+                  {categoryData.createdBy}
                 </div>
               </div>
 

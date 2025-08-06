@@ -1,6 +1,5 @@
 import { useEffect, useState, KeyboardEvent } from "react";
 import LoadingPage from "@/pages/loading-page";
-import { useTopicDetail, useApproveTopic } from "@/hooks/useTopicDetail";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,7 @@ import { Button } from "@/components/globals/atoms/button";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/formatter";
 import { CircleCheckBig, CircleX } from "lucide-react";
+import { useApproveTopic, useTopicDetail } from "@/hooks/useTopic";
 
 interface TopicDetailDialogProps {
   readonly isOpen: boolean;
@@ -42,15 +42,14 @@ export default function TopicDetailDialog({
 
   if (detailLoading) return <LoadingPage />;
   if (!topic)
-    return <p className="p-4 text-center text-red-600">Không tìm thấy đề tài</p>;
+    return (
+      <p className="p-4 text-center text-red-600">Không tìm thấy đề tài</p>
+    );
 
   const isApproving = approveStatus === "pending";
   const isChanged = selectedApproval !== topic.isApproved;
 
-  const onKeyToggle = (
-    e: KeyboardEvent<HTMLDivElement>,
-    value: boolean
-  ) => {
+  const onKeyToggle = (e: KeyboardEvent<HTMLDivElement>, value: boolean) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       setSelectedApproval(value);
@@ -62,9 +61,7 @@ export default function TopicDetailDialog({
       <DialogContent className="min-w-[700px]">
         <DialogHeader>
           <DialogTitle>Chi tiết đề tài #{topic.id}</DialogTitle>
-          <DialogDescription>
-            Xem & xử lý xét duyệt đề tài
-          </DialogDescription>
+          <DialogDescription>Xem & xử lý xét duyệt đề tài</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-6">
@@ -103,7 +100,7 @@ export default function TopicDetailDialog({
               onKeyDown={(e) => onKeyToggle(e, true)}
               className={cn(
                 "flex items-center gap-4 rounded-sm border px-4 py-2 text-sm font-medium hover:cursor-pointer",
-                selectedApproval === true ? "bg-secondary" : ""
+                selectedApproval === true ? "bg-secondary" : "",
               )}
             >
               <CircleCheckBig size={16} color="green" />
@@ -122,7 +119,7 @@ export default function TopicDetailDialog({
               onKeyDown={(e) => onKeyToggle(e, false)}
               className={cn(
                 "flex items-center gap-4 rounded-sm border px-4 py-2 text-sm font-medium hover:cursor-pointer",
-                selectedApproval === false ? "bg-secondary" : ""
+                selectedApproval === false ? "bg-secondary" : "",
               )}
             >
               <CircleX size={16} color="red" />

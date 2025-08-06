@@ -1,7 +1,15 @@
 import capBotAPI from "@/lib/CapBotApi";
-import { TopicType } from "@/schemas/topicSchema";
-import axios from "axios";
 import { toast } from "sonner";
+import axios from "axios";
+import { TopicType } from "@/schemas/topicSchema";
+
+interface ApiResponse<T> {
+  statusCode: number;
+  success: boolean;
+  data: T;
+  errors: unknown;
+  message: string | null;
+}
 
 interface PagingData {
   semesterId: string | null;
@@ -20,21 +28,13 @@ export interface RawTopicResponse {
   listObjects: TopicType[];
 }
 
-interface ApiResponse<T> {
-  statusCode: number;
-  success: boolean;
-  data: T;
-  errors: unknown;
-  message: string | null;
-}
-
 export const fetchAllTopics = async (
   SemesterId?: string,
   CategoryId?: string,
   PageNumber?: number,
   PageSize?: number,
   Keyword?: string,
-  TotalRecord?: number | undefined,
+  TotalRecord?: number,
 ): Promise<RawTopicResponse> => {
   try {
     const response = await capBotAPI.get<ApiResponse<RawTopicResponse>>(
@@ -53,20 +53,175 @@ export const fetchAllTopics = async (
 
     const { success, message, data } = response.data;
 
+    if (!success) throw new Error(message || "Không thể tải danh sách đề tài");
+
+    return data;
+  } catch (error) {
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Không thể tải danh sách đề tài"
+      : "Lỗi không xác định";
+
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export interface TopicDetailResponse {
+  id: number;
+  title: string;
+  description: string;
+  objectives: string;
+  supervisorId: number;
+  supervisorName: string;
+  categoryId: number;
+  categoryName: string;
+  semesterId: number;
+  semesterName: string;
+  maxStudents: number;
+  isApproved: boolean;
+  isLegacy: boolean;
+  currentStatus: number;
+  totalVersions: number;
+  currentVersion: {
+    id: number;
+    topicId: number;
+    versionNumber: number;
+    title: string;
+    description: string;
+    objectives: string;
+    methodology: string;
+    expectedOutcomes: string;
+    requirements: string;
+    documentUrl: string;
+    status: number;
+    submittedAt: string | null;
+    submittedByUserName: string | null;
+    createdAt: string;
+    createdBy: string;
+    lastModifiedAt: string | null;
+    lastModifiedBy: string | null;
+  };
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string | null;
+  lastModifiedBy: string | null;
+}
+
+export const getTopicDetail = async (
+  topicId: number,
+): Promise<TopicDetailResponse> => {
+  try {
+    const response = await capBotAPI.get<ApiResponse<TopicDetailResponse>>(
+      `/topic/detail/${topicId}`,
+    );
+
+    const { success, data, message } = response.data;
+
+    if (!success) throw new Error(message || "Không thể lấy chi tiết đề tài");
+
+    return data;
+  } catch (error) {
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Không thể lấy chi tiết đề tài"
+      : "Lỗi không xác định";
+
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export interface UpdateTopicPayload {
+  id: number;
+  title: string;
+  description: string;
+  objectives: string;
+  categoryId: number;
+  maxStudents: number;
+}
+
+export interface UpdateTopicResponse {
+  id: number;
+  title: string;
+  description: string;
+  supervisorName: string;
+  categoryName: string;
+  semesterName: string;
+  maxStudents: number;
+  isApproved: boolean;
+  updatedAt: string;
+  updatedBy: string;
+  currentVersionNumber: number;
+}
+
+export const updateTopic = async (
+  payload: UpdateTopicPayload,
+): Promise<UpdateTopicResponse> => {
+  try {
+    const response = await capBotAPI.put<ApiResponse<UpdateTopicResponse>>(
+      "/topic/update",
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (!success) throw new Error(message || "Cập nhật đề tài thất bại");
+
+    toast.success("🎉 Cập nhật đề tài thành công!");
+    return data;
+  } catch (error) {
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Cập nhật đề tài thất bại"
+      : "Đã xảy ra lỗi không xác định";
+
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export interface RawMyTopicResponse {
+  paging: PagingData;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  listObjects: TopicType[];
+}
+
+export const fetchMyTopics = async (
+  SemesterId?: number,
+  CategoryId?: number,
+  PageNumber?: number,
+  PageSize?: number,
+  Keyword?: string,
+  TotalRecord?: number,
+): Promise<RawMyTopicResponse> => {
+  try {
+    const response = await capBotAPI.get<ApiResponse<RawMyTopicResponse>>(
+      `/topic/my-topics`,
+      {
+        params: {
+          SemesterId,
+          CategoryId,
+          PageNumber,
+          PageSize,
+          Keyword,
+          TotalRecord,
+        },
+      },
+    );
+
+    const { success, message, data } = response.data;
+
     if (!success) {
-      throw new Error(message || "Failed to fetch topic");
+      throw new Error(message || "Không thể lấy danh sách đề tài của bạn");
     }
 
     return data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to fetch topic";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
+    const errorMessage = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Không thể lấy danh sách đề tài"
+      : "Lỗi không xác định";
 
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
+    toast.error(errorMessage);
+    throw new Error(errorMessage);
   }
 };
