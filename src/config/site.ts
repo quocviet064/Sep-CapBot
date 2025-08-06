@@ -269,7 +269,7 @@ export const siteModerator = [
   },
   {
     title: "Quản lý danh mục đề tài",
-    url: "/moderators/category-manager",
+    url: "/moderators/category-manager/category-page",
     icon: FolderKanban,
   },
   {

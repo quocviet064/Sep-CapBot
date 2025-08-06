@@ -261,7 +261,9 @@ function App() {
     () => import("./pages/moderators/feedback-evaluation"),
   );
   const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
-  const ModeratorCategoryManager = lazy(() => import("./pages/moderators/category-manager"));
+  const ModeratorCategoryPage = lazy(
+    () => import("./pages/moderators/category-manager/category-page"),
+  );
 
   return (
     <Suspense fallback={<LoadingPage />}>
@@ -603,7 +605,10 @@ function App() {
             element={<ModeratorFeedbackEval />}
           />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
-          <Route path="/moderators/category-manager" element={<ModeratorCategoryManager />} />
+          <Route
+            path="/moderators/category-manager/category-page"
+            element={<ModeratorCategoryPage />}
+          />
 
           {/* 404 fallback */}
           <Route path="/*" element={<NotFoundPage />} />

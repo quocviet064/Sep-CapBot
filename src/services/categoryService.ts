@@ -1,7 +1,7 @@
 import capBotAPI from "@/lib/CapBotApi";
-import { CategoryDetailType, CategoryType } from "@/schemas/categorySchema";
 import axios from "axios";
 import { toast } from "sonner";
+import { CategoryType, CategoryDetailType } from "@/schemas/categorySchema";
 
 interface ApiResponse<T> {
   statusCode: number;
@@ -11,28 +11,53 @@ interface ApiResponse<T> {
   message: string | null;
 }
 
+export interface CreateCategoryPayload {
+  name: string;
+  description: string;
+}
+
+export const createCategory = async (
+  payload: CreateCategoryPayload,
+): Promise<void> => {
+  try {
+    const response = await capBotAPI.post<ApiResponse<null>>(
+      "/topic-category/create",
+      payload,
+    );
+
+    const { success, message } = response.data;
+
+    if (!success) throw new Error(message || "Tạo danh mục thất bại");
+
+    toast.success("🎉 Tạo danh mục thành công!");
+  } catch (error) {
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Tạo danh mục thất bại"
+      : "Lỗi không xác định";
+
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
 export const fetchAllCategories = async (): Promise<CategoryType[]> => {
   try {
-    const response =
-      await capBotAPI.get<ApiResponse<CategoryType[]>>(`/topic-category/all`);
+    const response = await capBotAPI.get<ApiResponse<CategoryType[]>>(
+      "/topic-category/all",
+    );
 
     const { success, message, data } = response.data;
 
-    if (!success) {
-      throw new Error(message || "Failed to fetch category");
-    }
+    if (!success) throw new Error(message || "Không thể tải danh mục");
 
     return data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to fetch category";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Không thể tải danh mục"
+      : "Lỗi không xác định";
 
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
+    toast.error(msg);
+    throw new Error(msg);
   }
 };
 
@@ -40,77 +65,79 @@ export const fetchCategoryById = async (
   topicCategoryId: string,
 ): Promise<CategoryDetailType> => {
   try {
-    const response = await capBotAPI.get(
+    const response = await capBotAPI.get<ApiResponse<CategoryDetailType>>(
       `/topic-category/detail/${topicCategoryId}`,
     );
 
     const { success, message, data } = response.data;
 
-    if (!success) {
-      throw new Error(message || "Failed to fetch topic category");
-    }
+    if (!success) throw new Error(message || "Không thể lấy chi tiết danh mục");
 
     return data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to fetch topic category";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Không thể lấy chi tiết danh mục"
+      : "Lỗi không xác định";
 
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
+    toast.error(msg);
+    throw new Error(msg);
   }
 };
 
-export const createCategory = async (data: { name: string; description?: string }) => {
+export interface UpdateCategoryPayload {
+  id: number;
+  name: string;
+  description: string;
+}
+
+export const updateCategory = async (
+  payload: UpdateCategoryPayload,
+): Promise<void> => {
   try {
-    const response = await capBotAPI.post<ApiResponse<CategoryType>>(`/topic-category/create`, data);
-    if (!response.data.success) throw new Error(response.data.message || "Tạo mới thất bại");
-    toast.success("Tạo danh mục thành công!");
-    return response.data.data;
+    const response = await capBotAPI.put<ApiResponse<null>>(
+      "/topic-category/update",
+      payload,
+    );
+
+    const { success, message } = response.data;
+
+    if (!success) throw new Error(message || "Cập nhật danh mục thất bại");
+
+    toast.success("🎉 Cập nhật danh mục thành công!");
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorMessage = error.response?.data?.message || "Tạo danh mục thất bại";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Cập nhật danh mục thất bại"
+      : "Lỗi không xác định";
+
+    toast.error(msg);
+    throw new Error(msg);
   }
 };
 
-export const updateCategory = async (data: { id: number; name: string; description?: string }) => {
+export const deleteCategoryById = async (id: number): Promise<void> => {
   try {
-    const response = await capBotAPI.put<ApiResponse<CategoryType>>(`/topic-category/update`, data);
-    if (!response.data.success) throw new Error(response.data.message || "Cập nhật thất bại");
-    toast.success("Cập nhật danh mục thành công!");
-    return response.data.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorMessage = error.response?.data?.message || "Cập nhật danh mục thất bại";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
-  }
-};
+    const response = await capBotAPI.delete<ApiResponse<null>>(
+      `/topic-category/delete/${id}`,
+    );
 
-export const deleteCategory = async (id: number) => {
-  try {
-    const response = await capBotAPI.delete<ApiResponse<any>>(`/topic-category/delete/${id}`);
-    if (!response.data.success) throw new Error(response.data.message || "Xoá thất bại");
-    toast.success("Xoá danh mục thành công!");
-    return response.data;
+    const { success, message } = response.data;
+
+    if (!success) throw new Error(message || "Xóa danh mục thất bại");
+
+    toast.success("🗑️ Xóa danh mục thành công!");
   } catch (error) {
+    let msg = "Lỗi không xác định";
     if (axios.isAxiosError(error)) {
-      const errorMessage = error.response?.data?.message || "Xoá danh mục thất bại";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
+      const res = error.response;
+      if (res?.status === 409) {
+        msg =
+          res.data?.message || "Không thể xóa danh mục vì đang được sử dụng.";
+      } else {
+        msg = res?.data?.message || "Không thể xóa danh mục";
+      }
     }
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
+
+    toast.error(`❌ ${msg}`);
+    throw new Error(msg);
   }
 };

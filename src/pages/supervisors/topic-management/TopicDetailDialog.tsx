@@ -10,7 +10,7 @@ import {
 } from "@/components/globals/atoms/dialog";
 import { Label } from "@/components/globals/atoms/label";
 import { formatDateTime } from "@/utils/formatter";
-import { TopicDetailResponse } from "@/services/topicDetailService";
+import { TopicDetailResponse } from "@/services/topicService";
 
 interface TopicDetailDialogProps {
   isOpen: boolean;
@@ -25,7 +25,6 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
   const [description, setDescription] = useState("");
   const [objectives, setObjectives] = useState("");
   const [categoryId, setCategoryId] = useState<number>(0);
-  const [maxStudents, setMaxStudents] = useState<number>(1);
 
   useEffect(() => {
     if (!isOpen) {
@@ -39,7 +38,6 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
       setDescription(data.description);
       setObjectives(data.objectives);
       setCategoryId(data.categoryId);
-      setMaxStudents(data.maxStudents);
     }
   }, [data]);
 
@@ -127,7 +125,7 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
                 />
               </div>
 
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <Label className="text-sm font-semibold">
                   Số lượng SV tối đa
                 </Label>
@@ -138,7 +136,7 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
                   className="w-full rounded border px-3 py-2 text-sm"
                   min={1}
                 />
-              </div>
+              </div> */}
             </>
           ) : (
             <>
@@ -147,7 +145,7 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
               <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
               <InfoBlock label="Tóm tắt đề tài">{description}</InfoBlock>
               <InfoBlock label="Mục tiêu">{objectives}</InfoBlock>
-              <InfoBlock label="Số lượng SV tối đa">{maxStudents}</InfoBlock>
+              {/* <InfoBlock label="Số lượng SV tối đa">{maxStudents}</InfoBlock> */}
             </>
           )}
 
