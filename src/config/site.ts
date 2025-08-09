@@ -17,6 +17,7 @@ import {
   Upload,
   Users,
   FolderKanban,
+  List,
 } from "lucide-react";
 
 export const siteSupervisor = [
@@ -279,8 +280,23 @@ export const siteModerator = [
   },
   {
     title: "Phân công phản biện",
-    url: "/moderators/reviewer-assignment",
+    url: "#",
     icon: Users,
+    isActive: false,
+    items: [
+      {
+        title: "Tổng quan phân công",
+        url: "/moderators/reviewer-assignment",
+      },
+      {
+        title: "Phân công reviewer",
+        url: "/moderators/reviewer-assignment/available",
+      },
+      {
+        title: "Theo dõi phân công",
+        url: "/moderators/reviewer-assignment/assignments",
+      },
+    ],
   },
   {
     title: "Phản hồi & đánh giá",

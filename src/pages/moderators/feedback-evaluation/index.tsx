@@ -1,4 +1,3 @@
-import React from "react";
 import ApproveNewVersion from "./ApproveNewVersion";
 import HistoryTimeline from "./HistoryTimeline";
 import Suggestions from "./Suggestions";
