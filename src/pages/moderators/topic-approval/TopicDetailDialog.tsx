@@ -1,5 +1,7 @@
-import { useEffect, useState, KeyboardEvent } from "react";
-import LoadingPage from "@/pages/loading-page";
+// src/pages/moderators/topic-approval/TopicDetailDialog.tsx
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/globals/atoms/button";
 import {
   Dialog,
   DialogContent,
@@ -9,176 +11,151 @@ import {
   DialogTitle,
 } from "@/components/globals/atoms/dialog";
 import { Label } from "@/components/globals/atoms/label";
-import { Textarea } from "@/components/globals/atoms/textarea";
-import { Button } from "@/components/globals/atoms/button";
-import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/formatter";
-import { CircleCheckBig, CircleX } from "lucide-react";
-import { useApproveTopic, useTopicDetail } from "@/hooks/useTopic";
+import { getTopicDetail, TopicDetailResponse } from "@/services/topicService";
 
-interface TopicDetailDialogProps {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-  readonly topicId: string;
-}
+type Props = {
+  isOpen: boolean;
+  onClose: () => void;
+  topicId: string | null;
+};
 
-export default function TopicDetailDialog({
-  isOpen,
-  onClose,
-  topicId,
-}: TopicDetailDialogProps) {
-  const { data: topic, isLoading: detailLoading } = useTopicDetail(topicId);
-  const { mutate, status: approveStatus } = useApproveTopic();
+function TopicDetailDialog({ isOpen, onClose, topicId }: Props) {
+  // Gọi API khi mở dialog + có topicId
+  const {
+    data,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useQuery<TopicDetailResponse, Error>({
+    queryKey: ["topicDetail", topicId],
+    queryFn: () => getTopicDetail(Number(topicId)),
+    enabled: isOpen && !!topicId,
+    staleTime: 60_000,
+  });
 
-  const [selectedApproval, setSelectedApproval] = useState<boolean>(false);
-  const [note, setNote] = useState<string>("");
-
+  // Mỗi lần mở lại dialog thì làm mới (tuỳ bạn)
   useEffect(() => {
-    if (topic) {
-      setSelectedApproval(topic.isApproved);
-      setNote(topic.currentVersion?.requirements || "");
-    }
-  }, [topic]);
+    if (isOpen && topicId) refetch();
+  }, [isOpen, topicId, refetch]);
 
-  if (detailLoading) return <LoadingPage />;
-  if (!topic)
-    return (
-      <p className="p-4 text-center text-red-600">Không tìm thấy đề tài</p>
-    );
-
-  const isApproving = approveStatus === "pending";
-  const isChanged = selectedApproval !== topic.isApproved;
-
-  const onKeyToggle = (e: KeyboardEvent<HTMLDivElement>, value: boolean) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      setSelectedApproval(value);
-    }
-  };
+  const InfoBlock = ({
+    label,
+    children,
+  }: {
+    label: string;
+    children: React.ReactNode;
+  }) => (
+    <div className="space-y-1">
+      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="bg-muted rounded-md px-4 py-2 text-sm whitespace-pre-line text-gray-800">
+        {children || <span className="text-gray-400 italic">--</span>}
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="min-w-[700px]">
+      <DialogContent className="max-h-[90vh] min-w-[900px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Chi tiết đề tài #{topic.id}</DialogTitle>
-          <DialogDescription>Xem & xử lý xét duyệt đề tài</DialogDescription>
+          <DialogTitle>🎓 Chi tiết đề tài đồ án</DialogTitle>
+          <DialogDescription>
+            Xem thông tin tổng thể và nội dung phiên bản hiện tại của đề tài.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-6">
-          {/* Tiêu đề */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Tiêu đề</Label>
-            <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-              {topic.currentVersion.title}
-            </div>
+        {/* Loading / Error / Empty states */}
+        {isFetching && (
+          <div className="px-2 py-6 text-sm text-gray-500">
+            Đang tải chi tiết đề tài...
           </div>
+        )}
 
-          {/* Giảng viên */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Giảng viên hướng dẫn</Label>
-            <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-              {topic.supervisorName}
-            </div>
+        {isError && (
+          <div className="px-2 py-6 text-sm text-red-600">
+            Không thể tải chi tiết đề tài. {error?.message}
           </div>
+        )}
 
-          {/* Mô tả */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Mô tả</Label>
-            <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-              {topic.currentVersion.description}
-            </div>
+        {!isFetching && !isError && !data && (
+          <div className="px-2 py-6 text-sm text-gray-500">
+            Không có dữ liệu chi tiết cho đề tài này.
           </div>
+        )}
 
-          {/* Quyết định duyệt */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Quyết định duyệt</Label>
+        {data && (
+          <div className="mt-2 grid grid-cols-2 gap-6">
+            <div className="col-span-2">
+              <h3 className="text-primary text-base font-semibold">
+                📘 Thông tin chung
+              </h3>
+            </div>
 
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedApproval(true)}
-              onKeyDown={(e) => onKeyToggle(e, true)}
-              className={cn(
-                "flex items-center gap-4 rounded-sm border px-4 py-2 text-sm font-medium hover:cursor-pointer",
-                selectedApproval === true ? "bg-secondary" : "",
+            <InfoBlock label="Tiêu đề">{data.title}</InfoBlock>
+            <InfoBlock label="Giảng viên hướng dẫn">{data.supervisorName}</InfoBlock>
+
+            <InfoBlock label="Danh mục">{data.categoryName}</InfoBlock>
+            <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
+
+            <InfoBlock label="Tóm tắt đề tài">{data.description}</InfoBlock>
+            <InfoBlock label="Mục tiêu">{data.objectives}</InfoBlock>
+
+            <InfoBlock label="Số SV tối đa">{data.maxStudents}</InfoBlock>
+            <InfoBlock label="Trạng thái">
+              {data.isApproved ? "Đã duyệt" : "Chưa duyệt"}
+            </InfoBlock>
+
+            <InfoBlock label="Ngày tạo">{formatDateTime(data.createdAt)}</InfoBlock>
+            <InfoBlock label="Người tạo">{data.createdBy}</InfoBlock>
+
+            <div className="col-span-2 border-b pt-2" />
+
+            {/* Phiên bản hiện tại */}
+            <div className="col-span-2">
+              <h3 className="text-primary mt-2 text-base font-semibold">
+                📝 Nội dung phiên bản hiện tại
+              </h3>
+            </div>
+
+            <InfoBlock label="Phương pháp">{data.currentVersion?.methodology}</InfoBlock>
+            <InfoBlock label="Kết quả mong đợi">
+              {data.currentVersion?.expectedOutcomes}
+            </InfoBlock>
+            <InfoBlock label="Yêu cầu">{data.currentVersion?.requirements}</InfoBlock>
+
+            <InfoBlock label="Tài liệu đính kèm">
+              {data.currentVersion?.documentUrl ? (
+                <a
+                  href={data.currentVersion.documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline hover:text-blue-800"
+                >
+                  {data.currentVersion.documentUrl}
+                </a>
+              ) : (
+                "--"
               )}
-            >
-              <CircleCheckBig size={16} color="green" />
-              <div className="flex items-center gap-1">
-                <p>Duyệt đề tài</p>
-                <span className="font-light">
-                  - Chuyển sang bước phân công Reviewer
-                </span>
-              </div>
-            </div>
+            </InfoBlock>
 
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedApproval(false)}
-              onKeyDown={(e) => onKeyToggle(e, false)}
-              className={cn(
-                "flex items-center gap-4 rounded-sm border px-4 py-2 text-sm font-medium hover:cursor-pointer",
-                selectedApproval === false ? "bg-secondary" : "",
-              )}
-            >
-              <CircleX size={16} color="red" />
-              <div className="flex items-center gap-1">
-                <p>Từ chối đề tài</p>
-                <span className="font-light">
-                  - Trả lại Supervisor để chỉnh sửa
-                </span>
-              </div>
-            </div>
+            <InfoBlock label="Ngày tạo phiên bản">
+              {formatDateTime(data.currentVersion?.createdAt)}
+            </InfoBlock>
+            <InfoBlock label="Người tạo phiên bản">
+              {data.currentVersion?.createdBy}
+            </InfoBlock>
           </div>
+        )}
 
-          {/* Ghi chú */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Ghi chú</Label>
-            <Textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              disabled={selectedApproval}
-              placeholder="Ghi chú sẽ hiển thị cho giảng viên hướng dẫn"
-            />
-          </div>
-
-          {/* Ngày tạo / Ngày cập nhật */}
-          <div className="flex justify-between gap-4">
-            <div className="w-full space-y-2">
-              <Label className="text-sm font-medium">Ngày tạo</Label>
-              <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-                {formatDateTime(topic.createdAt)}
-              </div>
-            </div>
-            <div className="w-full space-y-2">
-              <Label className="text-sm font-medium">Ngày cập nhật</Label>
-              <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-                {topic.lastModifiedAt
-                  ? formatDateTime(topic.lastModifiedAt)
-                  : "--"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
+        <DialogFooter className="mt-6">
           <Button variant="outline" onClick={onClose}>
             Đóng
-          </Button>
-          <Button
-            variant="default"
-            onClick={() =>
-              mutate(Number(topicId), {
-                onSuccess: onClose,
-              })
-            }
-            disabled={!isChanged || isApproving}
-          >
-            {isApproving ? "Đang xử lý..." : "Xác nhận"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+export default TopicDetailDialog;
