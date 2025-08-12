@@ -264,9 +264,6 @@ function App() {
   const ModeratorCategoryPage = lazy(
     () => import("./pages/moderators/category-manager/category-page"),
   );
-  const AvailableReviewersPage = lazy(
-    () => import("./pages/moderators/reviewer-assignment/available")
-  );
   const CurrentAssignmentsPage = lazy(
     () => import("./pages/moderators/reviewer-assignment/assignments")
   );
@@ -601,10 +598,6 @@ function App() {
           <Route
             path="/moderators/topic-approval"
             element={<ModeratorTopicApproval />}
-          />
-          <Route
-            path="/moderators/reviewer-assignment/available"
-            element={<AvailableReviewersPage />}
           />
           <Route
             path="/moderators/reviewer-assignment/assignments"

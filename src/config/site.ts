@@ -289,10 +289,6 @@ export const siteModerator = [
         url: "/moderators/reviewer-assignment",
       },
       {
-        title: "Phân công reviewer",
-        url: "/moderators/reviewer-assignment/available",
-      },
-      {
         title: "Theo dõi phân công",
         url: "/moderators/reviewer-assignment/assignments",
       },

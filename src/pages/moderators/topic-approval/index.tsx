@@ -45,9 +45,8 @@ export default function TopicApprovalPage() {
   };
 
   const handleAssignReviewer = (topicId: string) => {
-    // Chuyển qua trang Reviewer Assignment, truyền topicId dưới dạng submissionId
-    navigate(`/moderators/reviewer-assignment?submissionId=${topicId}`);
-  };
+  navigate(`/moderators/reviewer-assignment?submissionId=${topicId}`);
+};
 
   const handleCloseDetail = () => {
     setIsDetailOpen(false);
@@ -64,7 +63,6 @@ export default function TopicApprovalPage() {
 
   return (
     <div className="space-y-4 p-4">
-      {/* Bạn có thể thêm filter controls ở đây nếu cần */}
       <DataTable
         data={topicsData?.listObjects || []}
         columns={columns}

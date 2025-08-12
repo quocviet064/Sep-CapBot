@@ -22,6 +22,13 @@ export interface SemesterDTO {
   endDate: string;
 }
 
+export interface SemesterDetailDTO extends SemesterDTO {
+  createdAt: string;
+  createdBy: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
 // API response wrapper
 interface ApiResponse<T> {
   statusCode: number;
@@ -51,7 +58,7 @@ export const updateSemester = (
 // 4. Lấy chi tiết 1 học kỳ
 export const getSemesterDetail = (
   id: number,
-): Promise<AxiosResponse<ApiResponse<SemesterDTO>>> =>
+): Promise<AxiosResponse<ApiResponse<SemesterDetailDTO>>> =>
   capBotAPI.get(`/semester/detail/${id}`);
 
 // 5. Xóa học kỳ
