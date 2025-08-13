@@ -17,8 +17,8 @@ import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-
 import { Badge } from "@/components/globals/atoms/badge";
 
 export type ColumnActionsHandlers = {
-  onViewDetail: (id: string) => void;
-  onAssignReviewer: (id: string) => void;
+  onViewDetail: (id: string | number) => void;
+  onAssignReviewer: (topic: TopicType) => void;
 };
 
 export const createColumns = (
@@ -116,6 +116,7 @@ export const createColumns = (
     header: () => <span className="flex items-center justify-center">Thao tác</span>,
     cell: ({ row }) => {
       const topic = row.original;
+      const idStr = String(topic.id);
       return (
         <div className="flex justify-center">
           <DropdownMenu>
@@ -127,21 +128,15 @@ export const createColumns = (
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(topic.id)}
-              >
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(idStr)}>
                 <Copy className="h-4 w-4" />
                 Sao chép mã
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handlers.onViewDetail(topic.id)}
-              >
+              <DropdownMenuItem onClick={() => handlers.onViewDetail(topic.id)}>
                 <Eye className="h-4 w-4" />
                 Xem chi tiết
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handlers.onAssignReviewer(topic.id)}
-              >
+              <DropdownMenuItem onClick={() => handlers.onAssignReviewer(topic)}>
                 <List className="h-4 w-4" />
                 Phân công reviewer
               </DropdownMenuItem>
