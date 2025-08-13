@@ -266,7 +266,7 @@ export default function TopicDetailPage({
               />
             </svg>
             <span className="text-sm font-semibold tracking-wide text-neutral-700 uppercase">
-              Lựa chọn phiên bản chủ đề
+              Lựa chọn phiên bản chủ đề để nộp
             </span>
           </div>
 
