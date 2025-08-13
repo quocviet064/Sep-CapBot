@@ -1,4 +1,3 @@
-// src/pages/topics/TopicVersionCreatePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,9 +7,6 @@ import { BookOpen, Loader2, ArrowLeft } from "lucide-react";
 import { useCreateTopicVersion } from "@/hooks/useTopicVersion";
 import { useTopicDetail } from "@/hooks/useTopic";
 
-/* =========================
-   Small UI helpers (đồng nhất CreateTopicPage)
-========================= */
 function RequiredBadge() {
   return (
     <Badge className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-red-600 uppercase shadow-sm">
@@ -80,9 +76,6 @@ function Field({
   );
 }
 
-/* =========================
-   Page
-========================= */
 type VersionSeed = {
   title: string;
   description: string;
@@ -98,18 +91,15 @@ export default function TopicVersionCreatePage() {
   const { topicId } = useParams<{ topicId: string }>();
   const tid = Number(topicId);
 
-  // seed từ navigate state (nếu đi từ TopicDetailPage)
   const location = useLocation() as { state?: { seed?: Partial<VersionSeed> } };
   const navSeed = location.state?.seed;
 
-  // fallback: fetch topic detail (vào thẳng URL)
   const {
     data: topic,
     isLoading: loadingTopic,
     error: topicError,
   } = useTopicDetail(Number.isFinite(tid) ? tid : undefined);
 
-  // build seed từ topic/currentVersion
   const fetchedSeed: Partial<VersionSeed> | undefined = useMemo(() => {
     if (!topic) return undefined;
     return {
@@ -123,7 +113,6 @@ export default function TopicVersionCreatePage() {
     };
   }, [topic]);
 
-  // chọn seed ưu tiên: navSeed -> fetchedSeed -> rỗng
   const initialSeed: VersionSeed = {
     title: navSeed?.title ?? fetchedSeed?.title ?? "",
     description: navSeed?.description ?? fetchedSeed?.description ?? "",
@@ -137,7 +126,6 @@ export default function TopicVersionCreatePage() {
 
   const { mutateAsync: createVersion, isPending } = useCreateTopicVersion();
 
-  // form (đúng & đủ theo API create topic-version)
   const [title, setTitle] = useState(initialSeed.title);
   const [description, setDescription] = useState(initialSeed.description);
   const [objectives, setObjectives] = useState(initialSeed.objectives);
@@ -148,7 +136,6 @@ export default function TopicVersionCreatePage() {
   const [requirements, setRequirements] = useState(initialSeed.requirements);
   const [documentUrl, setDocumentUrl] = useState(initialSeed.documentUrl);
 
-  // nếu vào thẳng URL (không có navSeed), khi fetchedSeed về thì prefill nếu input còn trống
   useEffect(() => {
     if (navSeed || !fetchedSeed) return;
     setTitle((v) => (v ? v : (fetchedSeed.title ?? "")));
@@ -217,14 +204,12 @@ export default function TopicVersionCreatePage() {
           error: (err) => err?.message || "Tạo phiên bản thất bại",
         },
       );
-      // Điều hướng đến chi tiết phiên bản vừa tạo
       navigate(`/topics/my/${tid}`);
     } catch {
       /* đã toast trong promise */
     }
   };
 
-  // Loading state khi vào thẳng URL và đang fetch topic để prefill
   if (!navSeed && loadingTopic) {
     return (
       <div className="rounded-xl border p-3 text-sm">
@@ -233,13 +218,11 @@ export default function TopicVersionCreatePage() {
     );
   }
   if (!navSeed && topicError) {
-    // vẫn cho tạo trống được, nhưng báo để biết là không prefill được
     toast.error("Không tải được dữ liệu đề tài để điền sẵn");
   }
 
   return (
     <div className="space-y-4">
-      {/* HEADER (đồng nhất CreateTopicPage) */}
       <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 p-5 text-white shadow-sm">
         <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
@@ -271,9 +254,7 @@ export default function TopicVersionCreatePage() {
         </div>
       </div>
 
-      {/* CONTENT (tỉ lệ/spacing/textarea đồng nhất) */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Left */}
         <div className="space-y-4 xl:col-span-2">
           <SectionCard
             title="Thông tin cơ bản"
@@ -294,7 +275,6 @@ export default function TopicVersionCreatePage() {
                 />
               </Field>
 
-              {/* Thuộc chủ đề */}
               <Field label="Thuộc đề tài">
                 <input
                   disabled
@@ -376,7 +356,6 @@ export default function TopicVersionCreatePage() {
           </SectionCard>
         </div>
 
-        {/* Right */}
         <div className="space-y-4">
           <SectionCard title="Tóm tắt" desc="Xem nhanh thông tin đã nhập.">
             <div className="space-y-3 text-sm">
@@ -424,7 +403,6 @@ export default function TopicVersionCreatePage() {
         </div>
       </div>
 
-      {/* ACTION BAR (đồng nhất) */}
       <div className="sticky bottom-3 z-30">
         <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 rounded-2xl border bg-white/70 px-3 py-2 shadow-lg backdrop-blur">
           <Button variant="ghost" onClick={resetForm} disabled={isPending}>

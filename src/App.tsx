@@ -8,6 +8,9 @@ import { useAuth } from "./contexts/AuthContext";
 import MyTopicDetailPage from "./pages/supervisors/topic-management/MyTopicDetailPage";
 import TopicVersionDetailPage from "./pages/supervisors/topic-management/TopicVersionDetailPage";
 import TopicVersionCreatePage from "./pages/supervisors/topic-management/TopicVersionCreatePage";
+import SubmissionPage from "./pages/supervisors/submissions/SubmissionPage";
+import PhaseTypePage from "./pages/admins/phase-types/PhaseTypePage";
+import PhasePage from "./pages/admins/phase/PhasePage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -92,9 +95,6 @@ function App() {
   );
   const AdminPhases = lazy(
     () => import("./pages/admins/semester-management/phases"),
-  );
-  const AdminPhaseTypes = lazy(
-    () => import("./pages/admins/semester-management/phase-types"),
   );
   const AdminSubmissionRounds = lazy(
     () => import("./pages/admins/semester-management/submission-rounds"),
@@ -301,6 +301,10 @@ function App() {
             element={<AllMyTopics />}
           />
           <Route
+            path="/supervisors/submissions/SubmissionPage"
+            element={<SubmissionPage />}
+          />
+          <Route
             path="/supervisors/topics/pending"
             element={<PendingTopics />}
           />
@@ -394,9 +398,10 @@ function App() {
             element={<AdminPhases />}
           />
           <Route
-            path="/admins/semester-management/phase-types"
-            element={<AdminPhaseTypes />}
+            path="/admins/phase-types/PhaseTypePage"
+            element={<PhaseTypePage />}
           />
+          <Route path="/admins/phase/PhasePage" element={<PhasePage />} />
           <Route
             path="/admins/semester-management/submission-rounds"
             element={<AdminSubmissionRounds />}

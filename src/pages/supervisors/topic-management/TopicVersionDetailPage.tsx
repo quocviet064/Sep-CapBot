@@ -1,20 +1,24 @@
-// src/pages/TopicVersionDetailPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { BookOpen, ArrowLeft, PencilLine, Save, Loader2 } from "lucide-react";
+import {
+  BookOpen,
+  ArrowLeft,
+  PencilLine,
+  Save,
+  Loader2,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "@/components/globals/atoms/button";
 import { Label } from "@/components/globals/atoms/label";
 import { formatDateTime } from "@/utils/formatter";
 import {
+  useDeleteTopicVersion,
   useTopicVersionDetail,
   useUpdateTopicVersion,
 } from "@/hooks/useTopicVersion";
 
-/* =========================
-   Small UI helpers (giống TopicDetail)
-========================= */
 function SectionCard({
   title,
   desc,
@@ -118,9 +122,6 @@ function StatusBadge({ status }: { status?: string }) {
 const fmt = (s?: string | null) => (s && String(s).trim().length ? s : "--");
 const fmtDate = (d?: string | null) => (d ? formatDateTime(d) : "--");
 
-/* =========================
-   Page
-========================= */
 export default function TopicVersionDetailPage() {
   const navigate = useNavigate();
   const { topicId, versionId } = useParams<{
@@ -135,8 +136,25 @@ export default function TopicVersionDetailPage() {
     error,
   } = useTopicVersionDetail(Number.isFinite(vid) ? vid : undefined);
   const { mutateAsync: updateVersion } = useUpdateTopicVersion();
+  const { mutateAsync: deleteVersion, isPending: isDeleting } =
+    useDeleteTopicVersion();
 
-  // --- Edit state (đồng nhất bố cục/height với TopicDetail) ---
+  const handleDelete = async () => {
+    if (!ver) return;
+    if (!window.confirm("Bạn có chắc muốn xóa phiên bản này?")) return;
+
+    try {
+      await toast.promise(deleteVersion(ver.id), {
+        loading: "Đang xóa phiên bản...",
+        success: "Đã xóa phiên bản thành công",
+        error: "Xóa phiên bản thất bại",
+      });
+      navigate(`/topics/my/${topicId}`);
+    } catch (e) {
+      // toast đã hiển thị lỗi
+    }
+  };
+
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -231,7 +249,6 @@ export default function TopicVersionDetailPage() {
 
   return (
     <div className="space-y-4">
-      {/* PAGE HEADER (đồng nhất với TopicDetail) */}
       <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 p-5 text-white shadow-sm">
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -273,9 +290,7 @@ export default function TopicVersionDetailPage() {
         </div>
       </div>
 
-      {/* CONTENT (đồng nhất tỉ lệ/ô nhập với trang TopicDetail) */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Trái: form/hiển thị chính */}
         <div className="space-y-4 xl:col-span-2">
           <SectionCard
             title="Thông tin cơ bản"
@@ -294,7 +309,6 @@ export default function TopicVersionDetailPage() {
                     />
                   </Field>
 
-                  {/* chừa ô trống để cân cột như trang gốc */}
                   <div />
 
                   <div className="md:col-span-2">
@@ -320,7 +334,6 @@ export default function TopicVersionDetailPage() {
               ) : (
                 <>
                   <InfoBlock label="Tiêu đề">{fmt(ver.title)}</InfoBlock>
-                  {/* chừa ô trống để bố cục 2 cột cân nhau như trang gốc */}
                   <div />
 
                   <div className="md:col-span-2">
@@ -417,7 +430,6 @@ export default function TopicVersionDetailPage() {
           </SectionCard>
         </div>
 
-        {/* Phải: tóm tắt & hệ thống */}
         <div className="space-y-4">
           <SectionCard title="Tóm tắt" desc="Xem nhanh các thông tin đã chọn.">
             <div className="space-y-3 text-sm">
@@ -475,7 +487,6 @@ export default function TopicVersionDetailPage() {
         </div>
       </div>
 
-      {/* STICKY ACTION BAR (đồng style) */}
       <div className="sticky bottom-3 z-30">
         <div className="mx-auto flex max-w-5xl items-center justify-between rounded-2xl border bg-white/70 px-3 py-2 shadow-lg backdrop-blur">
           <div className="flex items-center gap-2">
@@ -490,6 +501,15 @@ export default function TopicVersionDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-500 text-white hover:bg-red-600 active:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+              {isDeleting ? "Đang xóa..." : "Xóa"}
+            </Button>
+
             {isEditing ? (
               <>
                 <Button

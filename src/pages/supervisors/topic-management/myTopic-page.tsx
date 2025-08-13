@@ -1,11 +1,10 @@
-// MyTopicPage.tsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // ⬅️ thêm
+import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
 import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
-// ❌ remove: import MyTopicDetailDialog from "./myTopicDetailDialog";
+
 import { fetchAllMyTopics } from "@/hooks/useTopic";
 import { TopicType } from "@/schemas/topicSchema";
 
@@ -32,15 +31,13 @@ function MyTopicPage() {
     "all" | "approved" | "pending" | "rejecting"
   >("all");
 
-  // ❌ remove: selectedTopic / isDetailOpen
   const [allTopics, setAllTopics] = useState<TopicType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const navigate = useNavigate(); // ⬅️ thêm
+  const navigate = useNavigate();
 
   const handleViewDetail = async (topicId: string) => {
-    // Chuyển sang trang chi tiết
     navigate(`/topics/my/${topicId}`);
   };
 
