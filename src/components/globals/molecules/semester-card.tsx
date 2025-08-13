@@ -1,13 +1,24 @@
-interface semesterCardProps {
+import { GraduationCap } from "lucide-react";
+
+interface SemesterCardProps {
   id: number;
   name: string;
 }
 
-function SemesterCard({ id, name }: semesterCardProps) {
+function SemesterCard({ id, name }: SemesterCardProps) {
   return (
-    <div className="bg-muted space-y-2 rounded-xl px-3 py-4">
-      <p className="text-sm font-semibold">Mã kì học: {id}</p>
-      <p className="text-sm">Tên kì học: {name}</p>
+    <div className="cursor-pointer overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+      {/* Phần header màu */}
+      <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 p-3">
+        <GraduationCap className="h-5 w-5 text-white" />
+        <p className="text-sm font-semibold text-white">Mã học kỳ: {id}</p>
+      </div>
+
+      {/* Nội dung */}
+      <div className="space-y-2 p-4">
+        <p className="text-xs text-gray-500">Tên học kỳ</p>
+        <p className="text-lg leading-tight font-bold text-gray-800">{name}</p>
+      </div>
     </div>
   );
 }

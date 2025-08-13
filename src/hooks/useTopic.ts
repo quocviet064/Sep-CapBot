@@ -14,6 +14,25 @@ import {
 import { approveTopic } from "@/services/topicApproveService";
 import { TopicType } from "@/schemas/topicSchema";
 
+import { createTopic, type CreateTopicPayload } from "@/services/topicService";
+
+export const useCreateTopic = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<TopicDetailResponse, Error, CreateTopicPayload>({
+    mutationFn: createTopic,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["topics"] });
+      queryClient.invalidateQueries({ queryKey: ["my-topics"] });
+
+      queryClient.setQueryData(["topicDetail", String(data.id)], data);
+    },
+    onError: (error) => {
+      console.error("❌ Lỗi khi tạo chủ đề:", error.message);
+    },
+  });
+};
+
 export function useTopicDetail(topicId?: string) {
   return useQuery<TopicDetailResponse, Error>({
     queryKey: ["topicDetail", topicId],
