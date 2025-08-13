@@ -17,7 +17,6 @@ import {
   Upload,
   Users,
   FolderKanban,
-  List,
 } from "lucide-react";
 
 export const siteSupervisor = [

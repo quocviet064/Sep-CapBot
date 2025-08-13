@@ -1,12 +1,13 @@
+// MyTopicPage.tsx
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // ⬅️ thêm
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
 import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
-import MyTopicDetailDialog from "./myTopicDetailDialog";
+// ❌ remove: import MyTopicDetailDialog from "./myTopicDetailDialog";
 import { fetchAllMyTopics } from "@/hooks/useTopic";
 import { TopicType } from "@/schemas/topicSchema";
-import { getTopicDetail, TopicDetailResponse } from "@/services/topicService";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -31,27 +32,16 @@ function MyTopicPage() {
     "all" | "approved" | "pending" | "rejecting"
   >("all");
 
-  const [selectedTopic, setSelectedTopic] =
-    useState<TopicDetailResponse | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
-
+  // ❌ remove: selectedTopic / isDetailOpen
   const [allTopics, setAllTopics] = useState<TopicType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const handleViewDetail = async (topicId: string) => {
-    try {
-      const topicDetail = await getTopicDetail(Number(topicId));
-      setSelectedTopic(topicDetail);
-      setIsDetailOpen(true);
-    } catch (err) {
-      console.error("Lỗi khi lấy chi tiết đề tài:", err);
-    }
-  };
+  const navigate = useNavigate(); // ⬅️ thêm
 
-  const handleCloseDetailDialog = () => {
-    setIsDetailOpen(false);
-    setSelectedTopic(null);
+  const handleViewDetail = async (topicId: string) => {
+    // Chuyển sang trang chi tiết
+    navigate(`/topics/my/${topicId}`);
   };
 
   const columns = createMyTopicColumns({ onViewDetail: handleViewDetail });
@@ -129,12 +119,6 @@ function MyTopicPage() {
           setLimit={setPageSize}
         />
       </div>
-
-      <MyTopicDetailDialog
-        isOpen={isDetailOpen}
-        onClose={handleCloseDetailDialog}
-        data={selectedTopic}
-      />
     </div>
   );
 }

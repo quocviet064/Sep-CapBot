@@ -5,6 +5,9 @@ import LectureLayout from "./components/globals/layouts/lecture";
 import LoadingPage from "./pages/loading-page";
 import NotFoundPage from "./pages/not-found-page";
 import { useAuth } from "./contexts/AuthContext";
+import MyTopicDetailPage from "./pages/supervisors/topic-management/MyTopicDetailPage";
+import TopicVersionDetailPage from "./pages/supervisors/topic-management/TopicVersionDetailPage";
+import TopicVersionCreatePage from "./pages/supervisors/topic-management/TopicVersionCreatePage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -15,8 +18,8 @@ function App() {
   const Login = lazy(() => import("./pages/login-page"));
 
   // Supervisor pages
-  const CreateProject = lazy(
-    () => import("./pages/supervisors/create-project"),
+  const CreateTopicPage = lazy(
+    () => import("./pages/supervisors/CreateTopicPage"),
   );
   const AllTopics = lazy(
     () => import("./pages/supervisors/topic-management/topic-page"),
@@ -265,7 +268,7 @@ function App() {
     () => import("./pages/moderators/category-manager/category-page"),
   );
   const CurrentAssignmentsPage = lazy(
-    () => import("./pages/moderators/reviewer-assignment/assignments")
+    () => import("./pages/moderators/reviewer-assignment/assignments"),
   );
 
   return (
@@ -286,7 +289,7 @@ function App() {
           <Route path="/home" element={<Home />} />
 
           {/* Supervisor routes */}
-          <Route path="/create-project" element={<CreateProject />} />
+          <Route path="/create-project" element={<CreateTopicPage />} />
 
           {/* Quản lý đề tài */}
           <Route
@@ -312,6 +315,16 @@ function App() {
           <Route
             path="/supervisors/topics/ai-flagged"
             element={<AIFlaggedTopics />}
+          />
+
+          <Route path="/topics/my/:id" element={<MyTopicDetailPage />} />
+          <Route
+            path="/topics/:topicId/versions/:versionId"
+            element={<TopicVersionDetailPage />}
+          />
+          <Route
+            path="/topics/:topicId/versions/new"
+            element={<TopicVersionCreatePage />}
           />
 
           {/* Đề tài cần xử lý */}
