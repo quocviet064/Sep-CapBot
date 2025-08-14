@@ -28,6 +28,44 @@ export interface RawTopicResponse {
   listObjects: TopicType[];
 }
 
+export interface CreateTopicPayload {
+  title: string;
+  description: string;
+  objectives: string;
+  categoryId: number;
+  semesterId: number;
+  maxStudents: number;
+  methodology?: string;
+  expectedOutcomes?: string;
+  requirements?: string;
+  documentUrl?: string;
+}
+
+export const createTopic = async (
+  payload: CreateTopicPayload,
+): Promise<TopicDetailResponse> => {
+  try {
+    const response = await capBotAPI.post<ApiResponse<TopicDetailResponse>>(
+      "/topic/create",
+      payload,
+    );
+
+    const { success, message, data } = response.data;
+
+    if (!success) throw new Error(message || "Tạo chủ đề thất bại");
+
+    toast.success("🎉 Tạo chủ đề thành công!");
+    return data;
+  } catch (error) {
+    const msg = axios.isAxiosError(error)
+      ? error.response?.data?.message || "Tạo chủ đề thất bại"
+      : "Lỗi không xác định";
+
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
 export const fetchAllTopics = async (
   SemesterId?: string,
   CategoryId?: string,

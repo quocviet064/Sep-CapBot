@@ -17,7 +17,6 @@ import {
   Upload,
   Users,
   FolderKanban,
-  List,
 } from "lucide-react";
 
 export const siteSupervisor = [
@@ -34,6 +33,10 @@ export const siteSupervisor = [
       {
         title: "Tất cả đề tài của tôi",
         url: "/supervisors/topics/myTopic-page",
+      },
+      {
+        title: "Tất cả đề tài đã nộp",
+        url: "/supervisors/submissions/SubmissionPage",
       },
     ],
   },
@@ -107,7 +110,8 @@ export const siteAdmin = [
         title: "Phase trong học kỳ",
         url: "/admins/semester-management/phases",
       },
-      { title: "Phase Type", url: "/admins/semester-management/phase-types" },
+      { title: "Phase Type", url: "/admins/phase-types/PhaseTypePage" },
+      { title: "Phase", url: "/admins/phase/PhasePage" },
       {
         title: "Submission Round",
         url: "/admins/semester-management/submission-rounds",
