@@ -2,118 +2,184 @@ import capBotAPI from "@/lib/CapBotApi";
 import axios from "axios";
 import { toast } from "sonner";
 
-interface ApiResponse<T> {
-  statusCode: number | string;
+export type IdLike = number | string;
+
+type ApiResponse<T> = {
+  statusCode: number;
   success: boolean;
   data: T;
   errors: unknown;
   message: string | null;
+};
+
+const getAxiosMessage = (e: unknown, fallback: string) =>
+  axios.isAxiosError(e) ? e.response?.data?.message || fallback : fallback;
+
+export interface SubmissionDTO {
+  id: IdLike;
+  topicId?: IdLike;
+  topicVersionId?: IdLike;
+  phaseId?: IdLike;
+  documentUrl?: string | null;
+  additionalNotes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  status?: string | null; 
 }
 
-export interface SubmissionPagingDTO {
-  topicVersionId: number | null;
-  phaseId: number | null;
-  semesterId: number | null;
-  status: string | null;
-  pageNumber: number;
-  pageSize: number;
-  keyword: string | null;
-  totalRecord: number;
+export interface CreateSubmissionDTO {
+  topicVersionId: IdLike;
+  phaseId: IdLike;
+  documentUrl?: string;
+  additionalNotes?: string;
 }
 
-export interface SubmissionType {
-  id: number;
-  topicVersionId: number;
-  topicId?: number;
-  topicTitle?: string;
-  phaseId?: number;
-  phaseName?: string;
-  semesterId?: number;
-  semesterName?: string;
+export interface UpdateSubmissionDTO {
+  id: IdLike;
+  phaseId?: IdLike;
+  documentUrl?: string;
+  additionalNotes?: string;
+}
+
+export interface SubmitSubmissionDTO {
+  id: IdLike;
+}
+
+export interface ResubmitSubmissionDTO {
+  id: IdLike;
+  documentUrl?: string;
+  additionalNotes?: string;
+}
+
+export interface GetSubmissionsQueryDTO {
+  pageNumber?: number;
+  pageSize?: number;
+  topicVersionId?: IdLike;
+  phaseId?: IdLike;
+  semesterId?: IdLike;
   status?: string;
-  createdAt?: string;
-  createdBy?: string;
-  lastModifiedAt?: string | null;
-  lastModifiedBy?: string | null;
 }
 
-export interface RawSubmissionResponse {
-  paging: SubmissionPagingDTO;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-  listObjects: SubmissionType[];
+function normalizeList<T = any>(payload: any): T[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  if (Array.isArray(payload.listObjects)) return payload.listObjects as T[];
+  if (Array.isArray(payload.items)) return payload.items as T[];
+  if (Array.isArray(payload.data)) return payload.data as T[];
+  return [];
 }
 
-export const fetchSubmissions = async (
-  TopicVersionId?: number,
-  PhaseId?: number,
-  SemesterId?: number,
-  Status?: string,
-  PageNumber?: number,
-  PageSize?: number,
-  Keyword?: string,
-  TotalRecord?: number,
-): Promise<RawSubmissionResponse> => {
+/** POST /api/submission/create */
+export async function createSubmission(payload: CreateSubmissionDTO): Promise<SubmissionDTO> {
   try {
-    const res = await capBotAPI.get<ApiResponse<RawSubmissionResponse>>(
-      "/submission/list",
-      {
-        params: {
-          TopicVersionId,
-          PhaseId,
-          SemesterId,
-          Status,
-          PageNumber,
-          PageSize,
-          Keyword,
-          TotalRecord,
-        },
-      },
-    );
-
-    const { success, data, message } = res.data;
-    if (!success)
-      throw new Error(message || "Không thể tải danh sách submission");
-
-    return data;
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? error.response?.data?.message || "Không thể tải danh sách submission"
-      : "Lỗi không xác định";
+    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(`/submission/create`, payload);
+    if (!res.data.success) throw new Error(res.data.message || "Tạo submission thất bại");
+    toast.success("Đã tạo submission");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Tạo submission thất bại");
     toast.error(msg);
     throw new Error(msg);
   }
-};
+}
 
-export const fetchAllSubmissions = async (params: {
-  TopicVersionId?: number;
-  PhaseId?: number;
-  SemesterId?: number;
-  Status?: string;
-  Keyword?: string;
-}): Promise<SubmissionType[]> => {
-  const pageSize = 50;
-  let pageNumber = 1;
-  let totalPages = 1;
-  const out: SubmissionType[] = [];
+/** PUT /api/submission/update */
+export async function updateSubmission(payload: UpdateSubmissionDTO): Promise<SubmissionDTO> {
+  try {
+    const res = await capBotAPI.put<ApiResponse<SubmissionDTO>>(`/submission/update`, payload);
+    if (!res.data.success) throw new Error(res.data.message || "Cập nhật submission thất bại");
+    toast.success("Đã cập nhật submission");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Cập nhật submission thất bại");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+}
 
-  do {
-    const data = await fetchSubmissions(
-      params.TopicVersionId,
-      params.PhaseId,
-      params.SemesterId,
-      params.Status,
-      pageNumber,
-      pageSize,
-      params.Keyword,
-    );
-    if (Array.isArray(data?.listObjects)) {
-      out.push(...data.listObjects);
+/** POST /api/submission/submit */
+export async function submitSubmission(payload: SubmitSubmissionDTO): Promise<SubmissionDTO> {
+  try {
+    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(`/submission/submit`, payload);
+    if (!res.data.success) throw new Error(res.data.message || "Submit submission thất bại");
+    toast.success("Đã submit submission");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Submit submission thất bại");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+}
+
+/** POST /api/submission/resubmit */
+export async function resubmitSubmission(payload: ResubmitSubmissionDTO): Promise<SubmissionDTO> {
+  try {
+    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(`/submission/resubmit`, payload);
+    if (!res.data.success) throw new Error(res.data.message || "Resubmit submission thất bại");
+    toast.success("Đã resubmit submission");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Resubmit submission thất bại");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+}
+
+/** GET /api/submission/detail/{id} */
+export async function getSubmissionDetail(id: IdLike): Promise<SubmissionDTO> {
+  try {
+    const sid = encodeURIComponent(String(id));
+    const res = await capBotAPI.get<ApiResponse<SubmissionDTO>>(`/submission/detail/${sid}`);
+    if (!res.data.success) throw new Error(res.data.message || "Không lấy được chi tiết submission");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không lấy được chi tiết submission");
+    throw new Error(msg);
+  }
+}
+
+/** GET /api/submission/list */
+export async function listSubmissions(
+  query: GetSubmissionsQueryDTO
+): Promise<{ items: SubmissionDTO[]; raw: any }> {
+  try {
+    const res = await capBotAPI.get<ApiResponse<any>>(`/submission/list`, { params: query });
+    if (!res.data.success) throw new Error(res.data.message || "Không lấy được danh sách submission");
+    const items = normalizeList<SubmissionDTO>(res.data.data);
+    return { items, raw: res.data.data };
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không lấy được danh sách submission");
+    throw new Error(msg);
+  }
+}
+
+/* Ensure submission theo topicVersion */
+export async function ensureSubmissionFromTopicVersion(payload: CreateSubmissionDTO): Promise<SubmissionDTO> {
+  const { topicVersionId, phaseId, documentUrl, additionalNotes } = payload;
+  // 1) Thử tìm submission đã có 
+  const { items } = await listSubmissions({
+    topicVersionId,
+    phaseId,
+    pageNumber: 1,
+    pageSize: 1,
+  });
+
+  if (items.length > 0) {
+    return items[0];
+  }
+
+  // 2) Nếu truyền phaseId mà chưa có, có thể fallback tìm submission bất kỳ theo topicVersion
+  if (phaseId != null) {
+    const tryAny = await listSubmissions({
+      topicVersionId,
+      pageNumber: 1,
+      pageSize: 1,
+    });
+    if (tryAny.items.length > 0) {
+      return tryAny.items[0];
     }
-    totalPages = data?.totalPages || 1;
-    pageNumber++;
-  } while (pageNumber <= totalPages);
+  }
 
-  return out;
-};
+  // 3) Không có -> tạo mới
+  return await createSubmission({ topicVersionId, phaseId, documentUrl, additionalNotes });
+}

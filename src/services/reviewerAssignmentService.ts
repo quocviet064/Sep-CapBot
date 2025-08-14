@@ -2,6 +2,8 @@ import capBotAPI from "@/lib/CapBotApi";
 import axios from "axios";
 import { toast } from "sonner";
 
+export type IdLike = number | string;
+
 export enum AssignmentTypes {
   Primary = 1,
   Secondary = 2,
@@ -16,11 +18,11 @@ export enum AssignmentStatus {
 }
 
 export interface AssignReviewerDTO {
-  submissionId: number;
-  reviewerId: number;
+  submissionId: IdLike;
+  reviewerId: IdLike;
   assignmentType: AssignmentTypes;
   deadline?: string;
-  skillMatchScore?: number;
+  skillMatchScore?: number; // 0..5
   notes?: string;
 }
 
@@ -29,14 +31,14 @@ export interface BulkAssignReviewerDTO {
 }
 
 export interface AutoAssignReviewerDTO {
-  submissionId: number;
+  submissionId: IdLike;
   maxWorkload?: number;
   prioritizeHighPerformance?: boolean;
   topicSkillTags?: string[];
 }
 
 export interface AvailableReviewerDTO {
-  id: number;
+  id: IdLike;
   userName?: string;
   email?: string;
   phoneNumber?: string;
@@ -52,10 +54,10 @@ export interface AvailableReviewerDTO {
 }
 
 export interface ReviewerAssignmentResponseDTO {
-  id: number;
-  submissionId: number;
-  reviewerId: number;
-  assignedBy: number;
+  id: IdLike;
+  submissionId: IdLike;
+  reviewerId: IdLike;
+  assignedBy: IdLike;
   assignmentType: AssignmentTypes;
   skillMatchScore?: number;
   deadline?: string;
@@ -63,23 +65,38 @@ export interface ReviewerAssignmentResponseDTO {
   assignedAt: string;
   startedAt?: string;
   completedAt?: string;
-  reviewer?: { id: number; userName: string };
-  assignedByUser?: { id: number; userName: string };
+  reviewer?: { id: IdLike; userName: string };
+  assignedByUser?: { id: IdLike; userName: string };
   submissionTitle?: string;
   topicTitle?: string;
 }
 
 export interface RecommendationQuery {
-  top?: number;
-  minSkillMatch?: number;
-  excludeAssigned?: boolean;
-  includeOverloaded?: boolean;
-  requireAvailability?: boolean;
+  minSkillScore?: number; 
+  maxWorkload?: number;   
 }
 
-export interface RecommendedReviewerDTO extends AvailableReviewerDTO {
-  matchScore: number;
-  reasons?: string[];
+export interface RecommendedReviewerDTO {
+  reviewerId: IdLike;
+  reviewerName?: string;
+  reviewerEmail?: string;
+
+  skillMatchScore: number;
+  matchedSkills: string[];
+  reviewerSkills: Record<string, number>; // ProficiencyLevels enum 1..4
+
+  currentActiveAssignments: number;
+  completedAssignments: number;
+  workloadScore: number;
+
+  averageScoreGiven?: number;
+  onTimeRate?: number;
+  qualityRating?: number;
+  performanceScore: number;
+
+  overallScore: number;
+  isEligible: boolean;
+  ineligibilityReasons: string[];
 }
 
 interface ApiResponse<T> {
@@ -91,11 +108,9 @@ interface ApiResponse<T> {
 }
 
 const getAxiosMessage = (e: unknown, fallback: string) =>
-  axios.isAxiosError(e)
-    ? e.response?.data?.message || fallback
-    : "Lỗi không xác định";
+  axios.isAxiosError(e) ? (e.response?.data?.message || fallback) : "Lỗi không xác định";
 
-/* Phân công 1 reviewer */
+/** Phân công 1 reviewer */
 export const assignReviewer = async (
   payload: AssignReviewerDTO
 ): Promise<ReviewerAssignmentResponseDTO> => {
@@ -114,14 +129,15 @@ export const assignReviewer = async (
   }
 };
 
-/* Phân công hàng loạt */
+/** Phân công hàng loạt */
 export const bulkAssignReviewers = async (
   payload: BulkAssignReviewerDTO
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
-    const res = await capBotAPI.post<
-      ApiResponse<ReviewerAssignmentResponseDTO[]>
-    >("/reviewer-assignments/bulk", payload);
+    const res = await capBotAPI.post<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      "/reviewer-assignments/bulk",
+      payload
+    );
     if (!res.data.success) throw new Error(res.data.message || "");
     toast.success("Bulk assign thành công");
     return res.data.data;
@@ -132,13 +148,14 @@ export const bulkAssignReviewers = async (
   }
 };
 
-/* Lấy danh sách reviewer có thể phân công */
+/** Reviewer khả dụng theo submission */
 export const getAvailableReviewers = async (
-  submissionId: number
+  submissionId: IdLike
 ): Promise<AvailableReviewerDTO[]> => {
   try {
+    const sid = encodeURIComponent(String(submissionId));
     const res = await capBotAPI.get<ApiResponse<AvailableReviewerDTO[]>>(
-      `/reviewer-assignments/available/${submissionId}`
+      `/reviewer-assignments/available/${sid}`
     );
     if (!res.data.success) throw new Error(res.data.message || "");
     return res.data.data;
@@ -149,14 +166,15 @@ export const getAvailableReviewers = async (
   }
 };
 
-/* Lấy assignments của 1 submission */
+/** Assignments theo submission */
 export const getAssignmentsBySubmission = async (
-  submissionId: number
+  submissionId: IdLike
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
-    const res = await capBotAPI.get<
-      ApiResponse<ReviewerAssignmentResponseDTO[]>
-    >(`/reviewer-assignments/by-submission/${submissionId}`);
+    const sid = encodeURIComponent(String(submissionId));
+    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      `/reviewer-assignments/by-submission/${sid}`
+    );
     if (!res.data.success) throw new Error(res.data.message || "");
     return res.data.data;
   } catch (e) {
@@ -166,15 +184,15 @@ export const getAssignmentsBySubmission = async (
   }
 };
 
-/* Cập nhật trạng thái assignment */
+/** Cập nhật trạng thái */
 export const updateAssignmentStatus = async (
-  assignmentId: number,
+  assignmentId: IdLike,
   status: AssignmentStatus
 ): Promise<void> => {
   try {
     const res = await capBotAPI.put<ApiResponse<null>>(
       `/reviewer-assignments/${assignmentId}/status`,
-      { status } 
+      status
     );
     if (!res.data.success) throw new Error(res.data.message || "");
     toast.success("Cập nhật status thành công");
@@ -185,8 +203,8 @@ export const updateAssignmentStatus = async (
   }
 };
 
-/* Hủy assignment */
-export const cancelAssignment = async (assignmentId: number): Promise<void> => {
+/** Huỷ assignment */
+export const cancelAssignment = async (assignmentId: IdLike): Promise<void> => {
   try {
     const res = await capBotAPI.delete<ApiResponse<null>>(
       `/reviewer-assignments/${assignmentId}`
@@ -200,14 +218,20 @@ export const cancelAssignment = async (assignmentId: number): Promise<void> => {
   }
 };
 
-/* Tự động phân công */
+/** Auto-assign 1 submission */
 export const autoAssignReviewers = async (
   payload: AutoAssignReviewerDTO
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
-    const res = await capBotAPI.post<
-      ApiResponse<ReviewerAssignmentResponseDTO[]>
-    >("/reviewer-assignments/auto-assign", payload);
+    const res = await capBotAPI.post<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      "/reviewer-assignments/auto-assign",
+      {
+        submissionId: payload.submissionId,
+        maxWorkload: payload.maxWorkload,
+        prioritizeHighPerformance: payload.prioritizeHighPerformance,
+        topicSkillTags: payload.topicSkillTags,
+      }
+    );
     if (!res.data.success) throw new Error(res.data.message || "");
     toast.success("Auto assign thành công");
     return res.data.data;
@@ -218,15 +242,16 @@ export const autoAssignReviewers = async (
   }
 };
 
-/* Lấy danh sách reviewer gợi ý */
+/** Gợi ý reviewer */
 export async function getRecommendedReviewers(
-  submissionId: number,
+  submissionId: IdLike,
   query?: RecommendationQuery
 ): Promise<RecommendedReviewerDTO[]> {
   try {
+    const sid = encodeURIComponent(String(submissionId));
     const res = await capBotAPI.get<ApiResponse<RecommendedReviewerDTO[]>>(
-      `/reviewer-assignments/recommended/${submissionId}`,
-      { params: query }
+      `/reviewer-assignments/recommendations/${sid}`,
+      { params: { minSkillScore: query?.minSkillScore, maxWorkload: query?.maxWorkload } }
     );
     if (!res.data.success) throw new Error(res.data.message || "");
     return res.data.data;

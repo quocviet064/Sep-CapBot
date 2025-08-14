@@ -1,4 +1,3 @@
-// src/pages/moderators/reviewer-assignment/index.tsx
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import { Button } from "@/components/globals/atoms/button";
@@ -13,7 +12,6 @@ import { useBulkAssignReviewers } from "@/hooks/useReviewerAssignment";
 import { toast } from "sonner";
 
 const DEFAULT_VISIBILITY = {
-  // Ẩn/bật cột theo nhu cầu
   description: false,
   objectives: false,
   semesterId: false,
@@ -24,43 +22,34 @@ const DEFAULT_VISIBILITY = {
 };
 
 export default function ReviewerAssignmentIndex() {
-  // Paging + search cho bảng topic
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [search, setSearch] = useState<string>("");
 
-  // Lấy danh sách đề tài (tùy backend có filter "đã nộp" thì thêm param)
   const { data, isLoading, error } = useTopics("", "", pageNumber, pageSize, search);
 
-  // State chọn nhiều topic
   const [selectedTopicIds, setSelectedTopicIds] = useState<number[]>([]);
 
-  // Dialog chọn reviewer
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  // Nếu set topicId => per-row; nếu undefined => bulk (nhiều topic)
   const [dialogTopicId, setDialogTopicId] = useState<number | undefined>(undefined);
 
-  // Bulk mutation (gửi dạng { assignments: AssignReviewerDTO[] })
   const bulkMut = useBulkAssignReviewers();
 
-  // Mở dialog phân công theo từng dòng
   const openRowDialog = (topicId: number | string) => {
     setDialogTopicId(Number(topicId));
     setIsDialogOpen(true);
   };
 
-  // Mở dialog bulk (nhiều topic)
   const openBulkDialog = () => {
     if (selectedTopicIds.length === 0) {
       toast.info("Vui lòng chọn ít nhất 1 đề tài.");
       return;
     }
-    // Chọn submissionId đại diện để load reviewer gợi ý trong Dialog
+    // Chọn submissionId đại diện để load reviewer gợi ý 
     setDialogTopicId(selectedTopicIds[0]);
     setIsDialogOpen(true);
   };
 
-  // Xác nhận từ Dialog: gửi bulk
   const handleConfirmAssign = ({
     reviewerIds,
     assignmentType,
@@ -70,7 +59,6 @@ export default function ReviewerAssignmentIndex() {
   }) => {
     if (reviewerIds.length === 0) return;
 
-    // Tạo mảng assignments theo cấu trúc BE: AssignReviewerDTO[]
     let assignments: {
       submissionId: number;
       reviewerId: number;
@@ -78,14 +66,12 @@ export default function ReviewerAssignmentIndex() {
     }[] = [];
 
     if (dialogTopicId) {
-      // Per-row: nhiều reviewer cho 1 topic
       assignments = reviewerIds.map((rid) => ({
         submissionId: Number(dialogTopicId),
         reviewerId: rid,
         assignmentType,
       }));
     } else if (selectedTopicIds.length > 0) {
-      // Bulk: nhiều reviewer cho nhiều topic
       assignments = selectedTopicIds.flatMap((sid) =>
         reviewerIds.map((rid) => ({
           submissionId: Number(sid),
@@ -107,10 +93,8 @@ export default function ReviewerAssignmentIndex() {
     );
   };
 
-  // Bảng columns
   const columns = useMemo(() => {
     return [
-      // Cột checkbox chọn từng hàng + "select all on page"
       {
         id: "select",
         header: ({ table }: any) => {
@@ -125,11 +109,9 @@ export default function ReviewerAssignmentIndex() {
               checked={allChecked || (someChecked && "indeterminate")}
               onCheckedChange={(v) => {
                 if (v) {
-                  // add tất cả id trên trang vào selection
                   const merged = Array.from(new Set([...selectedTopicIds, ...pageIds]));
                   setSelectedTopicIds(merged);
                 } else {
-                  // bỏ tất cả id của trang khỏi selection
                   setSelectedTopicIds((prev) => prev.filter((id) => !pageIds.includes(id)));
                 }
               }}
@@ -210,7 +192,6 @@ export default function ReviewerAssignmentIndex() {
 
   return (
     <div className="space-y-3 p-6">
-      {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">Đề tài đã nộp</div>
         <div className="flex items-center gap-2">
@@ -242,10 +223,6 @@ export default function ReviewerAssignmentIndex() {
         setLimit={setPageSize}
       />
 
-      {/* Popup chọn reviewer:
-         - Per-row: truyền dialogTopicId
-         - Bulk: truyền submissionId đại diện = dialogTopicId (topic đầu tiên) để load reviewer gợi ý
-      */}
       <ReviewerPickerDialog
         isOpen={isDialogOpen}
         onClose={() => {
