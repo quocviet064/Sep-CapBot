@@ -11,6 +11,9 @@ import TopicVersionCreatePage from "./pages/supervisors/topic-management/TopicVe
 import SubmissionPage from "./pages/supervisors/submissions/SubmissionPage";
 import PhaseTypePage from "./pages/admins/phase-types/PhaseTypePage";
 import PhasePage from "./pages/admins/phase/PhasePage";
+import SemestersPage from "./pages/supervisors/submission-topic/semesters/semesters-page";
+import PhaseTypesPage from "./pages/supervisors/submission-topic/semesters/PhaseTypesPage";
+import PhaseListPage from "./pages/supervisors/submission-topic/semesters/PhaseListPage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -304,6 +307,19 @@ function App() {
             path="/supervisors/submissions/SubmissionPage"
             element={<SubmissionPage />}
           />
+          <Route
+            path="/supervisors/submission-topic/semesters/semesters-page"
+            element={<SemestersPage />}
+          />
+          <Route
+            path="/supervisors/submission-topic/semesters/phase-types"
+            element={<PhaseTypesPage />}
+          />
+          <Route
+            path="/semesters/:semesterId/phases"
+            element={<PhaseListPage />}
+          />
+
           <Route
             path="/supervisors/topics/pending"
             element={<PendingTopics />}
