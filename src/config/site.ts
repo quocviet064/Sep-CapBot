@@ -46,6 +46,11 @@ export const siteSupervisor = [
     icon: Bot,
   },
   {
+    title: "Tạo và Nộp đề tài",
+    url: "/supervisors/submission-topic/semesters/semesters-page",
+    icon: Bot,
+  },
+  {
     title: "Kì học",
     url: "/supervisors/semester",
     icon: CalendarSearch,
