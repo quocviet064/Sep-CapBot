@@ -261,3 +261,85 @@ export async function getRecommendedReviewers(
     throw new Error(msg);
   }
 }
+
+export interface ReviewerWorkloadDTO {
+  reviewerId: IdLike;
+  reviewerName?: string;
+  email?: string;
+  currentActiveAssignments: number;
+  completedAssignments?: number;
+  pendingAssignments?: number;
+  onTimeRate?: number;       // 0..1 hoặc %
+  averageScoreGiven?: number;
+  workloadScore?: number;    // 0..100 
+}
+
+export interface AnalyzeReviewerMatchDTO {
+  reviewerId: IdLike;
+  submissionId: IdLike;
+  skillMatchScore: number;         //0..5 hoặc 0..100
+  matchedSkills: string[];
+  reviewerSkills: Record<string, number>; // e.g. { "react": 3, "node": 4 }
+  workloadScore: number;
+  performanceScore: number;
+  overallScore: number;
+  isEligible?: boolean;
+  reasons?: string[];
+  ineligibilityReasons?: string[];
+}
+
+/** Assignments theo reviewer */
+export const getAssignmentsByReviewer = async (
+  reviewerId: IdLike
+): Promise<ReviewerAssignmentResponseDTO[]> => {
+  try {
+    const rid = encodeURIComponent(String(reviewerId));
+    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      `/reviewer-assignments/by-reviewer/${rid}`
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy assignments theo reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+/** Thống kê workload reviewers */
+export const getReviewersWorkload = async (
+  semesterId?: IdLike
+): Promise<ReviewerWorkloadDTO[]> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<ReviewerWorkloadDTO[]>>(
+      `/reviewer-assignments/workload`,
+      { params: semesterId != null ? { semesterId } : undefined }
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy thống kê workload reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+/** Phân tích matching giữa 1 reviewer và 1 submission */
+export const analyzeReviewerMatch = async (
+  reviewerId: IdLike,
+  submissionId: IdLike
+): Promise<AnalyzeReviewerMatchDTO> => {
+  try {
+    const rid = encodeURIComponent(String(reviewerId));
+    const sid = encodeURIComponent(String(submissionId));
+    const res = await capBotAPI.get<ApiResponse<AnalyzeReviewerMatchDTO>>(
+      `/reviewer-assignments/analyze/${rid}/${sid}`
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể phân tích mức độ phù hợp reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};

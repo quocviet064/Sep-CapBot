@@ -67,10 +67,10 @@ export default function ReviewerPickerDialog({
     }
   }, [isOpen]);
 
-  const recommended = useRecommendedReviewers(
-    submissionId,
-    { minSkillScore, maxWorkload: recMaxWorkload }
-  );
+  const recommended = useRecommendedReviewers(submissionId, {
+    minSkillScore,
+    maxWorkload: recMaxWorkload,
+  });
   const available = useAvailableReviewers(submissionId);
   const autoMut = useAutoAssignReviewers();
 
@@ -137,8 +137,8 @@ export default function ReviewerPickerDialog({
             <DialogTitle>Chọn reviewer</DialogTitle>
             <DialogDescription>
               {submissionId
-                ? `Tìm và tick reviewer để phân công cho Topic #${submissionId}, hoặc dùng Auto assign.`
-                : "Chế độ phân công nhiều đề tài: hãy chọn reviewer thủ công. (Recommended & Auto assign chỉ áp dụng khi mở theo 1 đề tài)"}
+                ? `Tìm và tick reviewer để phân công cho Submission #${submissionId}, hoặc dùng Auto assign.`
+                : "Chế độ phân công nhiều submission: hãy chọn reviewer thủ công. (Recommended & Auto assign chỉ áp dụng khi mở theo 1 submission)"}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -168,9 +168,7 @@ export default function ReviewerPickerDialog({
                     placeholder="Ví dụ: 3"
                     value={autoMaxWorkload ?? ""}
                     onChange={(e) =>
-                      setAutoMaxWorkload(
-                        e.target.value === "" ? undefined : Number(e.target.value)
-                      )
+                      setAutoMaxWorkload(e.target.value === "" ? undefined : Number(e.target.value))
                     }
                   />
                 </div>
@@ -196,7 +194,11 @@ export default function ReviewerPickerDialog({
             )}
 
             <div className="mt-3">
-              <Button onClick={doAutoAssign} disabled={autoDisabled} title={!submissionId ? "Auto assign chỉ hỗ trợ 1 đề tài" : undefined}>
+              <Button
+                onClick={doAutoAssign}
+                disabled={autoDisabled}
+                title={!submissionId ? "Auto assign chỉ hỗ trợ 1 submission" : undefined}
+              >
                 {autoMut.isPending ? "Đang auto assign..." : "Auto assign"}
               </Button>
             </div>
@@ -218,7 +220,7 @@ export default function ReviewerPickerDialog({
                 size="sm"
                 onClick={() => setTab("recommended")}
                 disabled={recommendedDisabled}
-                title={!submissionId ? "Cần mở theo 1 đề tài" : undefined}
+                title={!submissionId ? "Cần mở theo 1 submission" : undefined}
                 aria-pressed={tab === "recommended"}
               >
                 Recommended

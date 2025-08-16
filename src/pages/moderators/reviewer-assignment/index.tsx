@@ -1,118 +1,138 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import { Button } from "@/components/globals/atoms/button";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
+import { Input } from "@/components/globals/atoms/input";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
 import LoadingPage from "@/pages/loading-page";
-import { useTopics } from "@/hooks/useTopic";
-import { TopicType } from "@/schemas/topicSchema";
 import ReviewerPickerDialog from "./ReviewerPickerDialog";
 import { useBulkAssignReviewers } from "@/hooks/useReviewerAssignment";
 import { toast } from "sonner";
 
+import {
+  type SubmissionType,
+  type RawSubmissionResponse,
+} from "@/services/submissionService";
+import { useSubmissions } from "@/hooks/useSubmission";
+
 const DEFAULT_VISIBILITY = {
-  description: false,
-  objectives: false,
-  semesterId: false,
-  categoryId: false,
-  supervisorId: false,
+  documentUrl: false,
+  additionalNotes: false,
   updatedAt: false,
   createdAt: true,
+  phaseId: true,
+  status: true,
 };
 
 export default function ReviewerAssignmentIndex() {
+  // Server-side paging + search
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [search, setSearch] = useState<string>("");
 
-  const { data, isLoading, error } = useTopics("", "", pageNumber, pageSize, search);
+  const { data, isLoading, error } = useSubmissions({
+    PageNumber: pageNumber,
+    PageSize: pageSize,
+    Keyword: search || undefined,
+  });
 
-  const [selectedTopicIds, setSelectedTopicIds] = useState<number[]>([]);
+  // Selection theo submission
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<(string | number)[]>([]);
 
+  // Dialog
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  const [dialogTopicId, setDialogTopicId] = useState<number | undefined>(undefined);
+  const [dialogSubmissionId, setDialogSubmissionId] = useState<string | number | undefined>(undefined);
 
+  // Bulk mutation
   const bulkMut = useBulkAssignReviewers();
 
-  const openRowDialog = (topicId: number | string) => {
-    setDialogTopicId(Number(topicId));
+  const submissions: SubmissionType[] = data?.listObjects ?? [];
+
+  // Open dialog per-row
+  const openRowDialog = (submissionId: string | number) => {
+    setDialogSubmissionId(submissionId);
     setIsDialogOpen(true);
   };
 
+  // Open dialog bulk
   const openBulkDialog = () => {
-    if (selectedTopicIds.length === 0) {
-      toast.info("Vui lòng chọn ít nhất 1 đề tài.");
+    if (selectedSubmissionIds.length === 0) {
+      toast.info("Vui lòng chọn ít nhất 1 submission.");
       return;
     }
-    // Chọn submissionId đại diện để load reviewer gợi ý 
-    setDialogTopicId(selectedTopicIds[0]);
+    setDialogSubmissionId(selectedSubmissionIds[0]);
     setIsDialogOpen(true);
   };
 
-  const handleConfirmAssign = ({
+  // Xác nhận → bulk assign
+  const handleConfirmAssign = async ({
     reviewerIds,
     assignmentType,
   }: {
-    reviewerIds: number[];
+    reviewerIds: (string | number)[];
     assignmentType: number;
   }) => {
     if (reviewerIds.length === 0) return;
 
-    let assignments: {
-      submissionId: number;
-      reviewerId: number;
-      assignmentType: number;
-    }[] = [];
+    try {
+      let assignments: {
+        submissionId: string | number;
+        reviewerId: string | number;
+        assignmentType: number;
+      }[] = [];
 
-    if (dialogTopicId) {
-      assignments = reviewerIds.map((rid) => ({
-        submissionId: Number(dialogTopicId),
-        reviewerId: rid,
-        assignmentType,
-      }));
-    } else if (selectedTopicIds.length > 0) {
-      assignments = selectedTopicIds.flatMap((sid) =>
-        reviewerIds.map((rid) => ({
-          submissionId: Number(sid),
+      if (selectedSubmissionIds.length === 0 && dialogSubmissionId != null) {
+        // Per-row: nhiều reviewer cho 1 submission
+        assignments = reviewerIds.map((rid) => ({
+          submissionId: dialogSubmissionId,
           reviewerId: rid,
           assignmentType,
-        })),
-      );
-    }
+        }));
+      } else {
+        // Bulk: nhiều reviewer × nhiều submission
+        assignments = selectedSubmissionIds.flatMap((sid) =>
+          reviewerIds.map((rid) => ({
+            submissionId: sid,
+            reviewerId: rid,
+            assignmentType,
+          }))
+        );
+      }
 
-    bulkMut.mutate(
-      { assignments },
-      {
-        onSettled: () => {
-          setIsDialogOpen(false);
-          setDialogTopicId(undefined);
-          setSelectedTopicIds([]);
-        },
-      },
-    );
+      await bulkMut.mutateAsync({ assignments });
+      toast.success("Phân công thành công");
+    } catch (e: any) {
+      toast.error(e?.message || "Phân công thất bại");
+    } finally {
+      setIsDialogOpen(false);
+      setDialogSubmissionId(undefined);
+      setSelectedSubmissionIds([]);
+    }
   };
 
+  // Cột bảng submissions
   const columns = useMemo(() => {
     return [
       {
         id: "select",
         header: ({ table }: any) => {
           const pageRows = table.getRowModel().rows;
-          const pageIds = pageRows.map((r: any) => Number(r.original.id));
-          const allChecked = pageIds.every((id: number) => selectedTopicIds.includes(id));
-          const someChecked =
-            !allChecked && pageIds.some((id: number) => selectedTopicIds.includes(id));
+          const pageIds: string[] = pageRows.map((r: any) => String(r.original.id));
+          const selectedKeys = selectedSubmissionIds.map(String);
+          const allChecked = pageIds.every((id) => selectedKeys.includes(id));
+          const someChecked = !allChecked && pageIds.some((id) => selectedKeys.includes(id));
 
           return (
             <Checkbox
               checked={allChecked || (someChecked && "indeterminate")}
               onCheckedChange={(v) => {
                 if (v) {
-                  const merged = Array.from(new Set([...selectedTopicIds, ...pageIds]));
-                  setSelectedTopicIds(merged);
+                  const merged = Array.from(new Set([...selectedKeys, ...pageIds]));
+                  setSelectedSubmissionIds(merged);
                 } else {
-                  setSelectedTopicIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+                  const pageSet = new Set(pageIds);
+                  setSelectedSubmissionIds((prev) => prev.filter((id) => !pageSet.has(String(id))));
                 }
               }}
               aria-label="Select all on page"
@@ -121,13 +141,17 @@ export default function ReviewerAssignmentIndex() {
           );
         },
         cell: ({ row }: any) => {
-          const id = Number(row.original.id);
-          const checked = selectedTopicIds.includes(id);
+          const idStr = String(row.original.id);
+          const checked = selectedSubmissionIds.map(String).includes(idStr);
           return (
             <Checkbox
               checked={checked}
               onCheckedChange={(v) =>
-                setSelectedTopicIds((prev) => (v ? [...prev, id] : prev.filter((x) => x !== id)))
+                setSelectedSubmissionIds((prev) =>
+                  v
+                    ? Array.from(new Set([...prev.map(String), idStr]))
+                    : prev.filter((x) => String(x) !== idStr)
+                )
               }
               aria-label="Select row"
               className="mb-2"
@@ -139,41 +163,35 @@ export default function ReviewerAssignmentIndex() {
       },
       {
         accessorKey: "id",
-        meta: { title: "Mã đề tài" },
-        header: ({ column }: any) => (
-          <DataTableColumnHeader column={column} title="Mã đề tài" />
-        ),
+        meta: { title: "Submission" },
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Submission" />,
       },
       {
-        accessorKey: "title",
-        meta: { title: "Đề tài" },
-        header: ({ column }: any) => (
-          <DataTableColumnHeader column={column} title="Đề tài" />
-        ),
+        accessorKey: "phaseId",
+        meta: { title: "Phase" },
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Phase" />,
+        cell: ({ row }: any) => row.original.phaseId ?? "--",
       },
       {
-        accessorKey: "supervisorName",
-        meta: { title: "Giảng viên" },
-        header: ({ column }: any) => (
-          <DataTableColumnHeader column={column} title="Giảng viên" />
-        ),
+        accessorKey: "status",
+        meta: { title: "Trạng thái" },
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Trạng thái" />,
+        cell: ({ row }: any) => row.original.status ?? "--",
       },
       {
         accessorKey: "createdAt",
         meta: { title: "Ngày tạo" },
-        header: ({ column }: any) => (
-          <DataTableColumnHeader column={column} title="Ngày tạo" />
-        ),
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
         cell: ({ row }: any) => <DataTableDate date={row.original.createdAt} />,
       },
       {
         id: "actions",
         header: () => <span className="flex items-center justify-center">Thao tác</span>,
         cell: ({ row }: any) => {
-          const t: TopicType = row.original;
+          const submission: SubmissionType = row.original;
           return (
             <div className="flex justify-center">
-              <Button size="sm" onClick={() => openRowDialog(t.id as unknown as number)}>
+              <Button size="sm" onClick={() => openRowDialog(submission.id as any)}>
                 Phân công
               </Button>
             </div>
@@ -183,39 +201,49 @@ export default function ReviewerAssignmentIndex() {
         enableHiding: false,
       },
     ];
-  }, [selectedTopicIds]);
+  }, [selectedSubmissionIds]);
 
   if (isLoading) return <LoadingPage />;
-  if (error) return <div className="p-6 text-red-600">Lỗi tải danh sách đề tài</div>;
-
-  const topics = data?.listObjects || [];
+  if (error) return <div className="p-6 text-red-600">Lỗi tải danh sách submission</div>;
 
   return (
-    <div className="space-y-3 p-6">
-      <div className="flex items-center justify-between">
-        <div className="text-lg font-semibold">Đề tài đã nộp</div>
-        <div className="flex items-center gap-2">
+    <div className="space-y-4 p-6">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[260px]">
+          <label htmlFor="submissionKeyword" className="block text-sm mb-1">
+            Tìm kiếm submission
+          </label>
+          <Input
+            id="submissionKeyword"
+            placeholder="Nhập từ khoá..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
           <Button
             size="sm"
             variant="default"
             onClick={openBulkDialog}
-            disabled={selectedTopicIds.length === 0 || bulkMut.isPending}
+            disabled={selectedSubmissionIds.length === 0 || bulkMut.isPending}
           >
             {bulkMut.isPending
               ? "Đang phân công..."
-              : `Phân công đã chọn (${selectedTopicIds.length})`}
+              : `Phân công đã chọn (${selectedSubmissionIds.length})`}
           </Button>
         </div>
       </div>
 
-      {/* Bảng đề tài */}
-      <DataTable<TopicType, unknown>
-        data={topics}
+      {/* Bảng submissions */}
+      <DataTable<SubmissionType, unknown>
+        data={submissions}
         columns={columns as any}
         visibility={DEFAULT_VISIBILITY}
         search={search}
         setSearch={setSearch}
-        placeholder="Tìm kiếm đề tài, giảng viên..."
+        placeholder="Tìm kiếm submission..."
         page={pageNumber}
         setPage={setPageNumber}
         totalPages={data?.totalPages || 1}
@@ -223,13 +251,14 @@ export default function ReviewerAssignmentIndex() {
         setLimit={setPageSize}
       />
 
+      {/* Popup chọn reviewer — truyền submissionId */}
       <ReviewerPickerDialog
         isOpen={isDialogOpen}
         onClose={() => {
           setIsDialogOpen(false);
-          setDialogTopicId(undefined);
+          setDialogSubmissionId(undefined);
         }}
-        submissionId={dialogTopicId}
+        submissionId={dialogSubmissionId}
         onConfirm={handleConfirmAssign}
       />
     </div>
