@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createPhase,
+  deletePhase,
   fetchPhaseDetail,
   fetchPhases,
   PhaseCreateDto,
@@ -45,7 +46,6 @@ export const useUpdatePhase = () => {
   return useMutation({
     mutationFn: (payload: PhaseUpdateDto) => updatePhase(payload),
     onSuccess: (_data, variables) => {
-      // Làm tươi list & chi tiết item vừa cập nhật
       qc.invalidateQueries({ queryKey: ["phases"] });
       qc.invalidateQueries({
         queryKey: ["phase-detail", String(variables.id)],
@@ -57,6 +57,16 @@ export const useCreatePhase = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: PhaseCreateDto) => createPhase(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["phases"] });
+    },
+  });
+};
+
+export const useDeletePhase = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deletePhase(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["phases"] });
     },

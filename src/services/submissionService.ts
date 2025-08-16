@@ -12,8 +12,47 @@ type ApiResponse<T> = {
   message: string | null;
 };
 
-const getAxiosMessage = (e: unknown, fallback: string) =>
-  axios.isAxiosError(e) ? e.response?.data?.message || fallback : fallback;
+type ErrorPayload = { message?: unknown } | string | null;
+
+const getAxiosMessage = (e: unknown, fallback: string) => {
+  if (axios.isAxiosError<ErrorPayload>(e)) {
+    const data = e.response?.data;
+    if (typeof data === "string") return data || fallback;
+    if (data && typeof data === "object" && "message" in data) {
+      const msg = (data as { message?: unknown }).message;
+      if (typeof msg === "string" && msg.trim()) return msg;
+    }
+  }
+  return fallback;
+};
+
+const pickArray = <T>(v: unknown): T[] | null =>
+  Array.isArray(v) ? (v as T[]) : null;
+
+const normalizeList = <T>(payload: unknown): T[] => {
+  if (!payload) return [];
+  const direct = pickArray<T>(payload);
+  if (direct) return direct;
+  if (typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    const fromListObjects = pickArray<T>(obj.listObjects);
+    if (fromListObjects) return fromListObjects;
+    const fromItems = pickArray<T>(obj.items);
+    if (fromItems) return fromItems;
+    const fromData = pickArray<T>(obj.data);
+    if (fromData) return fromData;
+  }
+  return [];
+};
+
+const asNumber = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) ? v : undefined;
+
+const asBoolean = (v: unknown): boolean | undefined =>
+  typeof v === "boolean" ? v : undefined;
+
+const asString = (v: unknown): string | undefined =>
+  typeof v === "string" ? v : undefined;
 
 export interface SubmissionDTO {
   id: IdLike;
@@ -24,162 +63,159 @@ export interface SubmissionDTO {
   additionalNotes?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
-  status?: string | null; 
+  status?: string | null;
 }
 
-export interface CreateSubmissionDTO {
-  topicVersionId: IdLike;
-  phaseId: IdLike;
-  documentUrl?: string;
-  additionalNotes?: string;
-}
+export type SubmissionType = SubmissionDTO;
 
-export interface UpdateSubmissionDTO {
-  id: IdLike;
-  phaseId?: IdLike;
-  documentUrl?: string;
-  additionalNotes?: string;
-}
+export type RawSubmissionResponse = {
+  paging: {
+    pageNumber: number;
+    pageSize: number;
+    keyword: string | null;
+    totalRecord: number;
+    topicVersionId?: IdLike;
+    phaseId?: IdLike;
+    semesterId?: IdLike;
+    status?: string | null;
+  };
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  listObjects: SubmissionDTO[];
+};
 
-export interface SubmitSubmissionDTO {
-  id: IdLike;
-}
+export type GetSubmissionsQueryDTO = {
+  TopicVersionId?: number;
+  PhaseId?: number;
+  SemesterId?: number;
+  Status?: string;
+  PageNumber?: number;
+  PageSize?: number;
+  Keyword?: string;
+  TotalRecord?: number;
+};
 
-export interface ResubmitSubmissionDTO {
-  id: IdLike;
-  documentUrl?: string;
-  additionalNotes?: string;
-}
-
-export interface GetSubmissionsQueryDTO {
-  pageNumber?: number;
-  pageSize?: number;
-  topicVersionId?: IdLike;
-  phaseId?: IdLike;
-  semesterId?: IdLike;
-  status?: string;
-}
-
-function normalizeList<T = any>(payload: any): T[] {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload as T[];
-  if (Array.isArray(payload.listObjects)) return payload.listObjects as T[];
-  if (Array.isArray(payload.items)) return payload.items as T[];
-  if (Array.isArray(payload.data)) return payload.data as T[];
-  return [];
-}
-
-/** POST /api/submission/create */
-export async function createSubmission(payload: CreateSubmissionDTO): Promise<SubmissionDTO> {
+export const fetchSubmissions = async (
+  TopicVersionId?: number,
+  PhaseId?: number,
+  SemesterId?: number,
+  Status?: string,
+  PageNumber: number = 1,
+  PageSize: number = 10,
+  Keyword?: string,
+  TotalRecord?: number,
+): Promise<RawSubmissionResponse> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(`/submission/create`, payload);
-    if (!res.data.success) throw new Error(res.data.message || "Tạo submission thất bại");
-    toast.success("Đã tạo submission");
-    return res.data.data;
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Tạo submission thất bại");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-}
-
-/** PUT /api/submission/update */
-export async function updateSubmission(payload: UpdateSubmissionDTO): Promise<SubmissionDTO> {
-  try {
-    const res = await capBotAPI.put<ApiResponse<SubmissionDTO>>(`/submission/update`, payload);
-    if (!res.data.success) throw new Error(res.data.message || "Cập nhật submission thất bại");
-    toast.success("Đã cập nhật submission");
-    return res.data.data;
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Cập nhật submission thất bại");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-}
-
-/** POST /api/submission/submit */
-export async function submitSubmission(payload: SubmitSubmissionDTO): Promise<SubmissionDTO> {
-  try {
-    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(`/submission/submit`, payload);
-    if (!res.data.success) throw new Error(res.data.message || "Submit submission thất bại");
-    toast.success("Đã submit submission");
-    return res.data.data;
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Submit submission thất bại");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-}
-
-/** POST /api/submission/resubmit */
-export async function resubmitSubmission(payload: ResubmitSubmissionDTO): Promise<SubmissionDTO> {
-  try {
-    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(`/submission/resubmit`, payload);
-    if (!res.data.success) throw new Error(res.data.message || "Resubmit submission thất bại");
-    toast.success("Đã resubmit submission");
-    return res.data.data;
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Resubmit submission thất bại");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-}
-
-/** GET /api/submission/detail/{id} */
-export async function getSubmissionDetail(id: IdLike): Promise<SubmissionDTO> {
-  try {
-    const sid = encodeURIComponent(String(id));
-    const res = await capBotAPI.get<ApiResponse<SubmissionDTO>>(`/submission/detail/${sid}`);
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được chi tiết submission");
-    return res.data.data;
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không lấy được chi tiết submission");
-    throw new Error(msg);
-  }
-}
-
-/** GET /api/submission/list */
-export async function listSubmissions(
-  query: GetSubmissionsQueryDTO
-): Promise<{ items: SubmissionDTO[]; raw: any }> {
-  try {
-    const res = await capBotAPI.get<ApiResponse<any>>(`/submission/list`, { params: query });
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được danh sách submission");
-    const items = normalizeList<SubmissionDTO>(res.data.data);
-    return { items, raw: res.data.data };
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không lấy được danh sách submission");
-    throw new Error(msg);
-  }
-}
-
-/* Ensure submission theo topicVersion */
-export async function ensureSubmissionFromTopicVersion(payload: CreateSubmissionDTO): Promise<SubmissionDTO> {
-  const { topicVersionId, phaseId, documentUrl, additionalNotes } = payload;
-  // 1) Thử tìm submission đã có 
-  const { items } = await listSubmissions({
-    topicVersionId,
-    phaseId,
-    pageNumber: 1,
-    pageSize: 1,
-  });
-
-  if (items.length > 0) {
-    return items[0];
-  }
-
-  // 2) Nếu truyền phaseId mà chưa có, có thể fallback tìm submission bất kỳ theo topicVersion
-  if (phaseId != null) {
-    const tryAny = await listSubmissions({
-      topicVersionId,
-      pageNumber: 1,
-      pageSize: 1,
+    const params: Record<string, unknown> = {
+      TopicVersionId,
+      PhaseId,
+      SemesterId,
+      Status,
+      PageNumber,
+      PageSize,
+      Keyword,
+      TotalRecord,
+    };
+    const res = await capBotAPI.get<ApiResponse<unknown>>(`/submission/list`, {
+      params,
     });
-    if (tryAny.items.length > 0) {
-      return tryAny.items[0];
+    if (!res.data.success) {
+      throw new Error(
+        res.data.message || "Không lấy được danh sách submission",
+      );
     }
-  }
+    const src = res.data.data as Record<string, unknown> | unknown;
+    const items = normalizeList<SubmissionDTO>(src);
+    const obj = (
+      typeof src === "object" && src !== null
+        ? (src as Record<string, unknown>)
+        : {}
+    ) as Record<string, unknown>;
+    const pagingObj = (
+      typeof obj.paging === "object" && obj.paging !== null
+        ? (obj.paging as Record<string, unknown>)
+        : {}
+    ) as Record<string, unknown>;
 
-  // 3) Không có -> tạo mới
-  return await createSubmission({ topicVersionId, phaseId, documentUrl, additionalNotes });
-}
+    const pageNumber = asNumber(pagingObj.pageNumber) ?? PageNumber;
+    const pageSize = asNumber(pagingObj.pageSize) ?? PageSize;
+    const keyword = asString(pagingObj.keyword) ?? Keyword ?? null;
+
+    const totalRecordFromPaging = asNumber(pagingObj.totalRecord);
+    const totalRecordTop = asNumber(obj.totalRecord);
+    const totalRecord =
+      totalRecordFromPaging ??
+      totalRecordTop ??
+      (pageNumber === 1 && items.length < pageSize
+        ? items.length
+        : (TotalRecord ?? 0));
+
+    const totalPagesFromSrc = asNumber(obj.totalPages);
+    const totalPages =
+      totalPagesFromSrc ??
+      (totalRecord > 0 && pageSize > 0
+        ? Math.max(1, Math.ceil(totalRecord / pageSize))
+        : Math.max(1, pageNumber));
+
+    const hasNextPageFromSrc = asBoolean(obj.hasNextPage);
+    const hasPrevPageFromSrc = asBoolean(obj.hasPreviousPage);
+    const hasNextPage = hasNextPageFromSrc ?? pageNumber < totalPages;
+    const hasPreviousPage = hasPrevPageFromSrc ?? pageNumber > 1;
+
+    return {
+      paging: {
+        pageNumber,
+        pageSize,
+        keyword,
+        totalRecord: totalRecord ?? 0,
+        topicVersionId: TopicVersionId,
+        phaseId: PhaseId,
+        semesterId: SemesterId,
+        status: Status ?? null,
+      },
+      totalPages,
+      hasPreviousPage,
+      hasNextPage,
+      listObjects: items,
+    };
+  } catch (e: unknown) {
+    const msg = getAxiosMessage(e, "Không lấy được danh sách submission");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export const fetchAllSubmissions = async (args: {
+  TopicVersionId?: number;
+  PhaseId?: number;
+  SemesterId?: number;
+  Status?: string;
+  Keyword?: string;
+  PageSize?: number;
+  MaxPages?: number;
+}): Promise<SubmissionType[]> => {
+  const result: SubmissionType[] = [];
+  const size = args.PageSize ?? 50;
+  const maxPages = Math.max(1, args.MaxPages ?? 100);
+  let page = 1;
+  for (; page <= maxPages; page++) {
+    const pageData = await fetchSubmissions(
+      args.TopicVersionId,
+      args.PhaseId,
+      args.SemesterId,
+      args.Status,
+      page,
+      size,
+      args.Keyword,
+    );
+    result.push(...pageData.listObjects);
+    if (
+      !pageData.hasNextPage ||
+      page >= pageData.totalPages ||
+      pageData.listObjects.length < size
+    )
+      break;
+  }
+  return result;
+};

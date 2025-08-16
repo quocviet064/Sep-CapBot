@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Search, Filter, Plus } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import { Button } from "@/components/globals/atoms/button";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
@@ -24,7 +24,7 @@ export default function PhasePage() {
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [keyword, setKeyword] = useState<string>("");
-  const [semesterId, setSemesterId] = useState<number | undefined>(undefined);
+  const [semesterId] = useState<number | undefined>(undefined);
 
   const [openDetail, setOpenDetail] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -101,64 +101,6 @@ export default function PhasePage() {
 
       <div className="flex flex-col justify-between gap-2 rounded-2xl border bg-white/70 p-3 shadow-sm md:flex-row md:items-center">
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2">
-            <Search className="h-4 w-4 opacity-60" />
-            <input
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPageNumber(1);
-              }}
-              placeholder="Tìm giai đoạn..."
-              className="h-6 w-[220px] bg-transparent text-sm outline-none"
-            />
-          </div>
-
-          <div className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2">
-            <Filter className="h-4 w-4 opacity-60" />
-            <input
-              type="number"
-              value={semesterId ?? ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSemesterId(val === "" ? undefined : Number(val));
-                setPageNumber(1);
-              }}
-              placeholder="SemesterId (tuỳ chọn)"
-              className="h-6 w-[160px] bg-transparent text-sm outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-neutral-600">Hiển thị</span>
-          <select
-            className="rounded-xl border bg-white px-3 py-2 text-sm outline-none"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPageNumber(1);
-            }}
-          >
-            {[5, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>
-                {n} dòng
-              </option>
-            ))}
-          </select>
-
-          <Button
-            variant="outline"
-            onClick={() => {
-              setKeyword("");
-              setSemesterId(undefined);
-              setPageNumber(1);
-              setPageSize(10);
-            }}
-          >
-            Đặt lại
-          </Button>
-
           <Button onClick={() => setOpenCreate(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tạo giai đoạn

@@ -1,4 +1,3 @@
-// src/services/phaseService.ts
 import capBotAPI from "@/lib/CapBotApi";
 import axios from "axios";
 import { toast } from "sonner";
@@ -8,9 +7,9 @@ export type PhaseListItem = {
   name: string;
   phaseTypeName: string;
   semesterName: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
-  submissionDeadline: string; // ISO
+  startDate: string;
+  endDate: string;
+  submissionDeadline: string;
 };
 
 type ApiResponse<T> = {
@@ -37,6 +36,28 @@ export type RawPhaseListResponse = {
   listObjects: PhaseListItem[];
 };
 
+type ErrorPayload = { message?: string } | string | null;
+
+function getErrorMessage(
+  error: unknown,
+  fallback: string,
+  statusMap?: Record<number, string>,
+): string {
+  if (axios.isAxiosError<ErrorPayload>(error)) {
+    const status = error.response?.status;
+    if (status && statusMap && statusMap[status]) return statusMap[status];
+
+    const data = error.response?.data;
+    if (typeof data === "string") return data || fallback;
+    if (data && typeof data === "object" && "message" in data) {
+      const maybeMsg = (data as { message?: unknown }).message;
+      if (typeof maybeMsg === "string" && maybeMsg.trim()) return maybeMsg;
+    }
+    return fallback;
+  }
+  return "Lỗi không xác định";
+}
+
 export const fetchPhases = async (
   SemesterId?: number,
   PageNumber?: number,
@@ -47,30 +68,20 @@ export const fetchPhases = async (
   try {
     const res = await capBotAPI.get<ApiResponse<RawPhaseListResponse>>(
       "/phase/list",
-      {
-        params: {
-          SemesterId,
-          PageNumber,
-          PageSize,
-          Keyword,
-          TotalRecord,
-        },
-      },
+      { params: { SemesterId, PageNumber, PageSize, Keyword, TotalRecord } },
     );
 
     const { success, data, message } = res.data;
     if (!success || !data)
       throw new Error(message || "Không thể tải danh sách giai đoạn");
     return data;
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? (error.response?.data as any)?.message ||
-        "Không thể tải danh sách giai đoạn"
-      : "Lỗi không xác định";
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error, "Không thể tải danh sách giai đoạn");
     toast.error(msg);
     throw new Error(msg);
   }
 };
+
 export type PhaseDetail = {
   id: number;
   semesterId: number;
@@ -78,9 +89,9 @@ export type PhaseDetail = {
   phaseTypeId: number;
   phaseTypeName: string;
   name: string;
-  startDate: string; // ISO
-  endDate: string; // ISO
-  submissionDeadline: string; // ISO
+  startDate: string;
+  endDate: string;
+  submissionDeadline: string;
 };
 
 export const fetchPhaseDetail = async (
@@ -94,17 +105,15 @@ export const fetchPhaseDetail = async (
     if (!success || !data)
       throw new Error(message || "Không thể tải chi tiết giai đoạn");
     return data;
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? (error.response?.data as any)?.message ||
-        (error.response?.status === 404
-          ? "Giai đoạn không tồn tại"
-          : "Không thể tải chi tiết giai đoạn")
-      : "Lỗi không xác định";
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error, "Không thể tải chi tiết giai đoạn", {
+      404: "Giai đoạn không tồn tại",
+    });
     toast.error(msg);
     throw new Error(msg);
   }
 };
+
 export type PhaseUpdateDto = {
   id: number;
   semesterId: number;
@@ -124,19 +133,13 @@ export const updatePhase = async (payload: PhaseUpdateDto): Promise<void> => {
     const { success, message } = res.data;
     if (!success) throw new Error(message || "Cập nhật giai đoạn thất bại");
     toast.success(message || "Cập nhật giai đoạn thành công");
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? (error.response?.data as any)?.message ||
-        (error.response?.status === 409
-          ? "Tên giai đoạn đã tồn tại trong học kỳ này"
-          : error.response?.status === 404
-            ? "Giai đoạn/Semester/PhaseType không tồn tại"
-            : error.response?.status === 403
-              ? "Quyền truy cập bị từ chối"
-              : error.response?.status === 422
-                ? "Dữ liệu không hợp lệ"
-                : "Không thể cập nhật giai đoạn")
-      : "Lỗi không xác định";
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error, "Không thể cập nhật giai đoạn", {
+      409: "Tên giai đoạn đã tồn tại trong học kỳ này",
+      404: "Giai đoạn/Semester/PhaseType không tồn tại",
+      403: "Quyền truy cập bị từ chối",
+      422: "Dữ liệu không hợp lệ",
+    });
     toast.error(msg);
     throw new Error(msg);
   }
@@ -153,26 +156,40 @@ export type PhaseCreateDto = {
 
 export const createPhase = async (payload: PhaseCreateDto): Promise<void> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<any>>(
+    const res = await capBotAPI.post<ApiResponse<unknown>>(
       "/phase/create",
       payload,
     );
     const { success, message } = res.data;
     if (!success) throw new Error(message || "Tạo giai đoạn thất bại");
     toast.success(message || "Tạo giai đoạn thành công");
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? (error.response?.data as any)?.message ||
-        (error.response?.status === 409
-          ? "Tên giai đoạn đã tồn tại trong học kỳ này"
-          : error.response?.status === 404
-            ? "Semester hoặc PhaseType không tồn tại"
-            : error.response?.status === 403
-              ? "Quyền truy cập bị từ chối"
-              : error.response?.status === 422
-                ? "Dữ liệu không hợp lệ"
-                : "Không thể tạo giai đoạn")
-      : "Lỗi không xác định";
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error, "Không thể tạo giai đoạn", {
+      409: "Tên giai đoạn đã tồn tại trong học kỳ này",
+      404: "Semester hoặc PhaseType không tồn tại",
+      403: "Quyền truy cập bị từ chối",
+      422: "Dữ liệu không hợp lệ",
+    });
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export const deletePhase = async (id: number): Promise<void> => {
+  try {
+    const res = await capBotAPI.delete<ApiResponse<null>>(
+      `/phase/delete/${id}`,
+    );
+    const { success, message } = res.data;
+    if (!success) throw new Error(message || "Xóa giai đoạn thất bại");
+    toast.success(message || "Xóa giai đoạn thành công");
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error, "Không thể xóa giai đoạn", {
+      409: "Đang có submission sử dụng phase này",
+      404: "Giai đoạn không tồn tại",
+      403: "Quyền truy cập bị từ chối",
+      401: "Lỗi xác thực",
+    });
     toast.error(msg);
     throw new Error(msg);
   }

@@ -10,13 +10,10 @@ import {
   createCategory,
   updateCategory,
   deleteCategoryById,
-} from "@/services/categoryService";
-import {
-  CategoryDetailType,
-  CategoryType,
   CreateCategoryPayload,
   UpdateCategoryPayload,
-} from "@/schemas/categorySchema";
+} from "@/services/categoryService";
+import { CategoryDetailType, CategoryType } from "@/schemas/categorySchema";
 import { toast } from "sonner";
 
 export const useCategories = () => {
