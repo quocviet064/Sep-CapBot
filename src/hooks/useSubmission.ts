@@ -1,4 +1,3 @@
-// src/hooks/useSubmission.ts
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchSubmissions,
@@ -7,7 +6,6 @@ import {
   type SubmissionType,
 } from "@/services/submissionService";
 
-/** Query theo trang (server paging) */
 export const useSubmissions = (args: {
   TopicVersionId?: number;
   PhaseId?: number;
@@ -21,14 +19,14 @@ export const useSubmissions = (args: {
   useQuery<RawSubmissionResponse, Error>({
     queryKey: [
       "submissions",
-      args.TopicVersionId,
-      args.PhaseId,
-      args.SemesterId,
-      args.Status,
-      args.PageNumber,
-      args.PageSize,
-      args.Keyword,
-      args.TotalRecord,
+      args.TopicVersionId ?? null,
+      args.PhaseId ?? null,
+      args.SemesterId ?? null,
+      args.Status ?? null,
+      args.PageNumber ?? 1,
+      args.PageSize ?? 10,
+      args.Keyword ?? null,
+      args.TotalRecord ?? null,
     ],
     queryFn: () =>
       fetchSubmissions(
@@ -44,22 +42,25 @@ export const useSubmissions = (args: {
     staleTime: 1000 * 60 * 5,
   });
 
-/** Helper tương tự fetchAllMyTopics (gom nhiều trang) */
 export const useAllSubmissions = (args: {
   TopicVersionId?: number;
   PhaseId?: number;
   SemesterId?: number;
   Status?: string;
   Keyword?: string;
+  PageSize?: number;
+  MaxPages?: number;
 }) =>
   useQuery<SubmissionType[], Error>({
     queryKey: [
       "submissions-all",
-      args.TopicVersionId,
-      args.PhaseId,
-      args.SemesterId,
-      args.Status,
-      args.Keyword,
+      args.TopicVersionId ?? null,
+      args.PhaseId ?? null,
+      args.SemesterId ?? null,
+      args.Status ?? null,
+      args.Keyword ?? null,
+      args.PageSize ?? null,
+      args.MaxPages ?? null,
     ],
     queryFn: () => fetchAllSubmissions(args),
     staleTime: 1000 * 60 * 5,

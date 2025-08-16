@@ -8,7 +8,7 @@ import { useAuth } from "./contexts/AuthContext";
 import MyTopicDetailPage from "./pages/supervisors/topic-management/MyTopicDetailPage";
 import TopicVersionDetailPage from "./pages/supervisors/topic-management/TopicVersionDetailPage";
 import TopicVersionCreatePage from "./pages/supervisors/topic-management/TopicVersionCreatePage";
-import SubmissionPage from "./pages/supervisors/submissions/SubmissionPage";
+// import SubmissionPage from "./pages/supervisors/submissions/SubmissionPage";
 import PhaseTypePage from "./pages/admins/phase-types/PhaseTypePage";
 import PhasePage from "./pages/admins/phase/PhasePage";
 import SemestersPage from "./pages/supervisors/submission-topic/semesters/semesters-page";
@@ -303,10 +303,10 @@ function App() {
             path="/supervisors/topics/myTopic-page"
             element={<AllMyTopics />}
           />
-          <Route
+          {/* <Route
             path="/supervisors/submissions/SubmissionPage"
             element={<SubmissionPage />}
-          />
+          /> */}
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"
             element={<SemestersPage />}

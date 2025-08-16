@@ -3,7 +3,6 @@ import {
   BarChart3,
   BookOpen,
   Bot,
-  Brain,
   CalendarDays,
   CalendarSearch,
   FileSearch,
@@ -14,7 +13,6 @@ import {
   Settings,
   SlidersHorizontal,
   SquareTerminal,
-  Upload,
   Users,
   FolderKanban,
 } from "lucide-react";
@@ -111,16 +109,9 @@ export const siteAdmin = [
         title: "Học kỳ (Semester)",
         url: "/admins/semester-management/semesters",
       },
-      {
-        title: "Phase trong học kỳ",
-        url: "/admins/semester-management/phases",
-      },
+
       { title: "Phase Type", url: "/admins/phase-types/PhaseTypePage" },
       { title: "Phase", url: "/admins/phase/PhasePage" },
-      {
-        title: "Submission Round",
-        url: "/admins/semester-management/submission-rounds",
-      },
     ],
   },
   {
@@ -139,21 +130,6 @@ export const siteAdmin = [
         url: "/admins/topics-management/ai-flagged",
       },
       { title: "Phiên bản đề tài", url: "/admins/topics-management/versions" },
-    ],
-  },
-  {
-    title: "Import đề tài cũ",
-    url: "#",
-    icon: Upload,
-    isActive: false,
-    items: [
-      { title: "Upload file đề tài", url: "/admins/legacy-import/upload" },
-      { title: "Gắn metadata & legacy", url: "/admins/legacy-import/metadata" },
-      {
-        title: "Đánh dấu đã được duyệt",
-        url: "/admins/legacy-import/mark-approved",
-      },
-      { title: "Cho phép AI học", url: "/admins/legacy-import/ai-train" },
     ],
   },
   {
@@ -195,24 +171,6 @@ export const siteAdmin = [
         title: "Vô hiệu hóa tài khoản",
         url: "/admins/lecturer-management/deactivate",
       },
-    ],
-  },
-  {
-    title: "Cấu hình AI",
-    url: "#",
-    icon: Brain,
-    isActive: false,
-    items: [
-      {
-        title: "Ngưỡng trùng lặp",
-        url: "/admins/ai-config/similarity-threshold",
-      },
-      {
-        title: "Ngưỡng điểm AI chấm",
-        url: "/admins/ai-config/score-threshold",
-      },
-      { title: "Kết quả AI đánh giá", url: "/admins/ai-config/results" },
-      { title: "Tinh chỉnh mô hình", url: "/admins/ai-config/tuning" },
     ],
   },
   {

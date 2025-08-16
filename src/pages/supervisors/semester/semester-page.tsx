@@ -11,7 +11,6 @@ function SemesterPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between border-b pb-3">
         <div>
           <h2 className="flex items-center gap-2 text-2xl font-bold">
@@ -24,7 +23,6 @@ function SemesterPage() {
         </div>
       </div>
 
-      {/* Nội dung */}
       <div className="min-h-[600px] rounded-2xl border bg-white p-6 shadow-sm">
         {semesterData?.length === 0 ? (
           <div className="py-12 text-center text-gray-500">

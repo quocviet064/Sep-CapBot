@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Search, Plus } from "lucide-react";
+import { BookOpen, Plus, Loader2, Tag } from "lucide-react";
 import { Button } from "@/components/globals/atoms/button";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
@@ -14,10 +14,79 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/globals/atoms/dialog";
-import { Label } from "@/components/globals/atoms/label";
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-200/70 bg-white/80 shadow-sm ring-1 ring-black/5 backdrop-blur">
+      <div className="flex items-center justify-between border-b px-5 py-3">
+        <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
+      </div>
+      <div className="px-5 py-4">{children}</div>
+    </div>
+  );
+}
+function Row({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="grid grid-cols-[200px,1fr] items-center gap-4 py-3 md:grid-cols-[220px,1fr] lg:grid-cols-[240px,1fr]">
+      <div className="min-w-0">
+        <div
+          className="text-[11px] font-semibold tracking-wide whitespace-nowrap text-neutral-500 uppercase"
+          title={label}
+        >
+          {label}
+        </div>
+        {hint && <p className="mt-1 text-[11px] text-neutral-500">{hint}</p>}
+      </div>
+      <div className="min-w-0 overflow-hidden whitespace-nowrap">
+        {children}
+      </div>
+    </div>
+  );
+}
+function FieldInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={[
+        "w-full rounded-xl border px-3.5 py-2.5 text-sm",
+        "border-neutral-200 bg-white shadow-inner outline-none",
+        "focus:border-indigo-400 focus:ring-4 focus:ring-indigo-200/60",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
+function FieldTextarea(
+  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+) {
+  return (
+    <textarea
+      {...props}
+      className={[
+        "w-full rounded-xl border px-3.5 py-2.5 text-sm",
+        "border-neutral-200 bg-white shadow-inner outline-none",
+        "focus:border-indigo-400 focus:ring-4 focus:ring-indigo-200/60",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
 
 const DEFAULT_VISIBILITY = {
   id: true,
@@ -84,7 +153,6 @@ export default function PhaseTypePage() {
           setCreateName("");
           setCreateDescription("");
           setOpenCreate(false);
-
           setPageNumber(1);
         },
       },
@@ -130,48 +198,6 @@ export default function PhaseTypePage() {
 
       <div className="flex flex-col justify-between gap-2 rounded-2xl border bg-white/70 p-3 shadow-sm md:flex-row md:items-center">
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2">
-            <Search className="h-4 w-4 opacity-60" />
-            <input
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                setPageNumber(1);
-              }}
-              placeholder="Tìm loại giai đoạn..."
-              className="h-6 w-[220px] bg-transparent text-sm outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-neutral-600">Hiển thị</span>
-          <select
-            className="rounded-xl border bg-white px-3 py-2 text-sm outline-none"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPageNumber(1);
-            }}
-          >
-            {[5, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>
-                {n} dòng
-              </option>
-            ))}
-          </select>
-
-          <Button
-            variant="outline"
-            onClick={() => {
-              setKeyword("");
-              setPageNumber(1);
-              setPageSize(10);
-            }}
-          >
-            Đặt lại
-          </Button>
-
           <Button onClick={() => setOpenCreate(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tạo loại giai đoạn
@@ -206,55 +232,82 @@ export default function PhaseTypePage() {
       />
 
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-        <DialogContent className="min-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Tạo loại giai đoạn</DialogTitle>
-            <DialogDescription>
-              Nhập thông tin để tạo loại giai đoạn mới.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Tên loại giai đoạn *
-              </Label>
-              <input
-                className="w-full rounded-sm border px-4 py-2 text-sm"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Nhập tên"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Mô tả</Label>
-              <textarea
-                className="w-full rounded-sm border px-4 py-2 text-sm"
-                rows={3}
-                value={createDescription}
-                onChange={(e) => setCreateDescription(e.target.value)}
-                placeholder="Nhập mô tả (không bắt buộc)"
-              />
+        <DialogContent className="min-w-[600px] overflow-hidden p-0">
+          <div className="relative">
+            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-600 to-violet-600" />
+            <div
+              className="absolute inset-0 -z-10 opacity-60"
+              style={{
+                backgroundImage:
+                  "radial-gradient(1200px 400px at -10% -40%, rgba(255,255,255,.35), transparent 60%), radial-gradient(900px 300px at 110% -30%, rgba(255,255,255,.25), transparent 60%)",
+              }}
+            />
+            <div className="flex items-center justify-between px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20 backdrop-blur">
+                  <Tag className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-[18px] font-semibold">
+                    Tạo loại giai đoạn
+                  </DialogTitle>
+                  <DialogDescription className="text-[12px] text-white/80">
+                    Nhập thông tin để tạo loại giai đoạn mới.
+                  </DialogDescription>
+                </div>
+              </div>
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setOpenCreate(false);
-              }}
-              disabled={isCreating}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={isCreating || !createName.trim()}
-            >
-              {isCreating ? "Đang tạo..." : "Tạo"}
-            </Button>
+          <div className="space-y-5 bg-neutral-50 px-6 py-6">
+            <Section title="Thông tin bắt buộc">
+              <Row label="Tên loại giai đoạn *">
+                <FieldInput
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="Nhập tên loại giai đoạn"
+                  maxLength={200}
+                />
+              </Row>
+              <div className="border-t" />
+              <Row label="Mô tả" hint="Tối đa ~500 ký tự">
+                <div className="break-words whitespace-normal">
+                  <FieldTextarea
+                    rows={4}
+                    value={createDescription}
+                    onChange={(e) => setCreateDescription(e.target.value)}
+                    placeholder="Nhập mô tả (không bắt buộc)"
+                  />
+                </div>
+              </Row>
+            </Section>
+          </div>
+
+          <DialogFooter className="sticky bottom-0 z-10 border-t bg-white/85 px-6 py-4 backdrop-blur">
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setOpenCreate(false)}
+                disabled={isCreating}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleCreate}
+                disabled={isCreating || !createName.trim()}
+                className="gap-2"
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Đang tạo...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" /> Tạo
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
