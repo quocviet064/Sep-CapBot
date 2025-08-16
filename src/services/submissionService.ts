@@ -64,6 +64,10 @@ export interface SubmissionDTO {
   createdAt?: string | null;
   updatedAt?: string | null;
   status?: string | null;
+  submittedBy?: IdLike;
+  submittedByName?: string;
+  submissionRound?: number;
+  submittedAt?: string;
 }
 
 export type SubmissionType = SubmissionDTO;
@@ -218,4 +222,20 @@ export const fetchAllSubmissions = async (args: {
       break;
   }
   return result;
+};
+
+export const getSubmissionDetail = async (id: IdLike): Promise<SubmissionDTO> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<SubmissionDTO>>(
+      `/submission/detail/${encodeURIComponent(String(id))}`
+    );
+    if (!res.data.success) {
+      throw new Error(res.data.message || "Không lấy được chi tiết submission");
+    }
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không lấy được chi tiết submission");
+    toast.error(msg);
+    throw new Error(msg);
+  }
 };

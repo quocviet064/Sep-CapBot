@@ -1,4 +1,3 @@
-// src/pages/moderators/reviewer-assignment/available.tsx
 import { useState, useEffect, KeyboardEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import LoadingPage from "@/pages/loading-page";

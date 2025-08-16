@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import { Button } from "@/components/globals/atoms/button";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
@@ -9,20 +9,16 @@ import LoadingPage from "@/pages/loading-page";
 import ReviewerPickerDialog from "./ReviewerPickerDialog";
 import { useBulkAssignReviewers } from "@/hooks/useReviewerAssignment";
 import { toast } from "sonner";
+import { Eye } from "lucide-react";
 
-import {
-  type SubmissionType,
-  type RawSubmissionResponse,
-} from "@/services/submissionService";
+import { type SubmissionType } from "@/services/submissionService";
 import { useSubmissions } from "@/hooks/useSubmission";
+import SubmissionDetailDialog from "./SubmissionDetailDialog";
 
 const DEFAULT_VISIBILITY = {
-  documentUrl: false,
-  additionalNotes: false,
-  updatedAt: false,
-  createdAt: true,
-  phaseId: true,
-  status: true,
+  submittedByName: true,
+  submissionRound: true,
+  submittedAt: true,
 };
 
 export default function ReviewerAssignmentIndex() {
@@ -40,9 +36,13 @@ export default function ReviewerAssignmentIndex() {
   // Selection theo submission
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<(string | number)[]>([]);
 
-  // Dialog
+  // Dialog assign
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [dialogSubmissionId, setDialogSubmissionId] = useState<string | number | undefined>(undefined);
+
+  // Dialog detail
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailSubmissionId, setDetailSubmissionId] = useState<string | number | undefined>(undefined);
 
   // Bulk mutation
   const bulkMut = useBulkAssignReviewers();
@@ -63,6 +63,12 @@ export default function ReviewerAssignmentIndex() {
     }
     setDialogSubmissionId(selectedSubmissionIds[0]);
     setIsDialogOpen(true);
+  };
+
+  // Open detail dialog
+  const openDetailDialog = (submissionId: string | number) => {
+    setDetailSubmissionId(submissionId);
+    setIsDetailOpen(true);
   };
 
   // Xác nhận → bulk assign
@@ -111,7 +117,7 @@ export default function ReviewerAssignmentIndex() {
     }
   };
 
-  // Cột bảng submissions
+  // Cột bảng submissions — map đúng với payload BE
   const columns = useMemo(() => {
     return [
       {
@@ -167,22 +173,26 @@ export default function ReviewerAssignmentIndex() {
         header: ({ column }: any) => <DataTableColumnHeader column={column} title="Submission" />,
       },
       {
-        accessorKey: "phaseId",
-        meta: { title: "Phase" },
-        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Phase" />,
-        cell: ({ row }: any) => row.original.phaseId ?? "--",
+        id: "submittedByName",
+        meta: { title: "Supervisor" },
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Supervisor" />,
+        cell: ({ row }: any) => {
+          const name = row.original.submittedByName as string | undefined;
+          const uid = row.original.submittedBy as string | number | undefined;
+          return name ? `${name}${uid ? ` (#${uid})` : ""}` : uid ? `#${uid}` : "--";
+        },
       },
       {
-        accessorKey: "status",
-        meta: { title: "Trạng thái" },
-        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Trạng thái" />,
-        cell: ({ row }: any) => row.original.status ?? "--",
+        id: "submissionRound",
+        meta: { title: "Round" },
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Round" />,
+        cell: ({ row }: any) => row.original.submissionRound ?? 1,
       },
       {
-        accessorKey: "createdAt",
-        meta: { title: "Ngày tạo" },
-        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
-        cell: ({ row }: any) => <DataTableDate date={row.original.createdAt} />,
+        id: "submittedAt",
+        meta: { title: "Submitted at" },
+        header: ({ column }: any) => <DataTableColumnHeader column={column} title="Submitted at" />,
+        cell: ({ row }: any) => <DataTableDate date={row.original.submittedAt} />,
       },
       {
         id: "actions",
@@ -190,9 +200,20 @@ export default function ReviewerAssignmentIndex() {
         cell: ({ row }: any) => {
           const submission: SubmissionType = row.original;
           return (
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => openRowDialog(submission.id as any)}>
                 Phân công
+              </Button>
+
+              {/* Nút xem chi tiết (Eye) */}
+              <Button
+                size="icon"
+                variant="ghost"
+                title="Xem chi tiết"
+                aria-label="Xem chi tiết"
+                onClick={() => openDetailDialog(submission.id as any)}
+              >
+                <Eye className="h-4 w-4" />
               </Button>
             </div>
           );
@@ -260,6 +281,16 @@ export default function ReviewerAssignmentIndex() {
         }}
         submissionId={dialogSubmissionId}
         onConfirm={handleConfirmAssign}
+      />
+
+      {/* Popup chi tiết submission */}
+      <SubmissionDetailDialog
+        isOpen={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setDetailSubmissionId(undefined);
+        }}
+        submissionId={detailSubmissionId}
       />
     </div>
   );
