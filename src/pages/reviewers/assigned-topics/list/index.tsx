@@ -11,35 +11,18 @@ import {
   type ReviewerAssignmentResponseDTO,
 } from "@/services/reviewerAssignmentService";
 
-import { createColumns } from "../columns";
-import ReviewEditorDialog from "../review-editor/ReviewEditorDialog";
+import { createColumns, DEFAULT_VISIBILITY as COL_VIS } from "../columns";
 
-const DEFAULT_VISIBILITY = {
-  assignedBy: false,
-  startedAt: false,
-  completedAt: false,
-  submissionTitle: true,
-  topicTitle: true,
-  assignedAt: true,
-  deadline: true,
-};
+const DEFAULT_VISIBILITY = COL_VIS;
 
 export default function ReviewerAssignedList() {
   const navigate = useNavigate();
 
-  // Lấy assignments cho reviewer hiện tại (id lấy từ JWT trong hook)
+  // Lấy assignments cho reviewer hiện tại 
   const { data, isLoading, error } = useAssignmentsByReviewer();
   const assignments = data ?? [];
-
-  // Local UI state
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  // Dialog chấm điểm
-  const [openReview, setOpenReview] = useState(false);
-  const [editingAssignmentId, setEditingAssignmentId] = useState<number | undefined>(undefined);
-
-  // Handlers cho cột Thao tác
   const handlers = useMemo(
     () => ({
       onViewSubmission: (submissionId: number | string) => {
@@ -49,20 +32,19 @@ export default function ReviewerAssignedList() {
         }
         navigate(`/reviewers/assigned-topics/detail?submissionId=${submissionId}`);
       },
-      onReview: (assignmentId: number | string) => {
-        const n = Number(assignmentId);
-        if (!Number.isFinite(n)) {
+      onOpenReview: (row: ReviewerAssignmentResponseDTO) => {
+        const id = Number(row.id);
+        if (!Number.isFinite(id)) {
           toast.error("Mã phân công không hợp lệ");
           return;
         }
-        setEditingAssignmentId(n);
-        setOpenReview(true);
+        // Chuyển sang trang đánh giá
+        navigate(`/reviewers/evaluate-topics/review?assignmentId=${id}`);
       },
     }),
     [navigate]
   );
 
-  // Cột bảng
   const columns = useMemo(() => createColumns(handlers), [handlers]);
 
   // Lọc client theo trạng thái & từ khoá
@@ -73,7 +55,7 @@ export default function ReviewerAssignedList() {
       if (!okStatus) return false;
 
       if (!q) return true;
-      const haystack = `${x.id} ${x.submissionId} ${x.reviewerId} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""}`
+      const haystack = `${x.id} ${x.submissionId} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""}`
         .toLowerCase();
       return haystack.includes(q);
     });
@@ -120,16 +102,10 @@ export default function ReviewerAssignedList() {
       <DataTable<ReviewerAssignmentResponseDTO, unknown>
         data={filtered}
         columns={columns as any}
-        visibility={DEFAULT_VISIBILITY}
+        visibility={DEFAULT_VISIBILITY as any}
         search={search}
         setSearch={setSearch}
         placeholder="Tìm theo đề tài, submission..."
-      />
-
-      <ReviewEditorDialog
-        isOpen={openReview}
-        onClose={() => setOpenReview(false)}
-        assignmentId={editingAssignmentId}
       />
     </div>
   );

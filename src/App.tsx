@@ -199,6 +199,7 @@ function App() {
   const ReviewerFeedbackHistory = lazy(() => import("./pages/reviewers/feedback-history"));
   const ReviewerTopicArchive = lazy(() => import("./pages/reviewers/topic-archive"));
   const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
+  const ReviewerReview = lazy(() => import("./pages/reviewers/evaluate-topics/review"));
 
   // Moderator pages
   const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
@@ -494,13 +495,13 @@ function App() {
 
           {/* Reviewer */}
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-
           <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
           <Route path="/reviewers/assigned-topics/detail" element={<ReviewerAssignedDetail />} />
-
           <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
           <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
           <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
+          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
+          />
 
           {/* Moderator routes */}
           <Route

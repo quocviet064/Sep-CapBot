@@ -17,7 +17,6 @@ type ErrorPayload = { message?: unknown } | string | null;
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError<ErrorPayload>(e)) {
     const data = e.response?.data;
-    // BE đôi chỗ trả message ở root
     const direct = (data as any)?.message;
     if (typeof direct === "string" && direct.trim()) return direct;
     if (typeof data === "string") return data || fallback;
@@ -26,6 +25,8 @@ const getAxiosMessage = (e: unknown, fallback: string) => {
 };
 
 export type ReviewStatus = "Draft" | "Submitted";
+
+export type Recommendation = "Approve" | "Reject" | "Revise" | string;
 
 export interface ReviewCriteriaScoreDTO {
   criteriaId: number;
@@ -53,17 +54,21 @@ export interface ReviewDTO {
 
 export interface CreateReviewDTO {
   assignmentId: IdLike;
-  overallScore?: number | null;
-  overallComment?: string | null;
   criteriaScores: ReviewCriteriaScoreDTO[];
+  overallComment?: string | null;
+  recommendation?: Recommendation;
+  timeSpentMinutes?: number | null;
 }
+
 
 export interface UpdateReviewDTO {
   id: IdLike;
   assignmentId: IdLike;
+  criteriaScores: ReviewCriteriaScoreDTO[];
   overallScore?: number | null;
   overallComment?: string | null;
-  criteriaScores: ReviewCriteriaScoreDTO[];
+  recommendation?: Recommendation;
+  timeSpentMinutes?: number | null;
 }
 
 export interface PagingModel {
@@ -194,7 +199,6 @@ export const getScoreBoard = async (id: IdLike): Promise<{
 }> => {
   try {
     const res = await capBotAPI.get<any>(`/reviews/${id}/scores`);
-    // Controller trả Ok({ IsSuccess = true, Data = scoreData }) khi thành công
     const data = res.data?.data ?? res.data?.Data ?? res.data;
     if (!data) throw new Error("Không lấy được scoreboard");
     return {

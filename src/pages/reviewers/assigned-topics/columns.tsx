@@ -1,4 +1,3 @@
-// src/pages/reviewers/assigned-topics/columns.tsx
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/globals/atoms/button";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
@@ -14,23 +13,33 @@ import {
 
 const statusLabel = (s?: number) => {
   switch (s) {
-    case AssignmentStatus.Assigned: return "Đã phân công";
-    case AssignmentStatus.InProgress: return "Đang đánh giá";
-    case AssignmentStatus.Completed: return "Hoàn thành";
-    case AssignmentStatus.Overdue: return "Quá hạn";
-    default: return "--";
+    case AssignmentStatus.Assigned:
+      return "Đã phân công";
+    case AssignmentStatus.InProgress:
+      return "Đang đánh giá";
+    case AssignmentStatus.Completed:
+      return "Hoàn thành";
+    case AssignmentStatus.Overdue:
+      return "Quá hạn";
+    default:
+      return "--";
   }
 };
 
 const typeLabel = (t?: number) => {
   switch (t) {
-    case AssignmentTypes.Primary: return "Primary";
-    case AssignmentTypes.Secondary: return "Secondary";
-    case AssignmentTypes.Additional: return "Additional";
-    default: return "--";
+    case AssignmentTypes.Primary:
+      return "Primary";
+    case AssignmentTypes.Secondary:
+      return "Secondary";
+    case AssignmentTypes.Additional:
+      return "Additional";
+    default:
+      return "--";
   }
 };
 
+/** Bật/tắt cột mặc định */
 export const DEFAULT_VISIBILITY = {
   assignedBy: false,
   startedAt: false,
@@ -39,14 +48,16 @@ export const DEFAULT_VISIBILITY = {
   topicTitle: true,
   assignedAt: true,
   deadline: true,
-};
+} as const;
 
 export type ColumnHandlers = {
   onViewSubmission: (submissionId: IdLike) => void;
   onOpenReview: (row: ReviewerAssignmentResponseDTO) => void;
 };
 
-export function createColumns(handlers: ColumnHandlers): ColumnDef<ReviewerAssignmentResponseDTO>[] {
+export function createColumns(
+  handlers: ColumnHandlers
+): ColumnDef<ReviewerAssignmentResponseDTO>[] {
   return [
     {
       id: "select",
@@ -93,7 +104,9 @@ export function createColumns(handlers: ColumnHandlers): ColumnDef<ReviewerAssig
         <DataTableColumnHeader column={column} title="Đề tài" />
       ),
       cell: ({ row }) =>
-        row.original.topicTitle ?? row.original.submissionTitle ?? "--",
+        row.original.topicTitle?.trim() ||
+        row.original.submissionTitle?.trim() ||
+        "--",
     },
     {
       accessorKey: "assignmentType",
@@ -101,7 +114,7 @@ export function createColumns(handlers: ColumnHandlers): ColumnDef<ReviewerAssig
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Loại" />
       ),
-      cell: ({ row }) => typeLabel(row.original.assignmentType),
+      cell: ({ row }) => typeLabel(row.original.assignmentType as number),
     },
     {
       accessorKey: "status",
@@ -109,7 +122,7 @@ export function createColumns(handlers: ColumnHandlers): ColumnDef<ReviewerAssig
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Trạng thái" />
       ),
-      cell: ({ row }) => statusLabel(row.original.status),
+      cell: ({ row }) => statusLabel(row.original.status as number),
     },
     {
       accessorKey: "assignedAt",
@@ -117,7 +130,12 @@ export function createColumns(handlers: ColumnHandlers): ColumnDef<ReviewerAssig
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Ngày phân công" />
       ),
-      cell: ({ row }) => <DataTableDate date={row.original.assignedAt} />,
+      cell: ({ row }) =>
+        row.original.assignedAt ? (
+          <DataTableDate date={row.original.assignedAt} />
+        ) : (
+          "--"
+        ),
     },
     {
       accessorKey: "deadline",
@@ -126,7 +144,11 @@ export function createColumns(handlers: ColumnHandlers): ColumnDef<ReviewerAssig
         <DataTableColumnHeader column={column} title="Deadline" />
       ),
       cell: ({ row }) =>
-        row.original.deadline ? <DataTableDate date={row.original.deadline} /> : "--",
+        row.original.deadline ? (
+          <DataTableDate date={row.original.deadline} />
+        ) : (
+          "--"
+        ),
     },
     {
       id: "actions",
