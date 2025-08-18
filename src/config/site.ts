@@ -276,108 +276,32 @@ export const siteModerator = [
 export const siteReviewer = [
   {
     title: "Tổng quan hệ thống",
-    url: "/reviewers/dashboard/assigned-count",
+    url: "/reviewers/dashboard",
     icon: SquareTerminal,
-    isActive: false,
-    items: [
-      {
-        title: "Số lượng đề tài được giao",
-        url: "/reviewers/dashboard/assigned-count",
-      },
-      { title: "Tiến độ đánh giá", url: "/reviewers/dashboard/progress" },
-      {
-        title: "Tình trạng phản hồi",
-        url: "/reviewers/dashboard/feedback-status",
-      },
-    ],
   },
   {
     title: "Đề tài được phân công",
-    url: "/reviewers/assigned-topics/list",
+    url: "#",
     icon: FileSearch,
     isActive: false,
     items: [
-      { title: "Danh sách đề tài", url: "/reviewers/assigned-topics/list" },
-      {
-        title: "Xem chi tiết nội dung",
-        url: "/reviewers/assigned-topics/detail",
-      },
-      {
-        title: "Ghi chú nội bộ",
-        url: "/reviewers/assigned-topics/internal-notes",
-      },
-    ],
-  },
-  {
-    title: "Đánh giá đề tài",
-    url: "/reviewers/evaluate-topics/score",
-    icon: FileText,
-    isActive: false,
-    items: [
-      {
-        title: "Chấm điểm theo tiêu chí",
-        url: "/reviewers/evaluate-topics/score",
-      },
-      {
-        title: "Thêm nhận xét từng đoạn",
-        url: "/reviewers/evaluate-topics/paragraph-comments",
-      },
-      {
-        title: "Tải file phản biện",
-        url: "/reviewers/evaluate-topics/upload-review-file",
-      },
+      { title: "Danh sách", url: "/reviewers/assigned-topics/list" },
+      { title: "Xem chi tiết", url: "/reviewers/assigned-topics/detail" },
     ],
   },
   {
     title: "Lịch sử phản hồi",
-    url: "/reviewers/feedback-history/responded-topics",
+    url: "/reviewers/feedback-history",
     icon: MessageSquareDiff,
-    isActive: false,
-    items: [
-      {
-        title: "Xem đề tài đã phản hồi",
-        url: "/reviewers/feedback-history/responded-topics",
-      },
-      {
-        title: "Theo dõi chỉnh sửa sau phản biện",
-        url: "/reviewers/feedback-history/post-review-tracking",
-      },
-    ],
   },
   {
     title: "Kho lưu trữ đề tài",
-    url: "/reviewers/topic-archive/approved-topics",
+    url: "/reviewers/topic-archive",
     icon: FolderSearch,
-    isActive: false,
-    items: [
-      {
-        title: "Xem đề tài đã duyệt",
-        url: "/reviewers/topic-archive/approved-topics",
-      },
-      {
-        title: "Tra cứu nội dung liên quan",
-        url: "/reviewers/topic-archive/search-related",
-      },
-    ],
   },
   {
     title: "Thống kê đánh giá",
-    url: "/reviewers/evaluation-stats/completed",
+    url: "/reviewers/evaluation-stats",
     icon: BarChart3,
-    isActive: false,
-    items: [
-      {
-        title: "Số lượt đánh giá đã hoàn thành",
-        url: "/reviewers/evaluation-stats/completed",
-      },
-      {
-        title: "Đề tài có cảnh báo",
-        url: "/reviewers/evaluation-stats/warnings",
-      },
-      {
-        title: "Tổng hợp điểm trung bình",
-        url: "/reviewers/evaluation-stats/average-score",
-      },
-    ],
   },
 ];

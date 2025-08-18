@@ -108,7 +108,9 @@ interface ApiResponse<T> {
 }
 
 const getAxiosMessage = (e: unknown, fallback: string) =>
-  axios.isAxiosError(e) ? (e.response?.data?.message || fallback) : "Lỗi không xác định";
+  axios.isAxiosError(e)
+    ? (e.response?.data as any)?.message || fallback
+    : fallback;
 
 /** Phân công 1 reviewer */
 export const assignReviewer = async (
