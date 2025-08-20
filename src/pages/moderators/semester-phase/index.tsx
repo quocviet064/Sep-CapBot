@@ -1,4 +1,3 @@
-// src/pages/moderators/semester-phase/index.tsx
 import SemesterList from "./SemesterList";
 import Phases from "./phases";
 import Rounds from "./rounds";
@@ -10,7 +9,7 @@ export default function SemesterPhasePage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold">Quản lý học kỳ &amp; Phase</h1>
         <p className="text-sm text-muted-foreground">
-          Tạo / chỉnh sửa học kỳ, thiết lập các phase và vòng (round) tương ứng.
+          Tạo / chỉnh sửa học kỳ, thiết lập các phase.
         </p>
       </div>
 
@@ -19,7 +18,7 @@ export default function SemesterPhasePage() {
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Học kỳ</h2>
           <p className="text-sm text-muted-foreground">
-            Danh sách học kỳ, xem chi tiết, chỉnh sửa, xoá. (UI 3 chấm & dialog chi tiết)
+            Danh sách học kỳ, xem chi tiết, chỉnh sửa, xoá.
           </p>
         </div>
         <SemesterList />

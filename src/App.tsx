@@ -192,65 +192,14 @@ function App() {
     () => import("./pages/admins/system-settings/environment"),
   );
 
-  // Reviewer - Dashboard
-  const ReviewerAssignedCount = lazy(
-    () => import("./pages/reviewers/dashboard/assigned-count"),
-  );
-  const ReviewerProgress = lazy(
-    () => import("./pages/reviewers/dashboard/progress"),
-  );
-  const ReviewerFeedbackStatus = lazy(
-    () => import("./pages/reviewers/dashboard/feedback-status"),
-  );
-
-  // Reviewer - Assigned Topics
-  const ReviewerAssignedList = lazy(
-    () => import("./pages/reviewers/assigned-topics/list"),
-  );
-  const ReviewerAssignedDetail = lazy(
-    () => import("./pages/reviewers/assigned-topics/detail"),
-  );
-  const ReviewerInternalNotes = lazy(
-    () => import("./pages/reviewers/assigned-topics/internal-notes"),
-  );
-
-  // Reviewer - Evaluate Topics
-  const ReviewerScore = lazy(
-    () => import("./pages/reviewers/evaluate-topics/score"),
-  );
-  const ReviewerParagraphComments = lazy(
-    () => import("./pages/reviewers/evaluate-topics/paragraph-comments"),
-  );
-  const ReviewerUploadReviewFile = lazy(
-    () => import("./pages/reviewers/evaluate-topics/upload-review-file"),
-  );
-
-  // Reviewer - Feedback History
-  const ReviewerRespondedTopics = lazy(
-    () => import("./pages/reviewers/feedback-history/responded-topics"),
-  );
-  const ReviewerPostReviewTracking = lazy(
-    () => import("./pages/reviewers/feedback-history/post-review-tracking"),
-  );
-
-  // Reviewer - Topic Archive
-  const ReviewerApprovedTopics = lazy(
-    () => import("./pages/reviewers/topic-archive/approved-topics"),
-  );
-  const ReviewerSearchRelated = lazy(
-    () => import("./pages/reviewers/topic-archive/search-related"),
-  );
-
-  // Reviewer - Evaluation Stats
-  const ReviewerCompletedStats = lazy(
-    () => import("./pages/reviewers/evaluation-stats/completed"),
-  );
-  const ReviewerWarningsStats = lazy(
-    () => import("./pages/reviewers/evaluation-stats/warnings"),
-  );
-  const ReviewerAverageScore = lazy(
-    () => import("./pages/reviewers/evaluation-stats/average-score"),
-  );
+  // Reviewer 
+  const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
+  const ReviewerAssignedList = lazy(() => import("./pages/reviewers/assigned-topics/list"));
+  const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
+  const ReviewerFeedbackHistory = lazy(() => import("./pages/reviewers/feedback-history"));
+  const ReviewerTopicArchive = lazy(() => import("./pages/reviewers/topic-archive"));
+  const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
+  const ReviewerReview = lazy(() => import("./pages/reviewers/evaluate-topics/review"));
 
   // Moderator pages
   const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
@@ -544,80 +493,14 @@ function App() {
             element={<AdminEnvironment />}
           />
 
-          {/* Reviewer - Dashboard */}
-          <Route
-            path="/reviewers/dashboard/assigned-count"
-            element={<ReviewerAssignedCount />}
-          />
-          <Route
-            path="/reviewers/dashboard/progress"
-            element={<ReviewerProgress />}
-          />
-          <Route
-            path="/reviewers/dashboard/feedback-status"
-            element={<ReviewerFeedbackStatus />}
-          />
-
-          {/* Reviewer - Assigned Topics */}
-          <Route
-            path="/reviewers/assigned-topics/list"
-            element={<ReviewerAssignedList />}
-          />
-          <Route
-            path="/reviewers/assigned-topics/detail"
-            element={<ReviewerAssignedDetail />}
-          />
-          <Route
-            path="/reviewers/assigned-topics/internal-notes"
-            element={<ReviewerInternalNotes />}
-          />
-
-          {/* Reviewer - Evaluate Topics */}
-          <Route
-            path="/reviewers/evaluate-topics/score"
-            element={<ReviewerScore />}
-          />
-          <Route
-            path="/reviewers/evaluate-topics/paragraph-comments"
-            element={<ReviewerParagraphComments />}
-          />
-          <Route
-            path="/reviewers/evaluate-topics/upload-review-file"
-            element={<ReviewerUploadReviewFile />}
-          />
-
-          {/* Reviewer - Feedback History */}
-          <Route
-            path="/reviewers/feedback-history/responded-topics"
-            element={<ReviewerRespondedTopics />}
-          />
-          <Route
-            path="/reviewers/feedback-history/post-review-tracking"
-            element={<ReviewerPostReviewTracking />}
-          />
-
-          {/* Reviewer - Topic Archive */}
-          <Route
-            path="/reviewers/topic-archive/approved-topics"
-            element={<ReviewerApprovedTopics />}
-          />
-          <Route
-            path="/reviewers/topic-archive/search-related"
-            element={<ReviewerSearchRelated />}
-          />
-
-          {/* Reviewer - Evaluation Stats */}
-          <Route
-            path="/reviewers/evaluation-stats/completed"
-            element={<ReviewerCompletedStats />}
-          />
-          <Route
-            path="/reviewers/evaluation-stats/warnings"
-            element={<ReviewerWarningsStats />}
-          />
-          <Route
-            path="/reviewers/evaluation-stats/average-score"
-            element={<ReviewerAverageScore />}
+          {/* Reviewer */}
+          <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
+          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
+          <Route path="/reviewers/assigned-topics/detail" element={<ReviewerAssignedDetail />} />
+          <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
+          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
+          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
+          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
           />
 
           {/* Moderator routes */}

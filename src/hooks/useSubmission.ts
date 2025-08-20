@@ -4,6 +4,8 @@ import {
   fetchAllSubmissions,
   type RawSubmissionResponse,
   type SubmissionType,
+  SubmissionDTO,
+  getSubmissionDetail,
 } from "@/services/submissionService";
 
 export const useSubmissions = (args: {
@@ -63,5 +65,13 @@ export const useAllSubmissions = (args: {
       args.MaxPages ?? null,
     ],
     queryFn: () => fetchAllSubmissions(args),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  export const useSubmissionDetail = (id?: string | number) =>
+  useQuery<SubmissionDTO>({
+    queryKey: ["submission-detail", id ?? null],
+    queryFn: () => getSubmissionDetail(id!),
+    enabled: !!id,
     staleTime: 1000 * 60 * 5,
   });
