@@ -1,3 +1,4 @@
+// src/pages/LoginPage.tsx
 import { Button } from "@/components/globals/atoms/button";
 import {
   Card,
@@ -21,6 +22,7 @@ import {
   LoginUserType,
   RegisterType,
   registerSchema,
+  roles as ROLE_OPTIONS, // ⬅️ lấy danh sách role
 } from "@/schemas/userSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
@@ -41,27 +43,21 @@ function LoginPage() {
     logout();
   }, []);
 
-  const toggleVisibilityLogin = () =>
-    setIsVisibleLogin((prevState) => !prevState);
-  const toggleVisibilityRegister = () =>
-    setIsVisibleRegister((prevState) => !prevState);
+  const toggleVisibilityLogin = () => setIsVisibleLogin((p) => !p);
+  const toggleVisibilityRegister = () => setIsVisibleRegister((p) => !p);
 
   const loginForm = useForm<LoginUserType>({
     resolver: zodResolver(loginUserSchema),
     defaultValues: {
       emailOrUsername: "viet@gmail.com",
       password: "123Aa@",
+      role: "Supervisor", // ⬅️ mặc định có thể đổi
     },
   });
 
   const registerForm = useForm<RegisterType>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      fullName: "",
-      phoneNumber: "",
-      email: "",
-      password: "",
-    },
+    defaultValues: { fullName: "", phoneNumber: "", email: "", password: "" },
   });
 
   const {
@@ -79,15 +75,13 @@ function LoginPage() {
   const onSubmitLogin = async (data: LoginUserType) => {
     setIsLoading(true);
     try {
-      await login(data.emailOrUsername, data.password);
+      await login(data.emailOrUsername, data.password, data.role);
 
       const token = localStorage.getItem("accessToken");
       if (!token) throw new Error("Không tìm thấy accessToken");
 
       const payload = parseJwt(token);
-      if (!payload?.role) throw new Error("Token không hợp lệ");
-
-      const role = payload.role;
+      const role = data.role || payload?.role;
 
       const roleRoutes: Record<string, string> = {
         Supervisor: "/supervisors/topics/myTopic-page",
@@ -95,7 +89,6 @@ function LoginPage() {
         Moderator: "/moderators/dashboard",
         Reviewer: "/reviewers/dashboard/assigned-count",
       };
-
       navigate(roleRoutes[role] || "/");
     } catch (error) {
       console.error("Login error:", error);
@@ -141,16 +134,16 @@ function LoginPage() {
               <CardHeader>
                 <CardTitle>Login</CardTitle>
                 <CardDescription>
-                  Access your account securely by entering your email and
-                  password.
+                  Access your account securely by entering your email, password
+                  and role.
                 </CardDescription>
               </CardHeader>
+
               <CardContent className="space-y-4">
+                {/* Email / Username */}
                 <div>
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="ml-1">
-                      Email
-                    </Label>
+                    <Label htmlFor="email">Email / Username</Label>
                     <Input
                       id="email"
                       type="email"
@@ -165,6 +158,7 @@ function LoginPage() {
                   )}
                 </div>
 
+                {/* Password */}
                 <div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
@@ -199,7 +193,31 @@ function LoginPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Role */}
+                <div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <select
+                      id="role"
+                      className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:ring-ring/50 h-10 w-full rounded-md border px-3 text-sm focus:ring-2 focus:outline-none"
+                      {...loginRegister("role")}
+                    >
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {loginErrors.role && (
+                    <p className="mt-1 ml-1 text-sm text-red-600">
+                      {loginErrors.role.message}
+                    </p>
+                  )}
+                </div>
               </CardContent>
+
               <CardFooter className="flex w-full justify-end">
                 <Button
                   type="submit"
@@ -214,6 +232,7 @@ function LoginPage() {
           </form>
         </TabsContent>
 
+        {/* Register giữ nguyên */}
         <TabsContent value="register">
           <form onSubmit={handleRegisterSubmit(onSubmitRegister)}>
             <Card>
@@ -276,7 +295,6 @@ function LoginPage() {
                 <div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-
                     <div className="relative">
                       <Input
                         id="password"
