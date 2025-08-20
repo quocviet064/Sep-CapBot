@@ -1,8 +1,14 @@
+// src/schemas/userSchema.ts
 import { z } from "zod";
-
 import { auditFields, uuidSchema } from "./baseSchema";
 
-export const roles = ["Member", "Subscription Member", "Consultant", "Admin"];
+export const roles = [
+  "Administrator",
+  "Moderator",
+  "Supervisor",
+  "Reviewer",
+] as const;
+export type Role = (typeof roles)[number];
 
 export const userBaseSchema = z.object({
   userId: uuidSchema,
@@ -43,9 +49,8 @@ export const userBaseSchema = z.object({
 
   avatarUrl: z.string().optional(),
 
-  role: z.string().refine((val) => roles.includes(val), {
-    message: `Invalid role. Accepted roles are: ${roles.join(", ")}`,
-  }),
+  // ⬇️ dùng enum cho chắc
+  role: z.enum(roles, { required_error: "Role is required" }),
 
   status: z.boolean(),
 
@@ -68,9 +73,11 @@ export const userInfoSchema = userBaseSchema.pick({
   avatarUrl: true,
 });
 
+// ⬇️ thêm role vào login
 export const loginUserSchema = userBaseSchema.pick({
   emailOrUsername: true,
   password: true,
+  role: true,
 });
 
 export const registerSchema = userBaseSchema.pick({

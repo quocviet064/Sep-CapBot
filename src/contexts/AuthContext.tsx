@@ -1,5 +1,7 @@
+// src/contexts/AuthContext.tsx
 import capBotAPI from "@/lib/CapBotApi";
 import { createContext, useContext, useEffect, useState } from "react";
+import type { Role } from "@/schemas/userSchema";
 
 export interface IAuthResponseData {
   statusCode: number;
@@ -26,7 +28,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  // ⬇️ thêm role
+  login: (
+    emailOrUsername: string,
+    password: string,
+    role: Role,
+  ) => Promise<void>;
   logout: () => void;
 }
 
@@ -35,12 +42,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const parseJwt = (token: string): IUserData | null => {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
+    // dự phòng nhiều cách đặt claim
+    const role =
+      payload.role ||
+      payload.Role ||
+      (Array.isArray(payload.roles) ? payload.roles[0] : undefined);
+
     return {
       unique_name: payload.unique_name,
       email: payload.email || payload.Email,
-      role: payload.role,
+      role,
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -53,14 +66,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const login = async (emailOrUsername: string, password: string) => {
+  const login = async (
+    emailOrUsername: string,
+    password: string,
+    role: Role,
+  ) => {
     setLoading(true);
     setError(null);
     try {
       const response = await capBotAPI.post<IAuthResponseData>("/auth/login", {
         emailOrUsername,
         password,
+        role,
       });
+
       const { accessToken, expiryTime } = response.data.data.tokenData;
 
       localStorage.setItem("accessToken", accessToken);
@@ -102,7 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (decoded) {
           setUser(decoded);
           setIsAuthenticated(true);
-          // Auto logout khi hết hạn token
           const timeout = expiryDate.getTime() - now.getTime();
           const timer = setTimeout(logout, timeout);
           return () => clearTimeout(timer);
@@ -126,7 +144,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// Custom hook để sử dụng AuthContext
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within AuthProvider");
