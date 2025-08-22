@@ -1,207 +1,91 @@
-import { useEffect, useMemo, useState, KeyboardEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/globals/atoms/button";
 import { Input } from "@/components/globals/atoms/input";
-import { Checkbox } from "@/components/globals/atoms/checkbox";
+import { DataTable } from "@/components/globals/atoms/data-table";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
-import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
-import {
-  useAssignmentsBySubmission,
-  useCancelAssignment,
-  useUpdateAssignmentStatus,
-} from "@/hooks/useReviewerAssignment";
-import { AssignmentStatus, ReviewerAssignmentResponseDTO } from "@/services/reviewerAssignmentService";
+import { Eye } from "lucide-react";
 import { toast } from "sonner";
-import { ColumnDef } from "@tanstack/react-table";
 
-const DEFAULT_VISIBILITY = {
-  assignedBy: false,
-  deadline: true,
-  startedAt: false,
-  completedAt: false,
-  assignedAt: true,
-};
+import { useSubmissions } from "@/hooks/useSubmission";
+import { type SubmissionType } from "@/services/submissionService";
+import SubmissionAssignmentsDialog from "./SubmissionAssignmentsDialog";
 
-const statusLabel = (s: AssignmentStatus | number | undefined) => {
-  switch (s) {
-    case AssignmentStatus.Assigned: return "Đã phân công";
-    case AssignmentStatus.InProgress: return "Đang đánh giá";
-    case AssignmentStatus.Completed: return "Hoàn thành";
-    case AssignmentStatus.Overdue: return "Quá hạn";
-    default: return "--";
-  }
+/** Visibility cho bảng submissions */
+const SUBMISSION_VISIBILITY = {
+  submittedByName: true,
+  submissionRound: true,
+  submittedAt: true,
 };
 
 export default function ReviewerAssignmentsPage() {
-  // Read & drive URL param (?submissionId=...)
-  const [searchParams, setSearchParams] = useSearchParams();
-  const paramId = searchParams.get("submissionId") ?? "";
+  // ---- SUBMISSION LIST (server paging + search)
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [keyword, setKeyword] = useState("");
 
-  // Controlled input bound to URL
-  const [submissionInput, setSubmissionInput] = useState(paramId);
-  useEffect(() => setSubmissionInput(paramId), [paramId]);
+  const { data: subRes, isLoading: subsLoading, error: subsErr } = useSubmissions({
+    PageNumber: pageNumber,
+    PageSize: pageSize,
+    Keyword: keyword || undefined,
+  });
+  const submissions: SubmissionType[] = subRes?.listObjects ?? [];
 
-  const doSearch = () => {
-    const v = submissionInput.trim();
-    if (v) setSearchParams({ submissionId: v });
-    else setSearchParams({});
-  };
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") doSearch();
-  };
+  // ---- DIALOG xem reviewers theo submission
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogSubmissionId, setDialogSubmissionId] = useState<string | number | undefined>(undefined);
 
-  // Fetch assignments (by submission)
-  const { data, isLoading, error } = useAssignmentsBySubmission(
-    paramId || undefined
-  );
-
-  const updMut = useUpdateAssignmentStatus();
-  const delMut = useCancelAssignment();
-
-  // Client-side table state for this simple list
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-
-  // Filtered data (search by reviewer name/id, assignment id, status)
-  const filtered = useMemo(() => {
-    const list = data ?? [];
-    const q = search.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((x) => {
-      const reviewerName = x.reviewer?.userName?.toLowerCase() ?? "";
-      const str =
-        `${x.id} ${x.submissionId} ${x.reviewerId} ${reviewerName} ${statusLabel(x.status)}`.toLowerCase();
-      return str.includes(q);
-    });
-  }, [data, search]);
-
-  // Paginate
-  const totalPages = Math.max(1, Math.ceil((filtered.length || 1) / limit));
-  const start = (page - 1) * limit;
-  const paged = filtered.slice(start, start + limit);
-
-  // Per-row actions
-  const nextStatus = (cur: number | undefined): AssignmentStatus => {
-    if (!cur) return AssignmentStatus.InProgress;
-    if (cur >= AssignmentStatus.Completed) return AssignmentStatus.Completed;
-    return (cur + 1) as AssignmentStatus;
-  };
-
-  const columns: ColumnDef<ReviewerAssignmentResponseDTO>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
-          aria-label="Select all"
-          className="mb-2"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(v) => row.toggleSelected(!!v)}
-          aria-label="Select row"
-          className="mb-2"
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
+  // ---- COLUMNS: SUBMISSIONS
+  const submissionColumns = useMemo<ColumnDef<SubmissionType>[]>(() => [
     {
       accessorKey: "id",
-      meta: { title: "Mã phân công" },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Mã phân công" />
-      ),
-    },
-    {
-      accessorKey: "submissionId",
       meta: { title: "Submission" },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Submission" />
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Submission" />,
     },
     {
-      accessorKey: "reviewerId",
-      meta: { title: "Reviewer" },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Reviewer" />
-      ),
+      id: "submittedByName",
+      meta: { title: "Supervisor" },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Supervisor" />,
       cell: ({ row }) => {
-        const r = row.original;
-        return r.reviewer?.userName
-          ? `${r.reviewer.userName} (#${r.reviewerId})`
-          : `#${r.reviewerId}`;
+        const r = row.original as SubmissionType;
+        const name = r.submittedByName as string | undefined;
+        const uid = r.submittedBy as string | number | undefined;
+        return name ? `${name}${uid ? ` (#${uid})` : ""}` : uid ? `#${uid}` : "--";
       },
     },
     {
-      accessorKey: "status",
-      meta: { title: "Trạng thái" },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Trạng thái" />
-      ),
-      cell: ({ row }) => statusLabel(row.original.status),
+      id: "submissionRound",
+      meta: { title: "Round" },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Round" />,
+      cell: ({ row }) => (row.original as SubmissionType).submissionRound ?? 1,
     },
     {
-      accessorKey: "assignedAt",
-      meta: { title: "Ngày phân công" },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Ngày phân công" />
-      ),
-      cell: ({ row }) => <DataTableDate date={row.original.assignedAt} />,
-    },
-    {
-      accessorKey: "deadline",
-      meta: { title: "Deadline" },
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Deadline" />
-      ),
-      cell: ({ row }) =>
-        row.original.deadline ? <DataTableDate date={row.original.deadline} /> : "--",
+      id: "submittedAt",
+      meta: { title: "Submitted at" },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Submitted at" />,
+      cell: ({ row }) => <DataTableDate date={(row.original as SubmissionType).submittedAt} />,
     },
     {
       id: "actions",
-      header: () => (
-        <span className="flex items-center justify-center">Thao tác</span>
-      ),
+      header: () => <span className="flex items-center justify-center">Thao tác</span>,
       cell: ({ row }) => {
-        const a = row.original;
+        const s = row.original as SubmissionType;
         return (
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center">
             <Button
-              size="sm"
-              variant="secondary"
-              disabled={updMut.isPending}
-              onClick={() =>
-                updMut.mutate(
-                  { assignmentId: a.id, status: nextStatus(a.status) },
-                  {
-                    onSuccess: () => toast.success("Đã cập nhật trạng thái"),
-                  }
-                )
-              }
+              size="icon"
+              variant="ghost"
+              title="Xem reviewers đã phân công"
+              aria-label="Xem reviewers đã phân công"
+              onClick={() => {
+                if (!s.id) return toast.info("Submission không hợp lệ");
+                setDialogSubmissionId(s.id as number | string);
+                setIsDialogOpen(true);
+              }}
             >
-              Tiến bước
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={delMut.isPending}
-              onClick={() =>
-                delMut.mutate(a.id, {
-                  onSuccess: () => toast.success("Đã huỷ phân công"),
-                })
-              }
-            >
-              Huỷ
+              <Eye className="h-4 w-4" />
             </Button>
           </div>
         );
@@ -209,51 +93,52 @@ export default function ReviewerAssignmentsPage() {
       enableSorting: false,
       enableHiding: false,
     },
-  ];
+  ], []);
+
+  // ---- RENDER
+  if (subsLoading) return <LoadingPage />;
+  if (subsErr) return <div className="p-6 text-red-600">Lỗi tải submissions</div>;
 
   return (
-    <div className="space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">Theo dõi phân công</h1>
-
-      {/* Search submissionId */}
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder="Nhập Submission ID rồi Enter hoặc Search"
-          value={submissionInput}
-          onChange={(e) => setSubmissionInput(e.target.value)}
-          onKeyDown={onKey}
-          className="max-w-xs"
-        />
-        <Button onClick={doSearch}>Search</Button>
+    <div className="space-y-6 p-6">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[260px]">
+          <label htmlFor="submissionKeyword" className="block text-sm mb-1">
+            Tìm kiếm submission
+          </label>
+          <Input
+            id="submissionKeyword"
+            placeholder="Nhập từ khoá..."
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+        </div>
       </div>
 
-      {!paramId && (
-        <p className="text-sm text-gray-500">
-          Vui lòng nhập <b>Submission ID</b> để xem danh sách reviewer đã được phân công.
-        </p>
-      )}
+      {/* BẢNG SUBMISSIONS */}
+      <DataTable<SubmissionType, unknown>
+        data={submissions}
+        columns={submissionColumns}
+        visibility={SUBMISSION_VISIBILITY as any}
+        search={keyword}
+        setSearch={setKeyword}
+        placeholder="Tìm kiếm submission..."
+        page={pageNumber}
+        setPage={setPageNumber}
+        totalPages={subRes?.totalPages || 1}
+        limit={pageSize}
+        setLimit={setPageSize}
+      />
 
-      {paramId && isLoading && <LoadingPage />}
-
-      {paramId && error && (
-        <div className="text-red-600">Không thể tải assignments: {error.message}</div>
-      )}
-
-      {paramId && !isLoading && (
-        <DataTable<ReviewerAssignmentResponseDTO, unknown>
-          data={paged}
-          columns={columns}
-          visibility={DEFAULT_VISIBILITY}
-          search={search}
-          setSearch={setSearch}
-          placeholder="Tìm theo mã, reviewer, trạng thái..."
-          page={page}
-          setPage={setPage}
-          totalPages={totalPages}
-          limit={limit}
-          setLimit={setLimit}
-        />
-      )}
+      {/* POPUP: reviewers đã phân công cho submission */}
+      <SubmissionAssignmentsDialog
+        isOpen={isDialogOpen}
+        onClose={() => {
+          setIsDialogOpen(false);
+          setDialogSubmissionId(undefined);
+        }}
+        submissionId={dialogSubmissionId}
+      />
     </div>
   );
 }

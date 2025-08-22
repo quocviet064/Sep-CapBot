@@ -5,7 +5,7 @@ import { Input } from "@/components/globals/atoms/input";
 import LoadingPage from "@/pages/loading-page";
 import { toast } from "sonner";
 
-import { useAssignmentsByReviewer } from "@/hooks/useReviewerAssignment";
+import { useMyAssignments } from "@/hooks/useReviewerAssignment";
 import {
   AssignmentStatus,
   type ReviewerAssignmentResponseDTO,
@@ -18,11 +18,13 @@ const DEFAULT_VISIBILITY = COL_VIS;
 export default function ReviewerAssignedList() {
   const navigate = useNavigate();
 
-  // Lấy assignments cho reviewer hiện tại 
-  const { data, isLoading, error } = useAssignmentsByReviewer();
+  // Lấy assignments reviewer đang đăng nhập
+  const { data, isLoading, error } = useMyAssignments();
   const assignments = data ?? [];
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
   const handlers = useMemo(
     () => ({
       onViewSubmission: (submissionId: number | string) => {
@@ -38,7 +40,6 @@ export default function ReviewerAssignedList() {
           toast.error("Mã phân công không hợp lệ");
           return;
         }
-        // Chuyển sang trang đánh giá
         navigate(`/reviewers/evaluate-topics/review?assignmentId=${id}`);
       },
     }),
@@ -47,16 +48,13 @@ export default function ReviewerAssignedList() {
 
   const columns = useMemo(() => createColumns(handlers), [handlers]);
 
-  // Lọc client theo trạng thái & từ khoá
   const filtered: ReviewerAssignmentResponseDTO[] = useMemo(() => {
     const q = search.trim().toLowerCase();
     return assignments.filter((x) => {
       const okStatus = statusFilter === "all" ? true : String(x.status) === statusFilter;
       if (!okStatus) return false;
-
       if (!q) return true;
-      const haystack = `${x.id} ${x.submissionId} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""}`
-        .toLowerCase();
+      const haystack = `${x.id} ${x.submissionId} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [assignments, search, statusFilter]);

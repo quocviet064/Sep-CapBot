@@ -22,7 +22,7 @@ export interface AssignReviewerDTO {
   reviewerId: IdLike;
   assignmentType: AssignmentTypes;
   deadline?: string;
-  skillMatchScore?: number; // 0..5
+  skillMatchScore?: number;
   notes?: string;
 }
 
@@ -72,8 +72,8 @@ export interface ReviewerAssignmentResponseDTO {
 }
 
 export interface RecommendationQuery {
-  minSkillScore?: number; 
-  maxWorkload?: number;   
+  minSkillScore?: number;
+  maxWorkload?: number;
 }
 
 export interface RecommendedReviewerDTO {
@@ -83,7 +83,7 @@ export interface RecommendedReviewerDTO {
 
   skillMatchScore: number;
   matchedSkills: string[];
-  reviewerSkills: Record<string, number>; // ProficiencyLevels enum 1..4
+  reviewerSkills: Record<string, number>;
 
   currentActiveAssignments: number;
   completedAssignments: number;
@@ -100,17 +100,21 @@ export interface RecommendedReviewerDTO {
 }
 
 interface ApiResponse<T> {
-  statusCode: number;
+  statusCode: number | string;
   success: boolean;
   data: T;
   errors: unknown;
   message: string | null;
 }
 
-const getAxiosMessage = (e: unknown, fallback: string) =>
-  axios.isAxiosError(e)
-    ? (e.response?.data as any)?.message || fallback
-    : fallback;
+const getAxiosMessage = (e: unknown, fallback: string) => {
+  if (axios.isAxiosError(e)) {
+    const data = e.response?.data as any;
+    if (typeof data === "string") return data || fallback;
+    if (data?.message && typeof data.message === "string") return data.message;
+  }
+  return fallback;
+};
 
 /** Phân công 1 reviewer */
 export const assignReviewer = async (
@@ -271,17 +275,17 @@ export interface ReviewerWorkloadDTO {
   currentActiveAssignments: number;
   completedAssignments?: number;
   pendingAssignments?: number;
-  onTimeRate?: number;       // 0..1 hoặc %
+  onTimeRate?: number;
   averageScoreGiven?: number;
-  workloadScore?: number;    // 0..100 
+  workloadScore?: number;
 }
 
 export interface AnalyzeReviewerMatchDTO {
   reviewerId: IdLike;
   submissionId: IdLike;
-  skillMatchScore: number;         //0..5 hoặc 0..100
+  skillMatchScore: number;
   matchedSkills: string[];
-  reviewerSkills: Record<string, number>; // e.g. { "react": 3, "node": 4 }
+  reviewerSkills: Record<string, number>;
   workloadScore: number;
   performanceScore: number;
   overallScore: number;
@@ -326,7 +330,7 @@ export const getReviewersWorkload = async (
   }
 };
 
-/** Phân tích matching giữa 1 reviewer và 1 submission */
+/** Phân tích matching */
 export const analyzeReviewerMatch = async (
   reviewerId: IdLike,
   submissionId: IdLike
@@ -341,6 +345,58 @@ export const analyzeReviewerMatch = async (
     return res.data.data;
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể phân tích mức độ phù hợp reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export interface MyAssignmentStatisticsDTO {
+  total?: number;
+  assigned?: number;
+  inProgress?: number;
+  completed?: number;
+  overdue?: number;
+}
+
+export const getMyAssignments = async (): Promise<ReviewerAssignmentResponseDTO[]> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      `/reviewer-assignments/my-assignments`
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data ?? [];
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy danh sách phân công của bạn");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export const getMyAssignmentsByStatus = async (
+  status: AssignmentStatus
+): Promise<ReviewerAssignmentResponseDTO[]> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      `/reviewer-assignments/my-assignments/by-status/${status}`
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data ?? [];
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy phân công theo trạng thái");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export const getMyAssignmentStatistics = async (): Promise<MyAssignmentStatisticsDTO> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<MyAssignmentStatisticsDTO>>(
+      `/reviewer-assignments/my-assignments/statistics`
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data ?? {};
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy thống kê phân công của bạn");
     toast.error(msg);
     throw new Error(msg);
   }
