@@ -232,3 +232,14 @@ export const withdrawReview = async (id: IdLike): Promise<void> => {
     throw new Error(msg);
   }
 };
+
+// POST /api/reviewer-assignments/{assignmentId}/start-review
+export const startReview = async (assignmentId: IdLike): Promise<void> => {
+  try {
+    const res = await capBotAPI.post(`/reviewer-assignments/${assignmentId}/start-review`, {});
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể bắt đầu phiên đánh giá");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};

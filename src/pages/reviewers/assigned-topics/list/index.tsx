@@ -5,25 +5,37 @@ import { Input } from "@/components/globals/atoms/input";
 import LoadingPage from "@/pages/loading-page";
 import { toast } from "sonner";
 
-import { useMyAssignments } from "@/hooks/useReviewerAssignment";
+import { useMyAssignments, useStartReview } from "@/hooks/useReviewerAssignment";
+import { useWithdrawReview } from "@/hooks/useReview";
+import type { ReviewerAssignmentResponseDTO } from "@/services/reviewerAssignmentService";
 import {
-  AssignmentStatus,
-  type ReviewerAssignmentResponseDTO,
-} from "@/services/reviewerAssignmentService";
+  getReviewsByAssignment,
+  getReviewById,
+} from "@/services/reviewService";
 
 import { createColumns, DEFAULT_VISIBILITY as COL_VIS } from "../columns";
 
 const DEFAULT_VISIBILITY = COL_VIS;
 
+const STATUS = {
+  ALL: "all",
+  ASSIGNED: "Assigned",
+  INPROGRESS: "InProgress",
+  COMPLETED: "Completed",
+  OVERDUE: "Overdue",
+} as const;
+
 export default function ReviewerAssignedList() {
   const navigate = useNavigate();
 
-  // Lấy assignments reviewer đang đăng nhập
   const { data, isLoading, error } = useMyAssignments();
   const assignments = data ?? [];
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(STATUS.ALL);
+
+  const startReviewMut = useStartReview();
+  const withdrawMut = useWithdrawReview();
 
   const handlers = useMemo(
     () => ({
@@ -34,16 +46,85 @@ export default function ReviewerAssignedList() {
         }
         navigate(`/reviewers/assigned-topics/detail?submissionId=${submissionId}`);
       },
+
+      // Chỉ cho phép vào đánh giá khi status === "Assigned"
       onOpenReview: (row: ReviewerAssignmentResponseDTO) => {
+        const statusKey = String(row.status || "");
+        if (statusKey !== STATUS.ASSIGNED) {
+          const msg =
+            statusKey === STATUS.INPROGRESS
+              ? "Đề tài đang ở trạng thái Đang đánh giá — tạm thời không thể mở đánh giá."
+              : statusKey === STATUS.COMPLETED
+              ? "Đề tài đã hoàn thành — không thể mở đánh giá."
+              : "Trạng thái hiện tại không cho phép đánh giá.";
+          toast.info(msg);
+          return;
+        }
+
         const id = Number(row.id);
         if (!Number.isFinite(id)) {
           toast.error("Mã phân công không hợp lệ");
           return;
         }
-        navigate(`/reviewers/evaluate-topics/review?assignmentId=${id}`);
+
+        startReviewMut.mutate(id, {
+          onSuccess: () => {
+            navigate(`/reviewers/evaluate-topics/review?assignmentId=${id}`);
+          },
+          onError: (e: any) => {
+            toast.error(e?.message || "Không thể bắt đầu phiên đánh giá");
+          },
+        });
+      },
+
+      // Rút lại đánh giá: tùy theo hiện tại đã có reviewId hay chưa
+      onWithdrawReview: async (row: ReviewerAssignmentResponseDTO) => {
+        const statusKey = String(row.status || "");
+        if (statusKey !== STATUS.INPROGRESS && statusKey !== STATUS.COMPLETED) {
+          toast.info("Chỉ có thể rút khi đề tài đang/đã đánh giá.");
+          return;
+        }
+        // 1) id có sẵn
+        let ridRaw = (row as any).reviewId ?? (row as any).currentReviewId;
+        let rid: number | null = ridRaw ? Number(ridRaw) : null;
+        // 2) Nếu chưa có
+        if (!rid) {
+          try {
+            const list = await getReviewsByAssignment(row.id);
+            if (Array.isArray(list) && list.length > 0) {
+              const submitted = list.find((r) => r.status === "Submitted");
+              const pick =
+                submitted ??
+                [...list].sort((a, b) =>
+                  String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? ""))
+                )[0];
+              rid = Number(pick.id);
+            }
+          } catch {
+          }
+        }
+
+        if (!rid || !Number.isFinite(rid)) {
+          toast.info("Chưa tìm thấy review để rút lại.");
+          return;
+        }
+
+        const ok = window.confirm("Bạn có chắc muốn rút lại đánh giá này?");
+        if (!ok) return;
+
+        try {
+          await getReviewById(rid);
+          withdrawMut.mutate(rid);
+        } catch {
+        }
+      },
+
+      canWithdrawFromStatus: (status: unknown) => {
+        const k = String(status || "");
+        return k === STATUS.INPROGRESS || k === STATUS.COMPLETED;
       },
     }),
-    [navigate]
+    [navigate, startReviewMut, withdrawMut]
   );
 
   const columns = useMemo(() => createColumns(handlers), [handlers]);
@@ -51,7 +132,8 @@ export default function ReviewerAssignedList() {
   const filtered: ReviewerAssignmentResponseDTO[] = useMemo(() => {
     const q = search.trim().toLowerCase();
     return assignments.filter((x) => {
-      const okStatus = statusFilter === "all" ? true : String(x.status) === statusFilter;
+      const statusKey = String(x.status || "");
+      const okStatus = statusFilter === STATUS.ALL ? true : statusKey === statusFilter;
       if (!okStatus) return false;
       if (!q) return true;
       const haystack = `${x.id} ${x.submissionId} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""}`.toLowerCase();
@@ -88,11 +170,11 @@ export default function ReviewerAssignedList() {
             onChange={(e) => setStatusFilter(e.target.value)}
             aria-label="Lọc trạng thái"
           >
-            <option value="all">Tất cả</option>
-            <option value={AssignmentStatus.Assigned}>Đã phân công</option>
-            <option value={AssignmentStatus.InProgress}>Đang đánh giá</option>
-            <option value={AssignmentStatus.Completed}>Hoàn thành</option>
-            <option value={AssignmentStatus.Overdue}>Quá hạn</option>
+            <option value={STATUS.ALL}>Tất cả</option>
+            <option value={STATUS.ASSIGNED}>Đã phân công</option>
+            <option value={STATUS.INPROGRESS}>Đang đánh giá</option>
+            <option value={STATUS.COMPLETED}>Hoàn thành</option>
+            <option value={STATUS.OVERDUE}>Quá hạn</option>
           </select>
         </div>
       </div>

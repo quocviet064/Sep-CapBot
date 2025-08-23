@@ -23,6 +23,7 @@ import {
   type MyAssignmentStatisticsDTO,
   AssignmentStatus,
 } from "@/services/reviewerAssignmentService";
+import { startReview } from "@/services/reviewService";
 
 export function useAvailableReviewers(submissionId?: IdLike) {
   const key = submissionId == null ? "" : String(submissionId);
@@ -59,7 +60,6 @@ export function useRecommendedReviewers(
   });
 }
 
-/* my assignments for the logged-in reviewer */
 export const useMyAssignments = (status?: AssignmentStatus) =>
   useQuery<ReviewerAssignmentResponseDTO[], Error>({
     queryKey: ["my-assignments", status ?? "all"],
@@ -74,7 +74,6 @@ export const useMyAssignmentStats = () =>
     staleTime: 1000 * 60 * 5,
   });
 
-/* chỉ dùng cho Admin/Moderator khi cần */
 export const useAssignmentsByReviewer = (reviewerId?: IdLike) =>
   useQuery<ReviewerAssignmentResponseDTO[], Error>({
     queryKey: ["assignments-by-reviewer", reviewerId ?? "me"],
@@ -156,6 +155,17 @@ export function useAutoAssignReviewers() {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", k] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers", k] });
       qc.invalidateQueries({ queryKey: ["my-assignments"] });
+    },
+  });
+}
+
+export function useStartReview() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, IdLike>({
+    mutationFn: (assignmentId) => startReview(assignmentId),
+    onSuccess: (_data, assignmentId) => {
+      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] });
+      qc.invalidateQueries({ queryKey: ["reviewer-assignment-detail", assignmentId] });
     },
   });
 }

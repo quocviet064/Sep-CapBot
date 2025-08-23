@@ -5,7 +5,7 @@ import { Textarea } from "@/components/globals/atoms/textarea";
 import { Input } from "@/components/globals/atoms/input";
 import LoadingPage from "@/pages/loading-page";
 import { useActiveEvaluationCriteria } from "@/hooks/useEvaluationCriteria";
-import { useCreateReview } from "@/hooks/useReview";
+import { useCreateReview, useSubmitReview } from "@/hooks/useReview"; // ⬅️ thêm useSubmitReview
 import type { IdLike, CreateReviewDTO } from "@/services/reviewService";
 
 type RowScore = {
@@ -23,11 +23,7 @@ export default function ReviewerEvaluateTopicPage() {
 
   // Bắt thời điểm vào trang để auto tính thời gian thực hiện
   const startedAtRef = useRef<number>(Date.now());
-
-  // Lấy tiêu chí
   const { data: criteria, isLoading, error } = useActiveEvaluationCriteria(true);
-
-  // Form state
   const [overallComment, setOverallComment] = useState("");
   const [scores, setScores] = useState<RowScore[]>([]);
 
@@ -57,6 +53,7 @@ export default function ReviewerEvaluateTopicPage() {
   };
 
   const createMut = useCreateReview();
+  const submitMut = useSubmitReview(); 
 
   const canSubmit =
     validAssignment &&
@@ -79,13 +76,12 @@ export default function ReviewerEvaluateTopicPage() {
       return;
     }
 
-    // Tính thời gian thực hiện (phút) từ lúc mở trang đến lúc bấm lưu
+    // Tính thời gian thực hiện từ lúc mở trang đến lúc bấm lưu
     const elapsedMinutes = Math.max(
       1,
       Math.round((Date.now() - startedAtRef.current) / 60000)
     );
 
-    // Đính kèm timeSpentMinutes
     const payload = {
       assignmentId: assignmentIdNum as IdLike,
       overallComment: overallComment.trim() || undefined,
@@ -96,7 +92,12 @@ export default function ReviewerEvaluateTopicPage() {
       })),
       timeSpentMinutes: elapsedMinutes,
     } as unknown as CreateReviewDTO;
-    createMut.mutate(payload);
+
+    createMut.mutate(payload, {
+      onSuccess: (rv) => {
+        submitMut.mutate(rv.id);
+      },
+    });
   };
 
   if (!validAssignment) {
@@ -143,10 +144,10 @@ export default function ReviewerEvaluateTopicPage() {
         <div className="flex gap-2">
           <Button
             onClick={onSubmit}
-            disabled={!canSubmit || createMut.isPending}
+            disabled={!canSubmit || createMut.isPending || submitMut.isPending}
             title={!canSubmit ? "Điền đầy đủ điểm cho các tiêu chí" : undefined}
           >
-            {createMut.isPending ? "Đang lưu..." : "Lưu đánh giá"}
+            {createMut.isPending || submitMut.isPending ? "Đang gửi..." : "Lưu & Submit"}
           </Button>
         </div>
       </div>
