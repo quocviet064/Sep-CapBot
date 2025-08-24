@@ -8,7 +8,10 @@ import {
   getAvailableReviewers,
   getRecommendedReviewers,
   updateAssignmentStatus,
-  getAssignmentsByReviewer, // ✅ THÊM
+  getAssignmentsByReviewer,
+  getMyAssignments,
+  getMyAssignmentsByStatus,
+  getMyAssignmentStatistics,
   type AssignReviewerDTO,
   type AutoAssignReviewerDTO,
   type AvailableReviewerDTO,
@@ -17,10 +20,10 @@ import {
   type RecommendationQuery,
   type RecommendedReviewerDTO,
   type ReviewerAssignmentResponseDTO,
+  type MyAssignmentStatisticsDTO,
   AssignmentStatus,
 } from "@/services/reviewerAssignmentService";
-
-/* ===== Queries ===== */
+import { startReview } from "@/services/reviewService";
 
 export function useAvailableReviewers(submissionId?: IdLike) {
   const key = submissionId == null ? "" : String(submissionId);
@@ -57,7 +60,28 @@ export function useRecommendedReviewers(
   });
 }
 
-/* ===== Mutations ===== */
+export const useMyAssignments = (status?: AssignmentStatus) =>
+  useQuery<ReviewerAssignmentResponseDTO[], Error>({
+    queryKey: ["my-assignments", status ?? "all"],
+    queryFn: () => (status == null ? getMyAssignments() : getMyAssignmentsByStatus(status)),
+    staleTime: 1000 * 60 * 3,
+  });
+
+export const useMyAssignmentStats = () =>
+  useQuery<MyAssignmentStatisticsDTO, Error>({
+    queryKey: ["my-assignments-stats"],
+    queryFn: () => getMyAssignmentStatistics(),
+    staleTime: 1000 * 60 * 5,
+  });
+
+export const useAssignmentsByReviewer = (reviewerId?: IdLike) =>
+  useQuery<ReviewerAssignmentResponseDTO[], Error>({
+    queryKey: ["assignments-by-reviewer", reviewerId ?? "me"],
+    enabled: !!reviewerId,
+    queryFn: () => getAssignmentsByReviewer(reviewerId as IdLike),
+    staleTime: 1000 * 60 * 3,
+  });
+
 
 export function useAssignReviewer() {
   const qc = useQueryClient();
@@ -68,7 +92,7 @@ export function useAssignReviewer() {
       qc.invalidateQueries({ queryKey: ["availableReviewers", k] });
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", k] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers", k] });
-      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] }); // ✅ thêm
+      qc.invalidateQueries({ queryKey: ["my-assignments"] });
     },
   });
 }
@@ -85,7 +109,7 @@ export function useBulkAssignReviewers() {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
       qc.invalidateQueries({ queryKey: ["availableReviewers"] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers"] });
-      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] }); // ✅ thêm
+      qc.invalidateQueries({ queryKey: ["my-assignments"] });
     },
   });
 }
@@ -101,7 +125,7 @@ export function useUpdateAssignmentStatus() {
       updateAssignmentStatus(assignmentId, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
-      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] }); // ✅ thêm
+      qc.invalidateQueries({ queryKey: ["my-assignments"] });
     },
   });
 }
@@ -112,7 +136,7 @@ export function useCancelAssignment() {
     mutationFn: (assignmentId) => cancelAssignment(assignmentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
-      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] }); // ✅ thêm
+      qc.invalidateQueries({ queryKey: ["my-assignments"] });
     },
   });
 }
@@ -130,41 +154,18 @@ export function useAutoAssignReviewers() {
       qc.invalidateQueries({ queryKey: ["availableReviewers", k] });
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", k] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers", k] });
-      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] }); // ✅ thêm
+      qc.invalidateQueries({ queryKey: ["my-assignments"] });
     },
   });
 }
 
-/** Giải mã JWT và lấy user id */
-function getCurrentUserIdFromJWT(): number | undefined {
-  try {
-    const token =
-      localStorage.getItem("accessToken")
-    if (!token) return undefined;
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return undefined;
-    let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64.length % 4 !== 0) base64 += "=";
-    const payload = JSON.parse(atob(base64));
-    const raw =
-      payload?.id ??
-      payload?.nameid ??
-      payload?.nameidentifier ??
-      payload?.sub;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/** assignments theo reviewer */
-export const useAssignmentsByReviewer = (reviewerId?: IdLike) => {
-  const derivedId = reviewerId ?? getCurrentUserIdFromJWT();
-  return useQuery<ReviewerAssignmentResponseDTO[], Error>({
-    queryKey: ["assignments-by-reviewer", derivedId ?? "me"],
-    enabled: !!derivedId,
-    queryFn: () => getAssignmentsByReviewer(derivedId as IdLike),
-    staleTime: 1000 * 60 * 3,
+export function useStartReview() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, IdLike>({
+    mutationFn: (assignmentId) => startReview(assignmentId),
+    onSuccess: (_data, assignmentId) => {
+      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] });
+      qc.invalidateQueries({ queryKey: ["reviewer-assignment-detail", assignmentId] });
+    },
   });
-};
+}

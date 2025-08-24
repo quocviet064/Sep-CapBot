@@ -201,9 +201,9 @@ function App() {
 
   // Moderator pages
   const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
-  const ModeratorSemesterPhase = lazy(
-    () => import("./pages/moderators/semester-phase"),
-  );
+  // const ModeratorSemesterPhase = lazy(
+  //   () => import("./pages/moderators/semester-phase"),
+  // );
   const ModeratorTopicApproval = lazy(
     () => import("./pages/moderators/topic-approval"),
   );
@@ -510,10 +510,10 @@ function App() {
             path="/moderators/dashboard"
             element={<ModeratorDashboard />}
           />
-          <Route
+          {/* <Route
             path="/moderators/semester-phase"
             element={<ModeratorSemesterPhase />}
-          />
+          /> */}
           <Route
             path="/moderators/topic-approval"
             element={<ModeratorTopicApproval />}

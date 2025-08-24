@@ -71,6 +71,7 @@ export default function ReviewerPickerDialog({
     minSkillScore,
     maxWorkload: recMaxWorkload,
   });
+
   const available = useAvailableReviewers(submissionId);
   const autoMut = useAutoAssignReviewers();
 
@@ -109,7 +110,7 @@ export default function ReviewerPickerDialog({
   const recommendedDisabled = !submissionId;
   const autoDisabled = !submissionId || autoMut.isPending;
 
-  /** Gọi Auto-assign */
+  // /** Gọi Auto-assign */
   const doAutoAssign = () => {
     if (!submissionId) return;
     const tags = skillTagsInput

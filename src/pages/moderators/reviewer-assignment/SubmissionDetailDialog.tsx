@@ -1,73 +1,82 @@
-// src/pages/moderators/reviewer-assignment/SubmissionDetailDialog.tsx
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/globals/atoms/dialog";
-import { Button } from "@/components/globals/atoms/button";
-import { useSubmissionDetail } from "@/hooks/useSubmission";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
+import { type SubmissionType } from "@/services/submissionService";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  submissionId?: string | number;
+  submission?: SubmissionType;
 }
 
-export default function SubmissionDetailDialog({ isOpen, onClose, submissionId }: Props) {
-  const { data, isLoading, error } = useSubmissionDetail(submissionId);
-
+export default function SubmissionDetailDialog({ isOpen, onClose, submission }: Props) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[560px]">
+      <DialogContent className="max-w-[720px]">
         <DialogHeader>
-          <DialogTitle>Chi tiết submission</DialogTitle>
-          <DialogDescription>
-            {submissionId ? `#${submissionId}` : "—"}
-          </DialogDescription>
+          <DialogTitle>
+            Chi tiết submission {submission?.id ? `(#${submission.id})` : ""}
+          </DialogTitle>
         </DialogHeader>
 
-        {isLoading && <div className="text-sm text-muted-foreground">Đang tải…</div>}
-        {error && <div className="text-sm text-red-600">Không tải được chi tiết</div>}
-
-        {!isLoading && !error && data && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">ID</span>
-              <span className="col-span-2 font-medium">{String(data.id)}</span>
+        {!submission ? (
+          <div className="p-2 text-sm text-gray-500">Không có dữ liệu.</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-gray-500">Submission ID</div>
+                <div className="font-medium">#{String(submission.id)}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Supervisor</div>
+                <div className="font-medium">
+                  {submission.submittedByName
+                    ? `${submission.submittedByName}${submission.submittedBy ? ` (#${submission.submittedBy})` : ""}`
+                    : submission.submittedBy ? `#${submission.submittedBy}` : "--"}
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-500">Round</div>
+                <div className="font-medium">{submission.submissionRound ?? 1}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Submitted at</div>
+                <div className="font-medium">
+                  <DataTableDate date={submission.submittedAt} />
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">Supervisor</span>
-              <span className="col-span-2">
-                {data.submittedByName ? `${data.submittedByName}${data.submittedBy ? ` (#${data.submittedBy})` : ""}` : (data.submittedBy ? `#${data.submittedBy}` : "--")}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">Round</span>
-              <span className="col-span-2">{data.submissionRound ?? 1}</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <span className="text-muted-foreground">Submitted at</span>
-              <span className="col-span-2">
-                <DataTableDate date={data.submittedAt} />
-              </span>
-            </div>
-
-            {/* chỗ này có thể bổ sung thêm các field khác nếu BE trả về */}
+            {/* Nếu BE có thêm các field như documentUrl / additionalNotes thì show ở đây */}
+            {typeof (submission as any).documentUrl === "string" && (
+              <div className="text-sm">
+                <div className="text-gray-500 mb-1">Document URL</div>
+                <a
+                  href={(submission as any).documentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 underline break-all"
+                >
+                  {(submission as any).documentUrl}
+                </a>
+              </div>
+            )}
+            {typeof (submission as any).additionalNotes === "string" &&
+              (submission as any).additionalNotes && (
+                <div className="text-sm">
+                  <div className="text-gray-500 mb-1">Ghi chú</div>
+                  <div className="whitespace-pre-wrap">
+                    {(submission as any).additionalNotes}
+                  </div>
+                </div>
+              )}
           </div>
         )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Đóng
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

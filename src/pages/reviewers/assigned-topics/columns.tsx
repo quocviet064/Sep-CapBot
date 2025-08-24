@@ -4,35 +4,35 @@ import { Checkbox } from "@/components/globals/atoms/checkbox";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
 import { Eye } from "lucide-react";
-import {
-  AssignmentStatus,
-  AssignmentTypes,
-  type ReviewerAssignmentResponseDTO,
-  type IdLike,
+import type {
+  ReviewerAssignmentResponseDTO,
+  IdLike,
 } from "@/services/reviewerAssignmentService";
 
-const statusLabel = (s?: number) => {
-  switch (s) {
-    case AssignmentStatus.Assigned:
+const statusLabel = (s?: unknown) => {
+  const k = typeof s === "string" ? s : String(s ?? "");
+  switch (k) {
+    case "Assigned":
       return "Đã phân công";
-    case AssignmentStatus.InProgress:
+    case "InProgress":
       return "Đang đánh giá";
-    case AssignmentStatus.Completed:
+    case "Completed":
       return "Hoàn thành";
-    case AssignmentStatus.Overdue:
+    case "Overdue":
       return "Quá hạn";
     default:
       return "--";
   }
 };
 
-const typeLabel = (t?: number) => {
-  switch (t) {
-    case AssignmentTypes.Primary:
+const typeLabel = (t?: unknown) => {
+  const k = typeof t === "string" ? t : String(t ?? "");
+  switch (k) {
+    case "Primary":
       return "Primary";
-    case AssignmentTypes.Secondary:
+    case "Secondary":
       return "Secondary";
-    case AssignmentTypes.Additional:
+    case "Additional":
       return "Additional";
     default:
       return "--";
@@ -53,6 +53,8 @@ export const DEFAULT_VISIBILITY = {
 export type ColumnHandlers = {
   onViewSubmission: (submissionId: IdLike) => void;
   onOpenReview: (row: ReviewerAssignmentResponseDTO) => void;
+  onWithdrawReview: (row: ReviewerAssignmentResponseDTO) => void;
+  canWithdrawFromStatus: (status: unknown) => boolean;
 };
 
 export function createColumns(
@@ -114,7 +116,7 @@ export function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Loại" />
       ),
-      cell: ({ row }) => typeLabel(row.original.assignmentType as number),
+      cell: ({ row }) => typeLabel(row.original.assignmentType),
     },
     {
       accessorKey: "status",
@@ -122,7 +124,7 @@ export function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Trạng thái" />
       ),
-      cell: ({ row }) => statusLabel(row.original.status as number),
+      cell: ({ row }) => statusLabel(row.original.status),
     },
     {
       accessorKey: "assignedAt",
@@ -157,6 +159,18 @@ export function createColumns(
       ),
       cell: ({ row }) => {
         const a = row.original;
+        const statusKey = String(a.status || "");
+        const canEvaluate = statusKey === "Assigned";
+        const canWithdraw = handlers.canWithdrawFromStatus(statusKey);
+
+        const evaluateTitle = canEvaluate
+          ? "Mở trang đánh giá"
+          : statusKey === "InProgress"
+            ? "Đề tài đang ở trạng thái Đang đánh giá — tạm thời không thể đánh giá"
+            : statusKey === "Completed"
+              ? "Đề tài đã hoàn thành — không thể đánh giá"
+              : "Trạng thái hiện tại không cho phép đánh giá";
+
         return (
           <div className="flex items-center justify-center gap-2">
             <Button
@@ -167,8 +181,29 @@ export function createColumns(
             >
               <Eye className="h-4 w-4" />
             </Button>
-            <Button size="sm" onClick={() => handlers.onOpenReview(a)}>
+
+            <Button
+              size="sm"
+              onClick={() => handlers.onOpenReview(a)}
+              disabled={!canEvaluate}
+              title={evaluateTitle}
+              aria-disabled={!canEvaluate}
+            >
               Đánh giá
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => handlers.onWithdrawReview(a)}
+              disabled={!canWithdraw}
+              title={
+                canWithdraw
+                  ? "Rút lại đánh giá"
+                  : "Chỉ rút khi đang/đã đánh giá"
+              }
+            >
+              Rút đánh giá
             </Button>
           </div>
         );
