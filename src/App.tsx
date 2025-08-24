@@ -14,6 +14,8 @@ import PhasePage from "./pages/admins/phase/PhasePage";
 import SemestersPage from "./pages/supervisors/submission-topic/semesters/semesters-page";
 import PhaseTypesPage from "./pages/supervisors/submission-topic/semesters/PhaseTypesPage";
 import PhaseListPage from "./pages/supervisors/submission-topic/semesters/PhaseListPage";
+import AdminSemesterPage from "./pages/admins/semester-management/SemesterPage";
+import AdminCategoryPage from "./pages/admins/category-topic/CategoryPage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -91,16 +93,6 @@ function App() {
   );
   const AdminInactiveSupervisors = lazy(
     () => import("./pages/admins/dashboard/inactive-supervisors"),
-  );
-
-  const AdminSemesters = lazy(
-    () => import("./pages/admins/semester-management/semesters"),
-  );
-  const AdminPhases = lazy(
-    () => import("./pages/admins/semester-management/phases"),
-  );
-  const AdminSubmissionRounds = lazy(
-    () => import("./pages/admins/semester-management/submission-rounds"),
   );
 
   const AdminAllTopics = lazy(
@@ -192,14 +184,20 @@ function App() {
     () => import("./pages/admins/system-settings/environment"),
   );
 
-  // Reviewer 
+  // Reviewer
   const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
-  const ReviewerAssignedList = lazy(() => import("./pages/reviewers/assigned-topics/list"));
-  const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
-  const ReviewerFeedbackHistory = lazy(() => import("./pages/reviewers/feedback-history"));
-  const ReviewerTopicArchive = lazy(() => import("./pages/reviewers/topic-archive"));
-  const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
-  const ReviewerReview = lazy(() => import("./pages/reviewers/evaluate-topics/review"));
+  const ReviewerAssignedList = lazy(
+    () => import("./pages/reviewers/assigned-topics/list"),
+  );
+  // const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
+  // const ReviewerFeedbackHistory = lazy(() => import("./pages/reviewers/feedback-history"));
+  // const ReviewerTopicArchive = lazy(() => import("./pages/reviewers/topic-archive"));
+  const ReviewerStats = lazy(
+    () => import("./pages/reviewers/evaluation-stats"),
+  );
+  const ReviewerReview = lazy(
+    () => import("./pages/reviewers/evaluate-topics/review"),
+  );
 
   // Moderator pages
   const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
@@ -355,22 +353,14 @@ function App() {
           />
 
           <Route
-            path="/admins/semester-management/semesters"
-            element={<AdminSemesters />}
-          />
-          <Route
-            path="/admins/semester-management/phases"
-            element={<AdminPhases />}
+            path="/admins/semester-management/SemesterPage"
+            element={<AdminSemesterPage />}
           />
           <Route
             path="/admins/phase-types/PhaseTypePage"
             element={<PhaseTypePage />}
           />
           <Route path="/admins/phase/PhasePage" element={<PhasePage />} />
-          <Route
-            path="/admins/semester-management/submission-rounds"
-            element={<AdminSubmissionRounds />}
-          />
 
           <Route
             path="/admins/topics-management/all-topics"
@@ -387,6 +377,10 @@ function App() {
           <Route
             path="/admins/topics-management/versions"
             element={<AdminVersions />}
+          />
+          <Route
+            path="/admins/category-topic/CategoryPage"
+            element={<AdminCategoryPage />}
           />
 
           <Route
@@ -495,12 +489,20 @@ function App() {
 
           {/* Reviewer */}
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
-          <Route path="/reviewers/assigned-topics/detail" element={<ReviewerAssignedDetail />} />
+          <Route
+            path="/reviewers/assigned-topics/list"
+            element={<ReviewerAssignedList />}
+          />
+          {/* <Route path="/reviewers/assigned-topics/detail" element={<ReviewerAssignedDetail />} />
           <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
-          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
-          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
-          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
+          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} /> */}
+          <Route
+            path="/reviewers/evaluation-stats"
+            element={<ReviewerStats />}
+          />
+          <Route
+            path="/reviewers/evaluate-topics/:assignmentId"
+            element={<ReviewerReview />}
           />
 
           {/* Moderator routes */}

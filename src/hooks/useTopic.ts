@@ -4,29 +4,26 @@ import {
   fetchAllTopics,
   fetchMyTopics,
   updateTopic,
+  createTopic,
   type UpdateTopicPayload,
   type UpdateTopicResponse,
   type RawMyTopicResponse,
   type TopicDetailResponse,
+  type CreateTopicPayload,
+  type RawTopicResponse,
 } from "@/services/topicService";
 import { approveTopic } from "@/services/topicApproveService";
-import { TopicType } from "@/schemas/topicSchema";
-
-import { createTopic, type CreateTopicPayload } from "@/services/topicService";
+import type { TopicType } from "@/schemas/topicSchema";
+import { toast } from "sonner";
 
 export const useCreateTopic = () => {
-  const queryClient = useQueryClient();
-
+  const qc = useQueryClient();
   return useMutation<TopicDetailResponse, Error, CreateTopicPayload>({
     mutationFn: createTopic,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["topics"] });
-      queryClient.invalidateQueries({ queryKey: ["my-topics"] });
-
-      queryClient.setQueryData(["topicDetail", String(data.id)], data);
-    },
-    onError: (error) => {
-      console.error("❌ Lỗi khi tạo chủ đề:", error.message);
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      qc.invalidateQueries({ queryKey: ["my-topics"] });
+      qc.setQueryData(["topicDetail", String(data.id)], data);
     },
   });
 };
@@ -41,31 +38,14 @@ export function useTopicDetail(topicId?: string) {
 }
 
 export function useApproveTopic() {
-  const queryClient = useQueryClient();
-
+  const qc = useQueryClient();
   return useMutation<void, Error, number>({
     mutationFn: (topicId) => approveTopic(topicId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["topics"] });
-      queryClient.invalidateQueries({ queryKey: ["topicDetail"] });
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      qc.invalidateQueries({ queryKey: ["topicDetail"] });
     },
   });
-}
-
-interface PagingData {
-  semesterId: string | null;
-  categoryId: string | null;
-  pageNumber: number;
-  pageSize: number;
-  keyword: string | null;
-  totalRecord: number;
-}
-export interface RawTopicResponse {
-  paging: PagingData;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-  listObjects: TopicType[];
 }
 
 export const useTopics = (
@@ -129,45 +109,43 @@ export const useMyTopics = (
   });
 
 export const useUpdateTopic = () => {
-  const queryClient = useQueryClient();
-
+  const qc = useQueryClient();
   return useMutation<UpdateTopicResponse, Error, UpdateTopicPayload>({
     mutationFn: updateTopic,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-topics"] });
+      qc.invalidateQueries({ queryKey: ["my-topics"] });
     },
-    onError: (error) => {
-      console.error("❌ Lỗi khi cập nhật đề tài:", error.message);
+    onError: (e) => {
+      toast.error(e.message || "Cập nhật đề tài thất bại");
     },
   });
 };
 
 export const fetchAllMyTopics = async (
-  semesterId: number,
-  categoryId: number,
-  keyword: string = "",
+  semesterId?: number,
+  categoryId?: number,
+  keyword?: string,
 ): Promise<TopicType[]> => {
-  const pageSize = 50;
-  let allTopics: TopicType[] = [];
+  const pageSize = 100;
   let pageNumber = 1;
-  let totalPages = 1;
+  let hasNext = true;
+  const all: TopicType[] = [];
+  const kw = keyword && keyword.trim() ? keyword.trim() : undefined;
 
-  do {
-    const response = await fetchMyTopics(
+  while (hasNext) {
+    const res = await fetchMyTopics(
       semesterId,
       categoryId,
       pageNumber,
       pageSize,
-      keyword,
+      kw,
     );
-
-    if (response?.listObjects) {
-      allTopics = [...allTopics, ...response.listObjects];
+    if (Array.isArray(res?.listObjects) && res.listObjects.length) {
+      all.push(...res.listObjects);
     }
-
-    totalPages = response?.totalPages || 1;
-    pageNumber++;
-  } while (pageNumber <= totalPages);
-
-  return allTopics;
+    hasNext = Boolean(res?.hasNextPage);
+    pageNumber += 1;
+    if (!res?.totalPages && !hasNext) break;
+  }
+  return all;
 };

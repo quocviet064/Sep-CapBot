@@ -106,13 +106,18 @@ export const siteAdmin = [
     isActive: false,
     items: [
       {
-        title: "Học kỳ (Semester)",
-        url: "/admins/semester-management/semesters",
+        title: "Học kỳ",
+        url: "/admins/semester-management/SemesterPage",
       },
 
       { title: "Phase Type", url: "/admins/phase-types/PhaseTypePage" },
       { title: "Phase", url: "/admins/phase/PhasePage" },
     ],
+  },
+  {
+    title: "Loại đề tài",
+    url: "/admins/category-topic/CategoryPage",
+    icon: Bot,
   },
   {
     title: "Quản lý đề tài & phiên bản",

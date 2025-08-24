@@ -41,6 +41,47 @@ export interface CreateTopicPayload {
   documentUrl?: string;
 }
 
+export interface TopicDetailResponse {
+  id: number;
+  title: string;
+  description: string;
+  objectives: string;
+  supervisorId: number;
+  supervisorName: string;
+  categoryId: number;
+  categoryName: string;
+  semesterId: number;
+  semesterName: string;
+  maxStudents: number;
+  isApproved: boolean | null;
+  isLegacy: boolean;
+  currentStatus: number;
+  totalVersions: number;
+  currentVersion: {
+    id: number;
+    topicId: number;
+    versionNumber: number;
+    title: string;
+    description: string;
+    objectives: string;
+    methodology: string;
+    expectedOutcomes: string;
+    requirements: string;
+    documentUrl: string;
+    status: number;
+    submittedAt: string | null;
+    submittedByUserName: string | null;
+    createdAt: string;
+    createdBy: string;
+    lastModifiedAt: string | null;
+    lastModifiedBy: string | null;
+  } | null;
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string | null;
+  lastModifiedBy: string | null;
+}
+
 export const createTopic = async (
   payload: CreateTopicPayload,
 ): Promise<TopicDetailResponse> => {
@@ -49,18 +90,14 @@ export const createTopic = async (
       "/topic/create",
       payload,
     );
-
     const { success, message, data } = response.data;
-
     if (!success) throw new Error(message || "Tạo chủ đề thất bại");
-
     toast.success("🎉 Tạo chủ đề thành công!");
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
       ? error.response?.data?.message || "Tạo chủ đề thất bại"
       : "Lỗi không xác định";
-
     toast.error(msg);
     throw new Error(msg);
   }
@@ -88,62 +125,17 @@ export const fetchAllTopics = async (
         },
       },
     );
-
     const { success, message, data } = response.data;
-
     if (!success) throw new Error(message || "Không thể tải danh sách đề tài");
-
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
       ? error.response?.data?.message || "Không thể tải danh sách đề tài"
       : "Lỗi không xác định";
-
     toast.error(msg);
     throw new Error(msg);
   }
 };
-
-export interface TopicDetailResponse {
-  id: number;
-  title: string;
-  description: string;
-  objectives: string;
-  supervisorId: number;
-  supervisorName: string;
-  categoryId: number;
-  categoryName: string;
-  semesterId: number;
-  semesterName: string;
-  maxStudents: number;
-  isApproved: boolean;
-  isLegacy: boolean;
-  currentStatus: number;
-  totalVersions: number;
-  currentVersion: {
-    id: number;
-    topicId: number;
-    versionNumber: number;
-    title: string;
-    description: string;
-    objectives: string;
-    methodology: string;
-    expectedOutcomes: string;
-    requirements: string;
-    documentUrl: string;
-    status: number;
-    submittedAt: string | null;
-    submittedByUserName: string | null;
-    createdAt: string;
-    createdBy: string;
-    lastModifiedAt: string | null;
-    lastModifiedBy: string | null;
-  };
-  createdAt: string;
-  createdBy: string;
-  lastModifiedAt: string | null;
-  lastModifiedBy: string | null;
-}
 
 export const getTopicDetail = async (
   topicId: number,
@@ -152,22 +144,19 @@ export const getTopicDetail = async (
     const response = await capBotAPI.get<ApiResponse<TopicDetailResponse>>(
       `/topic/detail/${topicId}`,
     );
-
     const { success, data, message } = response.data;
-
     if (!success) throw new Error(message || "Không thể lấy chi tiết đề tài");
-
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
       ? error.response?.data?.message || "Không thể lấy chi tiết đề tài"
       : "Lỗi không xác định";
-
     toast.error(msg);
     throw new Error(msg);
   }
 };
 
+/** <- thêm semesterId cho update */
 export interface UpdateTopicPayload {
   id: number;
   title: string;
@@ -175,6 +164,7 @@ export interface UpdateTopicPayload {
   objectives: string;
   categoryId: number;
   maxStudents: number;
+  semesterId: number;
 }
 
 export interface UpdateTopicResponse {
@@ -185,7 +175,7 @@ export interface UpdateTopicResponse {
   categoryName: string;
   semesterName: string;
   maxStudents: number;
-  isApproved: boolean;
+  isApproved: boolean | null;
   updatedAt: string;
   updatedBy: string;
   currentVersionNumber: number;
@@ -199,18 +189,17 @@ export const updateTopic = async (
       "/topic/update",
       payload,
     );
-
     const { success, message, data } = response.data;
-
     if (!success) throw new Error(message || "Cập nhật đề tài thất bại");
-
     toast.success("🎉 Cập nhật đề tài thành công!");
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
-      ? error.response?.data?.message || "Cập nhật đề tài thất bại"
+      ? error.response?.data?.message ||
+        (typeof error.response?.data === "string"
+          ? error.response.data
+          : "Cập nhật đề tài thất bại")
       : "Đã xảy ra lỗi không xác định";
-
     toast.error(msg);
     throw new Error(msg);
   }
@@ -246,20 +235,15 @@ export const fetchMyTopics = async (
         },
       },
     );
-
     const { success, message, data } = response.data;
-
-    if (!success) {
+    if (!success)
       throw new Error(message || "Không thể lấy danh sách đề tài của bạn");
-    }
-
     return data;
   } catch (error) {
-    const errorMessage = axios.isAxiosError(error)
+    const msg = axios.isAxiosError(error)
       ? error.response?.data?.message || "Không thể lấy danh sách đề tài"
       : "Lỗi không xác định";
-
-    toast.error(errorMessage);
-    throw new Error(errorMessage);
+    toast.error(msg);
+    throw new Error(msg);
   }
 };

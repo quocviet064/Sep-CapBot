@@ -1,14 +1,13 @@
 import type { AxiosResponse } from "axios";
 import axios from "axios";
 import { toast } from "sonner";
-import { SemesterType } from "@/schemas/semesterSchema";
 import capBotAPI from "@/lib/CapBotApi";
 
-// DTO definitions
 export interface CreateSemesterDTO {
   name: string;
   startDate: string;
   endDate: string;
+  description: string;
 }
 
 export interface UpdateSemesterDTO extends CreateSemesterDTO {
@@ -20,6 +19,7 @@ export interface SemesterDTO {
   name: string;
   startDate: string;
   endDate: string;
+  description: string;
 }
 
 export interface SemesterDetailDTO extends SemesterDTO {
@@ -29,7 +29,6 @@ export interface SemesterDetailDTO extends SemesterDTO {
   updatedBy: string | null;
 }
 
-// API response wrapper
 interface ApiResponse<T> {
   statusCode: number;
   success: boolean;
@@ -38,57 +37,55 @@ interface ApiResponse<T> {
   message: string | null;
 }
 
-// 1. Tạo học kỳ
+type ErrorPayload = { message?: unknown } | string | null;
+
+const getAxiosMessage = (e: unknown, fallback: string): string => {
+  if (axios.isAxiosError<ErrorPayload>(e)) {
+    const data = e.response?.data;
+    if (typeof data === "string") return data || fallback;
+    if (data && typeof data === "object" && "message" in data) {
+      const m = (data as { message?: unknown }).message;
+      if (typeof m === "string" && m.trim()) return m;
+    }
+  }
+  return fallback;
+};
+
+const BASE = "/semester";
+
 export const createSemester = (
   dto: CreateSemesterDTO,
 ): Promise<AxiosResponse<ApiResponse<SemesterDTO>>> =>
-  capBotAPI.post("/semester/create", dto);
+  capBotAPI.post(`${BASE}/create`, dto);
 
-// 2. Lấy tất cả học kỳ
 export const getAllSemesters = (): Promise<
   AxiosResponse<ApiResponse<SemesterDTO[]>>
-> => capBotAPI.get("/semester/all");
+> => capBotAPI.get(`${BASE}/all`);
 
-// 3. Cập nhật học kỳ
 export const updateSemester = (
   dto: UpdateSemesterDTO,
 ): Promise<AxiosResponse<ApiResponse<SemesterDTO>>> =>
-  capBotAPI.put("/semester/update", dto);
+  capBotAPI.put(`${BASE}/update`, dto);
 
-// 4. Lấy chi tiết 1 học kỳ
 export const getSemesterDetail = (
   id: number,
 ): Promise<AxiosResponse<ApiResponse<SemesterDetailDTO>>> =>
-  capBotAPI.get(`/semester/detail/${id}`);
+  capBotAPI.get(`${BASE}/detail/${id}`);
 
-// 5. Xóa học kỳ
 export const deleteSemester = (
   id: number,
 ): Promise<AxiosResponse<ApiResponse<null>>> =>
-  capBotAPI.delete(`/semester/delete/${id}`);
+  capBotAPI.delete(`${BASE}/delete/${id}`);
 
-// 6. Fetch học kỳ async với toast xử lý lỗi
-export const fetchAllSemesters = async (): Promise<SemesterType[]> => {
+export const fetchAllSemesters = async (): Promise<SemesterDTO[]> => {
   try {
-    const response =
-      await capBotAPI.get<ApiResponse<SemesterType[]>>(`/semester/all`);
-
-    const { success, message, data } = response.data;
-
-    if (!success) {
-      throw new Error(message || "Failed to fetch semester");
-    }
-
+    const res = await capBotAPI.get<ApiResponse<SemesterDTO[]>>(`${BASE}/all`);
+    const { success, message, data } = res.data;
+    if (!success) throw new Error(message || "Failed to fetch semester");
     return data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to fetch semester";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    toast.error("An unknown error occurred");
-    throw new Error("An unknown error occurred");
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Failed to fetch semester");
+    toast.error(msg);
+    throw new Error(msg);
   }
 };
