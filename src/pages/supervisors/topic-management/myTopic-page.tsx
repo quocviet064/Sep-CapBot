@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
 import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
 
-import { fetchAllMyTopics } from "@/hooks/useTopic";
-import { TopicType } from "@/schemas/topicSchema";
+import { fetchAllMyTopics, useMyTopics } from "@/hooks/useTopic";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -21,27 +20,35 @@ const DEFAULT_VISIBILITY = {
 };
 
 function MyTopicPage() {
-  const [semesterId] = useState<number>(1);
-  const [categoryId] = useState<number>(1);
+  const [semesterId] = useState<number | undefined>(undefined);
+  const [categoryId] = useState<number | undefined>(undefined);
+
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   const [filterStatus, setFilterStatus] = useState<
     "all" | "approved" | "pending" | "rejecting"
   >("all");
 
-  const [allTopics, setAllTopics] = useState<TopicType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const navigate = useNavigate();
+  const columns = useMemo(
+    () =>
+      createMyTopicColumns({
+        onViewDetail: (id) => navigate(`/topics/my/${id}`),
+      }),
+    [navigate],
+  );
 
-  const handleViewDetail = async (topicId: string) => {
-    navigate(`/topics/my/${topicId}`);
-  };
-
-  const columns = createMyTopicColumns({ onViewDetail: handleViewDetail });
+  const { data, isLoading, error } = useMyTopics(
+    semesterId,
+    categoryId,
+    pageNumber,
+    pageSize,
+    searchTerm.trim() ? searchTerm.trim() : undefined,
+    undefined,
+  );
 
   const [stats, setStats] = useState({
     approved: 0,
@@ -51,67 +58,75 @@ function MyTopicPage() {
   });
 
   useEffect(() => {
-    const loadAllTopics = async () => {
+    let mounted = true;
+    const loadStats = async () => {
       try {
-        setIsLoading(true);
-        const all = await fetchAllMyTopics(semesterId, categoryId, searchTerm);
-        setAllTopics(all);
-
+        const all = await fetchAllMyTopics(
+          semesterId,
+          categoryId,
+          searchTerm.trim() ? searchTerm.trim() : undefined,
+        );
+        if (!mounted) return;
         const approved = all.filter((t) => t.isApproved === true).length;
-        const pending = all.filter((t) => t.isApproved === false).length;
+        const pending = all.filter(
+          (t) => t.isApproved === false || t.isApproved === null,
+        ).length;
         const rejecting = all.filter((t) => t.currentStatus === 2).length;
-        const total = all.length;
-        setStats({ approved, pending, rejecting, total });
-        setIsLoading(false);
-      } catch (err) {
-        setError(err as Error);
-        setIsLoading(false);
+        setStats({ approved, pending, rejecting, total: all.length });
+      } catch {
+        // im lặng: thống kê phụ, không ảnh hưởng bảng
       }
     };
-
-    loadAllTopics();
+    loadStats();
+    return () => {
+      mounted = false;
+    };
   }, [semesterId, categoryId, searchTerm]);
 
   useEffect(() => {
     setPageNumber(1);
-  }, [filterStatus]);
-
-  const topicsAfterFilter =
-    filterStatus === "approved"
-      ? allTopics.filter((t) => t.isApproved === true)
-      : filterStatus === "pending"
-        ? allTopics.filter((t) => t.isApproved === false)
-        : filterStatus === "rejecting"
-          ? allTopics.filter((t) => t.currentStatus === 2)
-          : allTopics;
-
-  const filteredData = topicsAfterFilter.slice(
-    (pageNumber - 1) * pageSize,
-    pageNumber * pageSize,
-  );
-
-  const totalFilteredPages = Math.ceil(topicsAfterFilter.length / pageSize);
+  }, [pageSize, searchTerm, filterStatus, semesterId, categoryId]);
 
   if (isLoading) return <LoadingPage />;
   if (error) return <p className="text-red-500">Lỗi: {error.message}</p>;
 
+  const serverPage = data?.listObjects ?? [];
+  const totalPagesFromServer = data?.totalPages ?? 1;
+
+  const pageAfterStatusFilter =
+    filterStatus === "approved"
+      ? serverPage.filter((t) => t.isApproved === true)
+      : filterStatus === "pending"
+        ? serverPage.filter(
+            (t) => t.isApproved === false || t.isApproved === null,
+          )
+        : filterStatus === "rejecting"
+          ? serverPage.filter((t) => t.currentStatus === 2)
+          : serverPage;
+
   return (
     <div className="space-y-4">
       <div className="min-h-[600px] rounded-2xl border px-4 py-4">
-        <h2 className="mb-4 text-xl font-bold">Danh sách đề tài của tôi</h2>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">Danh sách đề tài của tôi</h2>
+
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm kiếm đề tài..."
+            className="w-80 rounded-xl border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-200/60"
+          />
+        </div>
 
         <TopicAnalysis data={stats} onFilterClick={setFilterStatus} />
 
         <DataTable
-          data={filteredData}
+          data={pageAfterStatusFilter}
           columns={columns}
           visibility={DEFAULT_VISIBILITY}
-          search={searchTerm}
-          setSearch={setSearchTerm}
-          placeholder="Tìm kiếm đề tài..."
           page={pageNumber}
           setPage={setPageNumber}
-          totalPages={totalFilteredPages}
+          totalPages={totalPagesFromServer}
           limit={pageSize}
           setLimit={setPageSize}
         />

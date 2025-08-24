@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BookOpen, Loader2, ArrowLeft, PencilLine, Save } from "lucide-react";
-
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
 import { Label } from "@/components/globals/atoms/label";
@@ -10,10 +9,8 @@ import { useUpdateTopic } from "@/hooks/useTopic";
 import type { TopicDetailResponse } from "@/services/topicService";
 import { useNavigate } from "react-router-dom";
 import VersionTabs from "./TopicVersionTabs";
+import { useCategories } from "@/hooks/useCategory";
 
-/* =========================
-   Small UI helpers (reused style from CreateTopicPage)
-========================= */
 function RequiredBadge() {
   return (
     <Badge className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-red-600 uppercase shadow-sm">
@@ -100,15 +97,9 @@ function InfoBlock({
   );
 }
 
-/* =========================
-   Page Component
-========================= */
 interface TopicDetailPageProps {
-  /** Dữ liệu chi tiết đề tài. Bạn có thể thay bằng hook fetch theo id nếu cần. */
   data: TopicDetailResponse | null;
-  /** Tuỳ chọn: trở về trang trước */
   onBack?: () => void;
-  /** Callback khi cập nhật thành công */
   onUpdate?: (updated: TopicDetailResponse) => void;
 }
 
@@ -118,8 +109,7 @@ export default function TopicDetailPage({
   onUpdate,
 }: TopicDetailPageProps) {
   const { mutateAsync: updateTopic } = useUpdateTopic();
-
-  // ----- State -----
+  const { data: categories } = useCategories();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -168,7 +158,7 @@ export default function TopicDetailPage({
     if (!title.trim()) e.title = "Vui lòng nhập tiêu đề";
     if (!description.trim()) e.description = "Vui lòng nhập mô tả";
     if (!objectives.trim()) e.objectives = "Vui lòng nhập mục tiêu";
-    if (!categoryId) e.categoryId = "Vui lòng nhập ID danh mục";
+    if (!categoryId) e.categoryId = "Vui lòng chọn danh mục";
     if (!maxStudents || Number(maxStudents) <= 0)
       e.maxStudents = "Số SV tối đa phải > 0";
     setErrors(e);
@@ -181,9 +171,8 @@ export default function TopicDetailPage({
       toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
       return;
     }
-
     setIsUpdating(true);
-    const toastId = toast.loading("Đang lưu thay đổi...");
+    const tid = toast.loading("Đang lưu thay đổi...");
     try {
       const updated = await updateTopic({
         id: data.id,
@@ -192,12 +181,25 @@ export default function TopicDetailPage({
         objectives,
         categoryId,
         maxStudents,
+        semesterId: data.semesterId,
       });
-      toast.success("🎉 Lưu thành công!", { id: toastId });
-      onUpdate?.({ ...data, ...updated });
+      toast.success("🎉 Lưu thành công!", { id: tid });
+      onUpdate?.({
+        ...data,
+        title: updated.title,
+        description: updated.description,
+        categoryId,
+        categoryName: updated.categoryName,
+        maxStudents: updated.maxStudents,
+        lastModifiedAt: updated.updatedAt,
+        lastModifiedBy: updated.updatedBy,
+      });
       setIsEditing(false);
-    } catch (err) {
-      toast.error("❌ Lưu thất bại, vui lòng thử lại!", { id: toastId });
+    } catch (err: unknown) {
+      const msg =
+        (err as Error)?.message ||
+        "Lưu thất bại. Vui lòng kiểm tra dữ liệu hoặc thử lại.";
+      toast.error(msg, { id: tid });
     } finally {
       setIsUpdating(false);
     }
@@ -211,12 +213,8 @@ export default function TopicDetailPage({
     );
   }
 
-  /* =========================
-     RENDER
-  ========================= */
   return (
     <div className="space-y-4">
-      {/* PAGE HEADER (giống CreateTopicPage) */}
       <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 p-5 text-white shadow-sm">
         <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
@@ -232,8 +230,6 @@ export default function TopicDetailPage({
               </p>
             </div>
           </div>
-
-          {/* Progress bắt buộc */}
           <div className="w-48">
             <div className="mb-1 flex items-center justify-between text-[11px]">
               <span>Hoàn thiện</span>
@@ -248,6 +244,7 @@ export default function TopicDetailPage({
           </div>
         </div>
       </div>
+
       <div className="mt-4">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -272,7 +269,6 @@ export default function TopicDetailPage({
 
           <Button
             onClick={() => {
-              if (!data) return;
               const seed = {
                 title: data.title ?? "",
                 description: data.description ?? "",
@@ -303,9 +299,7 @@ export default function TopicDetailPage({
         />
       </div>
 
-      {/* CONTENT */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Cột trái: thông tin cơ bản */}
         <div className="space-y-4 xl:col-span-2">
           <SectionCard
             title="Thông tin cơ bản"
@@ -338,18 +332,21 @@ export default function TopicDetailPage({
                     />
                   </Field>
 
-                  <Field
-                    label="Danh mục (ID)"
-                    required
-                    error={errors.categoryId}
-                  >
-                    <input
-                      type="number"
-                      min={1}
-                      value={categoryId}
+                  <Field label="Danh mục" required error={errors.categoryId}>
+                    <select
+                      value={categoryId || ""}
                       onChange={(e) => setCategoryId(Number(e.target.value))}
                       className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                    />
+                    >
+                      <option value="" disabled>
+                        {categories?.length ? "Chọn danh mục" : "Đang tải..."}
+                      </option>
+                      {(categories ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
 
                   <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
@@ -395,7 +392,6 @@ export default function TopicDetailPage({
             </div>
           </SectionCard>
 
-          {/* Nội dung nghiên cứu (chỉ đọc như dialog gốc) */}
           <SectionCard
             title="Nội dung nghiên cứu"
             desc="Các trường thông tin bổ sung của phiên bản hiện tại."
@@ -436,7 +432,6 @@ export default function TopicDetailPage({
           </SectionCard>
         </div>
 
-        {/* Cột phải: tóm tắt & meta */}
         <div className="space-y-4">
           <SectionCard title="Tóm tắt" desc="Xem nhanh các thông tin đã chọn.">
             <div className="space-y-3 text-sm">
@@ -444,7 +439,9 @@ export default function TopicDetailPage({
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Danh mục</span>
                   <span className="font-medium">
-                    {data.categoryName || "—"}
+                    {categories?.find((c) => c.id === categoryId)?.name ||
+                      data.categoryName ||
+                      "—"}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
@@ -507,7 +504,6 @@ export default function TopicDetailPage({
         </div>
       </div>
 
-      {/* STICKY ACTION BAR */}
       <div className="sticky bottom-3 z-30">
         <div className="mx-auto flex max-w-5xl items-center justify-between rounded-2xl border bg-white/70 px-3 py-2 shadow-lg backdrop-blur">
           <div className="flex items-center gap-2">

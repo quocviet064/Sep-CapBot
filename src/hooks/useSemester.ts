@@ -5,10 +5,10 @@ import {
   createSemester,
   updateSemester,
   deleteSemester,
-  SemesterDTO,
-  SemesterDetailDTO,
-  CreateSemesterDTO,
-  UpdateSemesterDTO,
+  type SemesterDTO,
+  type SemesterDetailDTO,
+  type CreateSemesterDTO,
+  type UpdateSemesterDTO,
 } from "@/services/semesterService";
 
 export function useSemesters() {
@@ -16,7 +16,8 @@ export function useSemesters() {
     queryKey: ["semesters"],
     queryFn: async () => {
       const res = await getAllSemesters();
-      if (!res.data.success) throw new Error(res.data.message || "Fetch failed");
+      if (!res.data.success)
+        throw new Error(res.data.message || "Fetch failed");
       return res.data.data;
     },
   });
@@ -27,7 +28,8 @@ export function useSemesterById(id: string) {
     queryKey: ["semesterDetail", id],
     queryFn: async () => {
       const res = await getSemesterDetail(Number(id));
-      if (!res.data.success) throw new Error(res.data.message || "Fetch detail failed");
+      if (!res.data.success)
+        throw new Error(res.data.message || "Fetch detail failed");
       return res.data.data;
     },
     enabled: Boolean(id),
@@ -51,7 +53,8 @@ export function useUpdateSemester() {
     mutationFn: (dto: UpdateSemesterDTO) => updateSemester(dto),
     onSuccess: (_res, vars) => {
       qc.invalidateQueries({ queryKey: ["semesters"] });
-      if (vars?.id) qc.invalidateQueries({ queryKey: ["semesterDetail", String(vars.id)] });
+      if (vars?.id)
+        qc.invalidateQueries({ queryKey: ["semesterDetail", String(vars.id)] });
     },
   });
 }

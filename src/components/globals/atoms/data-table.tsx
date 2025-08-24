@@ -39,8 +39,8 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   columns: ColumnDef<TData, TValue>[];
   visibility?: VisibilityState;
-  search: string;
-  setSearch: (search: string) => void;
+  search?: string;
+  setSearch?: (search: string) => void;
   placeholder?: string;
   page: number;
   setPage: (page: number) => void;
@@ -78,15 +78,18 @@ export function DataTable<TData, TValue>({
     useState<VisibilityState>(visibility);
   const [rowSelection, setRowSelection] = useState({});
 
+  const enableClientColumnFiltering = filters.length > 0;
+
   const table = useReactTable({
     data,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    // getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    ...(enableClientColumnFiltering
+      ? { getFilteredRowModel: getFilteredRowModel() }
+      : {}),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     state: {
@@ -98,34 +101,37 @@ export function DataTable<TData, TValue>({
   });
 
   const handleClearInput = () => {
-    setSearch("");
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (setSearch) setSearch("");
+    if (inputRef.current) inputRef.current.focus();
   };
+
+  const showSearch =
+    typeof search === "string" && typeof setSearch === "function";
 
   return (
     <div>
       <div className="mb-2 flex items-center py-4">
         <div className="flex gap-4">
-          <div className="relative">
-            <Input
-              placeholder={placeholder}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-md"
-            />
-
-            {search && (
-              <button
-                className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Clear input"
-                onClick={handleClearInput}
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            )}
-          </div>
+          {showSearch && (
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                placeholder={placeholder}
+                value={search}
+                onChange={(event) => setSearch?.(event.target.value)}
+                className="w-md"
+              />
+              {search && (
+                <button
+                  className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Clear input"
+                  onClick={handleClearInput}
+                >
+                  <X size={16} aria-hidden />
+                </button>
+              )}
+            </div>
+          )}
 
           {filters.length === 1 ? (
             <DataTableFilter
@@ -162,18 +168,16 @@ export function DataTable<TData, TValue>({
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  );
-                })}
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
