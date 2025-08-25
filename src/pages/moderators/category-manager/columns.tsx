@@ -1,5 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/globals/atoms/button";
+import { Checkbox } from "@/components/globals/atoms/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,11 +9,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/globals/atoms/dropdown-menu";
 import { Copy, Eye, MoreHorizontal } from "lucide-react";
+import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
 import { CategoryType } from "@/schemas/categorySchema";
-import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
-import { Checkbox } from "@/components/globals/atoms/checkbox";
+import { toast } from "sonner";
 
 export type ColumnActionsHandlers = {
   onViewDetail: (id: string) => void;
@@ -29,7 +30,9 @@ export const createColumns = (
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && "indeterminate")
         }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        onCheckedChange={(value) =>
+          table.toggleAllPageRowsSelected(Boolean(value))
+        }
         aria-label="Select all"
         className="mb-2"
       />
@@ -37,7 +40,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
         aria-label="Select row"
         className="mb-2"
       />
@@ -47,35 +50,44 @@ export const createColumns = (
   },
   {
     accessorKey: "id",
-    meta: { title: "Mã đề tài" },
+    meta: { title: "Mã danh mục" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Mã đề tài" />
+      <DataTableColumnHeader column={column} title="Mã danh mục" />
     ),
+    cell: ({ row }) => <span className="font-mono">#{row.original.id}</span>,
   },
-
   {
     accessorKey: "name",
     meta: { title: "Tên danh mục" },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tên danh mục" />
     ),
+    cell: ({ row }) => (
+      <div className="max-w-[380px] truncate font-medium text-neutral-900">
+        {row.original.name || "--"}
+      </div>
+    ),
   },
-
   {
     accessorKey: "description",
-    header: "Ghi chú",
-    cell: ({ row }) => {
-      const notes = row.original.description;
-      return notes ? <DataTableCellDescription description={notes} /> : "--";
-    },
+    meta: { title: "Ghi chú" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Ghi chú" />
+    ),
+    cell: ({ row }) =>
+      row.original.description ? (
+        <DataTableCellDescription description={row.original.description} />
+      ) : (
+        "--"
+      ),
   },
-
   {
     accessorKey: "topicsCount",
     meta: { title: "Số lượng đề tài" },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Số lượng đề tài" />
     ),
+    cell: ({ row }) => <span>{row.original.topicsCount ?? 0}</span>,
   },
   {
     accessorKey: "createdAt",
@@ -83,7 +95,7 @@ export const createColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
-    cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
+    cell: ({ row }) => <DataTableDate date={row.original.createdAt ?? ""} />,
   },
   {
     id: "actions",
@@ -91,8 +103,7 @@ export const createColumns = (
     enableHiding: false,
     header: () => <span className="flex justify-center">Thao tác</span>,
     cell: ({ row }) => {
-      const topic = row.original;
-
+      const item = row.original;
       return (
         <div className="flex justify-center">
           <DropdownMenu>
@@ -105,15 +116,18 @@ export const createColumns = (
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() =>
-                  navigator.clipboard.writeText(topic.id.toString())
-                }
+                onClick={() => {
+                  navigator.clipboard.writeText(String(item.id));
+                  toast.success("Đã sao chép mã danh mục");
+                }}
+                className="cursor-pointer"
               >
                 <Copy className="h-4 w-4" />
                 Sao chép mã
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handlers.onViewDetail(topic.id.toString())}
+                onClick={() => handlers.onViewDetail(String(item.id))}
+                className="cursor-pointer"
               >
                 <Eye className="h-4 w-4" />
                 Xem chi tiết
