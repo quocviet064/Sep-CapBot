@@ -34,6 +34,7 @@ export interface EvaluationCriteriaDTO {
   maxScore: number;
   weight: number;
   createdAt?: string | null;
+  lastModifiedAt?: string | null;
   updatedAt?: string | null;
   isActive?: boolean;
 }

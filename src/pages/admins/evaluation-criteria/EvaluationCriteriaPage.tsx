@@ -14,7 +14,7 @@ import EvaluationCriteriaDetailDialog from "./evaluation-criteria-detail-dialog"
 import EvaluationCriteriaCreateDialog from "./evaluation-criteria-create-dialog";
 
 const DEFAULT_VISIBILITY = {
-  id: true,
+  id: false,
   name: true,
   maxScore: true,
   weight: true,

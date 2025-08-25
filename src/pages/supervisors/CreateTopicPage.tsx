@@ -1,5 +1,5 @@
 // src/pages/topics/CreateTopicPage.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
@@ -17,11 +17,12 @@ import {
   CheckCircle2,
   Loader2,
   Search,
+  Upload,
+  FileText,
+  X,
 } from "lucide-react";
-
 import { useCreateTopic } from "@/hooks/useTopic";
 import type { CreateTopicPayload } from "@/services/topicService";
-
 import type { CategoryType } from "@/schemas/categorySchema";
 import type { SemesterDTO } from "@/services/semesterService";
 import { useCategories } from "@/hooks/useCategory";
@@ -96,6 +97,14 @@ function Field({
   );
 }
 
+function formatBytes(b: number) {
+  if (b === 0) return "0 B";
+  const k = 1024;
+  const i = Math.floor(Math.log(b) / Math.log(k));
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  return `${parseFloat((b / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
 export default function CreateTopicPage() {
   const { mutateAsync: createTopic, isPending } = useCreateTopic();
 
@@ -141,6 +150,10 @@ export default function CreateTopicPage() {
     requirements: "",
     documentUrl: "",
   });
+
+  const [docFiles, setDocFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | undefined>(undefined);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -188,7 +201,52 @@ export default function CreateTopicPage() {
     return Object.keys(e).length === 0;
   };
 
-  const resetForm = () =>
+  const validateFile = (f: File) => {
+    const allowed = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const okType =
+      allowed.includes(f.type) ||
+      [".pdf", ".doc", ".docx"].some((ext) =>
+        f.name.toLowerCase().endsWith(ext),
+      );
+    if (!okType) return "Chỉ chấp nhận PDF, DOC, DOCX";
+    if (f.size > 20 * 1024 * 1024) return "Kích thước tối đa 20MB";
+    return "";
+  };
+
+  const pickFile = () => fileInputRef.current?.click();
+
+  const onFiles = (list: FileList | null) => {
+    if (!list) return;
+    const incoming = Array.from(list);
+    const valids: File[] = [];
+    for (const f of incoming) {
+      const err = validateFile(f);
+      if (err) {
+        setFileError(err);
+        toast.error(err);
+        continue;
+      }
+      valids.push(f);
+    }
+    const merged = [...docFiles, ...valids];
+    const deduped = merged.filter(
+      (f, idx, arr) =>
+        arr.findIndex(
+          (x) => x.name === f.name && x.size === f.size && x.type === f.type,
+        ) === idx,
+    );
+    setDocFiles(deduped);
+    setFileError(undefined);
+  };
+
+  const removeFile = (i: number) =>
+    setDocFiles((p) => p.filter((_, idx) => idx !== i));
+
+  const resetForm = () => {
     setForm({
       title: "",
       description: "",
@@ -201,24 +259,35 @@ export default function CreateTopicPage() {
       requirements: "",
       documentUrl: "",
     });
+    setDocFiles([]);
+    setFileError(undefined);
+  };
 
   const onSubmit = async () => {
     if (!validate()) {
       toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
       return;
     }
-
-    const p = createTopic(form);
-    toast.promise(p, {
+    const fd = new FormData();
+    fd.append("title", form.title);
+    fd.append("description", form.description || "");
+    fd.append("objectives", form.objectives || "");
+    fd.append("categoryId", String(form.categoryId || 0));
+    fd.append("semesterId", String(form.semesterId || 0));
+    fd.append("maxStudents", String(form.maxStudents || 0));
+    fd.append("methodology", form.methodology || "");
+    fd.append("expectedOutcomes", form.expectedOutcomes || "");
+    fd.append("requirements", form.requirements || "");
+    fd.append("documentUrl", "");
+    docFiles.forEach((f) => fd.append("documents", f, f.name));
+    await toast.promise(createTopic(fd as unknown as CreateTopicPayload), {
       loading: "Đang tạo đề tài...",
       success: "🎉 Tạo đề tài thành công!",
       error: (err: unknown) =>
         (err as { message?: string } | undefined)?.message ||
         "Tạo đề tài thất bại",
     });
-
-    const ok = await p.then(() => true).catch(() => false);
-    if (ok) resetForm();
+    resetForm();
   };
 
   return (
@@ -238,7 +307,6 @@ export default function CreateTopicPage() {
               </p>
             </div>
           </div>
-
           <div className="w-48">
             <div className="mb-1 flex items-center justify-between text-[11px]">
               <span>Tiến độ</span>
@@ -254,7 +322,7 @@ export default function CreateTopicPage() {
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 gap-4 xl:grid-cols-3`}>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <SectionCard
             title="Thông tin cơ bản"
@@ -262,9 +330,7 @@ export default function CreateTopicPage() {
             icon={<CheckCircle2 className="h-4 w-4" />}
           >
             <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${
-                isPending ? "pointer-events-none opacity-70" : ""
-              }`}
+              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
             >
               <Field label="Tên đề tài" required error={errors.title}>
                 <input
@@ -275,7 +341,6 @@ export default function CreateTopicPage() {
                   onChange={(e) => update("title", e.target.value)}
                 />
               </Field>
-
               <Field
                 label="Số lượng SV tối đa"
                 required
@@ -291,7 +356,6 @@ export default function CreateTopicPage() {
                   }
                 />
               </Field>
-
               <Field label="Danh mục" required error={errors.categoryId}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -301,9 +365,7 @@ export default function CreateTopicPage() {
                       disabled={isPending || catLoading}
                     >
                       <span
-                        className={`max-w-[240px] truncate ${
-                          form.categoryId ? "" : "text-muted-foreground"
-                        }`}
+                        className={`max-w-[240px] truncate ${form.categoryId ? "" : "text-muted-foreground"}`}
                       >
                         {catLoading ? "Đang tải..." : selectedCategoryName}
                       </span>
@@ -334,9 +396,7 @@ export default function CreateTopicPage() {
                       {(filteredCategories as CategoryType[]).map((c) => (
                         <DropdownMenuItem
                           key={c.id}
-                          onClick={() => {
-                            update("categoryId", c.id);
-                          }}
+                          onClick={() => update("categoryId", c.id)}
                           className="cursor-pointer text-sm"
                         >
                           {c.name}
@@ -356,7 +416,6 @@ export default function CreateTopicPage() {
                   </p>
                 ) : null}
               </Field>
-
               <Field label="Kỳ học" required error={errors.semesterId}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -366,9 +425,7 @@ export default function CreateTopicPage() {
                       disabled={isPending || semLoading}
                     >
                       <span
-                        className={`max-w-[240px] truncate ${
-                          form.semesterId ? "" : "text-muted-foreground"
-                        }`}
+                        className={`max-w-[240px] truncate ${form.semesterId ? "" : "text-muted-foreground"}`}
                       >
                         {semLoading ? "Đang tải..." : selectedSemesterName}
                       </span>
@@ -418,7 +475,6 @@ export default function CreateTopicPage() {
                   </p>
                 ) : null}
               </Field>
-
               <div className="md:col-span-2">
                 <Field label="Mục tiêu" required error={errors.objectives}>
                   <textarea
@@ -429,7 +485,6 @@ export default function CreateTopicPage() {
                   />
                 </Field>
               </div>
-
               <div className="md:col-span-2">
                 <Field label="Mô tả" required error={errors.description}>
                   <textarea
@@ -474,15 +529,90 @@ export default function CreateTopicPage() {
                   onChange={(e) => update("requirements", e.target.value)}
                 />
               </Field>
-              <Field label="Tài liệu đính kèm (URL)">
-                <input
-                  type="url"
-                  className="w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  placeholder="https://..."
-                  value={form.documentUrl}
-                  onChange={(e) => update("documentUrl", e.target.value)}
-                />
-              </Field>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <label className="font-medium">Tài liệu đính kèm</label>
+                  <span className="text-xs text-neutral-500">
+                    PDF, DOC, DOCX • Tối đa 20MB
+                  </span>
+                </div>
+                <div
+                  className={`group relative flex min-h-[90px] w-full items-start gap-3 rounded-2xl border-2 border-dashed p-3 transition ${
+                    fileError
+                      ? "border-red-300 bg-red-50"
+                      : "border-neutral-200 hover:border-neutral-300"
+                  }`}
+                  onClick={pickFile}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    onFiles(e.dataTransfer.files);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-neutral-50 ring-1 ring-neutral-200 ring-inset">
+                      <Upload className="h-4 w-4 opacity-70" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {docFiles.length > 0
+                          ? `Đã chọn ${docFiles.length} tệp`
+                          : "Kéo & thả tệp vào đây"}
+                      </span>
+                      <span className="text-[11px] text-neutral-500">
+                        {docFiles.length > 0
+                          ? "Bấm để thêm tệp khác"
+                          : "Hoặc bấm để chọn"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {docFiles.length > 0 && (
+                    <div className="ml-auto flex max-h-20 max-w-[55%] flex-wrap items-center gap-2 overflow-y-auto">
+                      {docFiles.map((f, i) => (
+                        <div
+                          key={f.name + f.size}
+                          className="flex items-center gap-2 rounded-md border bg-white/80 px-2 py-1 text-[12px] shadow-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span className="max-w-[140px] truncate">
+                            {f.name}
+                          </span>
+                          <span className="text-[10px] text-neutral-500">
+                            {formatBytes(f.size)}
+                          </span>
+                          <button
+                            type="button"
+                            className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-neutral-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFile(i);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="hidden"
+                    onChange={(e) => onFiles(e.target.files)}
+                  />
+                </div>
+                {fileError ? (
+                  <p className="text-xs font-medium text-red-600">
+                    {fileError}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </SectionCard>
         </div>
@@ -514,6 +644,12 @@ export default function CreateTopicPage() {
                 <div className="text-muted-foreground mb-1">Tên đề tài</div>
                 <div className="line-clamp-2 text-sm font-medium">
                   {form.title || "—"}
+                </div>
+              </div>
+              <div className="rounded-xl border p-3">
+                <div className="text-muted-foreground mb-1">Tài liệu</div>
+                <div className="text-sm font-medium">
+                  {docFiles.length > 0 ? `${docFiles.length} tệp` : "—"}
                 </div>
               </div>
             </div>
