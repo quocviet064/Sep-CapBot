@@ -81,6 +81,7 @@ export default function EvaluationCriteriaCreateDialog({
     mutate: createMutate,
     isPending: isSaving,
     isSuccess,
+    reset,
   } = useCreateEvaluationCriteria();
 
   const canSave = useMemo(() => {
@@ -92,10 +93,11 @@ export default function EvaluationCriteriaCreateDialog({
   }, [form]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      reset();
       setForm({ name: "", description: "", maxScore: 100, weight: 10 });
     }
-  }, [isOpen]);
+  }, [isOpen, reset]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -105,7 +107,12 @@ export default function EvaluationCriteriaCreateDialog({
   }, [isSuccess, onClose]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="w-[720px] max-w-[96vw] overflow-hidden p-0">
         <div className="relative">
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-600 to-violet-600" />

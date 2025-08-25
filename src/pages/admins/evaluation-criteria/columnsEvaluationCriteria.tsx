@@ -130,13 +130,25 @@ export const createEvaluationCriteriaColumns = (
     cell: ({ row }) => <DataTableDate date={row.original.createdAt ?? ""} />,
   },
   {
-    accessorKey: "updatedAt",
+    accessorFn: (r) => r.lastModifiedAt as string | undefined,
+    id: "updatedAt",
     meta: { title: "Cập nhật" },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Cập nhật" />
     ),
-    cell: ({ row }) => <DataTableDate date={row.original.updatedAt ?? ""} />,
+    cell: ({ getValue }) => {
+      const v = getValue<string | undefined>();
+      const empty = !v || v.startsWith("0001-01-01");
+      return empty ? (
+        <span className="text-xs text-neutral-500 italic">
+          Chưa có cập nhật
+        </span>
+      ) : (
+        <DataTableDate date={v} />
+      );
+    },
   },
+
   {
     id: "actions",
     enableSorting: false,

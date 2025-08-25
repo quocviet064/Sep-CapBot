@@ -67,9 +67,20 @@ function Row({
   );
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
+function Pill({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50/80 px-3 py-1 text-xs font-medium text-indigo-700">
+    <span
+      className={[
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium",
+        className,
+      ].join(" ")}
+    >
       {children}
     </span>
   );
@@ -110,18 +121,29 @@ type FormState = {
   weight: number;
 };
 
+type ExtendedDTO = EvaluationCriteriaDTO & {
+  createdAt?: string | null;
+  lastModifiedAt?: string | null;
+  createdBy?: string | null;
+  lastModifiedBy?: string | null;
+  isActive?: boolean | null;
+};
+
 interface EvaluationCriteriaDetailDialogProps {
   isOpen: boolean;
   onClose: () => void;
   criteriaId: IdLike | null;
 }
 
+const fmtDate = (s?: string | null) =>
+  s ? new Date(s).toLocaleString("vi-VN") : "—";
+
 export default function EvaluationCriteriaDetailDialog({
   isOpen,
   onClose,
   criteriaId,
 }: EvaluationCriteriaDetailDialogProps) {
-  const [detail, setDetail] = useState<EvaluationCriteriaDTO | null>(null);
+  const [detail, setDetail] = useState<ExtendedDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -140,7 +162,8 @@ export default function EvaluationCriteriaDetailDialog({
     setIsEditing(false);
     getEvaluationCriteriaById(criteriaId)
       .then((d) => {
-        setDetail(d);
+        const ext = d as ExtendedDTO;
+        setDetail(ext);
         setForm({
           id: d.id,
           name: d.name,
@@ -192,7 +215,9 @@ export default function EvaluationCriteriaDetailDialog({
         onSuccess: async () => {
           setLoading(true);
           try {
-            const fresh = await getEvaluationCriteriaById(form.id);
+            const fresh = (await getEvaluationCriteriaById(
+              form.id,
+            )) as ExtendedDTO;
             setDetail(fresh);
             setIsEditing(false);
             toast.success("Đã lưu thay đổi");
@@ -294,7 +319,7 @@ export default function EvaluationCriteriaDetailDialog({
           {loading ? (
             <Section title="Đang tải">
               <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
+                {Array.from({ length: 5 }).map((_, i) => (
                   <SkeletonRow key={i} />
                 ))}
               </div>
@@ -362,7 +387,9 @@ export default function EvaluationCriteriaDetailDialog({
               <Section title="Thiết lập điểm">
                 <Row label="Điểm tối đa">
                   {!isEditing ? (
-                    <Pill>{detail.maxScore}</Pill>
+                    <Pill className="border-indigo-200 bg-indigo-50/80 text-indigo-700">
+                      {detail.maxScore}
+                    </Pill>
                   ) : (
                     <FieldInput
                       type="number"
@@ -376,9 +403,11 @@ export default function EvaluationCriteriaDetailDialog({
                   )}
                 </Row>
                 <div className="border-t" />
-                <Row label="Trọng số (%)" hint="0–100">
+                <Row label="Trọng số">
                   {!isEditing ? (
-                    <Pill>{detail.weight}</Pill>
+                    <Pill className="border-indigo-200 bg-indigo-50/80 text-indigo-700">
+                      {detail.weight}
+                    </Pill>
                   ) : (
                     <FieldInput
                       type="number"
@@ -387,10 +416,55 @@ export default function EvaluationCriteriaDetailDialog({
                         onChange("weight", Number(e.target.value || 0))
                       }
                       min={0}
-                      max={100}
                       className="w-[220px]"
                     />
                   )}
+                </Row>
+              </Section>
+
+              <Section title="Trạng thái & nhật ký">
+                <Row label="Trạng thái">
+                  <Pill
+                    className={
+                      detail.isActive
+                        ? "border-emerald-200 bg-emerald-50/80 text-emerald-700"
+                        : "border-neutral-200 bg-neutral-50 text-neutral-700"
+                    }
+                  >
+                    {detail.isActive ? "Đang hoạt động" : "Ngừng hoạt động"}
+                  </Pill>
+                </Row>
+                <div className="border-t" />
+                <Row label="Tạo lúc">
+                  <div className="text-sm text-neutral-800">
+                    {fmtDate(detail.createdAt)}
+                  </div>
+                </Row>
+                <div className="border-t" />
+                <Row label="Cập nhật lúc">
+                  <div className="text-sm text-neutral-800">
+                    {!detail?.lastModifiedAt ||
+                    String(detail.lastModifiedAt).startsWith("0001-01-01") ? (
+                      <span className="text-neutral-500 italic">
+                        Chưa có cập nhật
+                      </span>
+                    ) : (
+                      fmtDate(detail.lastModifiedAt)
+                    )}
+                  </div>
+                </Row>
+
+                <div className="border-t" />
+                <Row label="Tạo bởi">
+                  <div className="text-sm text-neutral-800">
+                    {detail.createdBy || "—"}
+                  </div>
+                </Row>
+                <div className="border-t" />
+                <Row label="Cập nhật bởi">
+                  <div className="text-sm text-neutral-800">
+                    {detail.lastModifiedBy || "—"}
+                  </div>
                 </Row>
               </Section>
             </motion.div>
