@@ -156,7 +156,7 @@ export const siteModerator = [
     items: [
       {
         title: "Tổng quan phân công",
-        url: "/moderators/reviewer-assignment",
+        url: "/moderators/reviewer-assignment/ReviewerAssignmentPage",
       },
       {
         title: "Theo dõi phân công",

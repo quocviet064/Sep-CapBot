@@ -1,4 +1,3 @@
-// src/pages/moderators/topic-approval/TopicDetailDialog.tsx
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/globals/atoms/button";
@@ -21,21 +20,16 @@ type Props = {
 };
 
 function TopicDetailDialog({ isOpen, onClose, topicId }: Props) {
-  // Gọi API khi mở dialog + có topicId
-  const {
-    data,
-    isFetching,
-    isError,
-    error,
-    refetch,
-  } = useQuery<TopicDetailResponse, Error>({
+  const { data, isFetching, isError, error, refetch } = useQuery<
+    TopicDetailResponse,
+    Error
+  >({
     queryKey: ["topicDetail", topicId],
     queryFn: () => getTopicDetail(Number(topicId)),
     enabled: isOpen && !!topicId,
     staleTime: 60_000,
   });
 
-  // Mỗi lần mở lại dialog thì làm mới (tuỳ bạn)
   useEffect(() => {
     if (isOpen && topicId) refetch();
   }, [isOpen, topicId, refetch]);
@@ -65,7 +59,6 @@ function TopicDetailDialog({ isOpen, onClose, topicId }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Loading / Error / Empty states */}
         {isFetching && (
           <div className="px-2 py-6 text-sm text-gray-500">
             Đang tải chi tiết đề tài...
@@ -93,7 +86,9 @@ function TopicDetailDialog({ isOpen, onClose, topicId }: Props) {
             </div>
 
             <InfoBlock label="Tiêu đề">{data.title}</InfoBlock>
-            <InfoBlock label="Giảng viên hướng dẫn">{data.supervisorName}</InfoBlock>
+            <InfoBlock label="Giảng viên hướng dẫn">
+              {data.supervisorName}
+            </InfoBlock>
 
             <InfoBlock label="Danh mục">{data.categoryName}</InfoBlock>
             <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
@@ -106,23 +101,28 @@ function TopicDetailDialog({ isOpen, onClose, topicId }: Props) {
               {data.isApproved ? "Đã duyệt" : "Chưa duyệt"}
             </InfoBlock>
 
-            <InfoBlock label="Ngày tạo">{formatDateTime(data.createdAt)}</InfoBlock>
+            <InfoBlock label="Ngày tạo">
+              {formatDateTime(data.createdAt)}
+            </InfoBlock>
             <InfoBlock label="Người tạo">{data.createdBy}</InfoBlock>
 
             <div className="col-span-2 border-b pt-2" />
 
-            {/* Phiên bản hiện tại */}
             <div className="col-span-2">
               <h3 className="text-primary mt-2 text-base font-semibold">
                 📝 Nội dung phiên bản hiện tại
               </h3>
             </div>
 
-            <InfoBlock label="Phương pháp">{data.currentVersion?.methodology}</InfoBlock>
+            <InfoBlock label="Phương pháp">
+              {data.currentVersion?.methodology}
+            </InfoBlock>
             <InfoBlock label="Kết quả mong đợi">
               {data.currentVersion?.expectedOutcomes}
             </InfoBlock>
-            <InfoBlock label="Yêu cầu">{data.currentVersion?.requirements}</InfoBlock>
+            <InfoBlock label="Yêu cầu">
+              {data.currentVersion?.requirements}
+            </InfoBlock>
 
             <InfoBlock label="Tài liệu đính kèm">
               {data.currentVersion?.documentUrl ? (

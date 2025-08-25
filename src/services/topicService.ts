@@ -156,7 +156,6 @@ export const getTopicDetail = async (
   }
 };
 
-/** <- thêm semesterId cho update */
 export interface UpdateTopicPayload {
   id: number;
   title: string;

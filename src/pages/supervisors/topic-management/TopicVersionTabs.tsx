@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Skeleton } from "@/components/globals/atoms/skeleton"; // nếu không có thì thay bằng <span>...</span>
+import { Skeleton } from "@/components/globals/atoms/skeleton";
 import { useTopicVersionHistory } from "@/hooks/useTopicVersion";
 
 type Props = {

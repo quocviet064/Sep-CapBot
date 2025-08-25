@@ -1,28 +1,30 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { TopicType } from "@/schemas/topicSchema";
 import { Copy, Eye, List, MoreHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/globals/atoms/button";
+import { Checkbox } from "@/components/globals/atoms/checkbox";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuTrigger,
 } from "@/components/globals/atoms/dropdown-menu";
-import { Button } from "@/components/globals/atoms/button";
-import { Checkbox } from "@/components/globals/atoms/checkbox";
-import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
-import DataTableDate from "@/components/globals/molecules/data-table-date";
 import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
+import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
+import DataTableDate from "@/components/globals/molecules/data-table-date";
 import { Badge } from "@/components/globals/atoms/badge";
+import { toast } from "sonner";
+import type { TopicType } from "@/schemas/topicSchema";
 
 export type ColumnActionsHandlers = {
-  onViewDetail: (id: string | number) => void;
+  onViewDetail?: (id: string) => void;
   onAssignReviewer: (topic: TopicType) => void;
 };
 
 export const createColumns = (
-  handlers: ColumnActionsHandlers
+  handlers: ColumnActionsHandlers,
 ): ColumnDef<TopicType>[] => [
   {
     id: "select",
@@ -32,15 +34,17 @@ export const createColumns = (
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && "indeterminate")
         }
-        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(Boolean(v))}
         aria-label="Select all"
+        className="mb-2"
       />
     ),
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
-        onCheckedChange={(v) => row.toggleSelected(!!v)}
+        onCheckedChange={(v) => row.toggleSelected(Boolean(v))}
         aria-label="Select row"
+        className="mb-2"
       />
     ),
     enableSorting: false,
@@ -52,6 +56,7 @@ export const createColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Mã đề tài" />
     ),
+    cell: ({ row }) => <span className="font-mono">#{row.original.id}</span>,
   },
   {
     accessorKey: "title",
@@ -68,7 +73,10 @@ export const createColumns = (
   },
   {
     accessorKey: "description",
-    header: "Ghi chú",
+    meta: { title: "Ghi chú" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Ghi chú" />
+    ),
     cell: ({ row }) =>
       row.original.description ? (
         <DataTableCellDescription description={row.original.description} />
@@ -77,11 +85,12 @@ export const createColumns = (
       ),
   },
   {
-    accessorKey: "currentVersion.methodology",
-    meta: { title: "Kỹ năng" },
+    accessorKey: "categoryName",
+    meta: { title: "Danh mục" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Kỹ năng" />
+      <DataTableColumnHeader column={column} title="Danh mục" />
     ),
+    cell: ({ row }) => <span>{row.original.categoryName || "--"}</span>,
   },
   {
     accessorKey: "isApproved",
@@ -92,11 +101,11 @@ export const createColumns = (
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
         {row.original.isApproved ? (
-          <Badge className="text-white" style={{ backgroundColor: "green" }}>
+          <Badge className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700">
             Đã duyệt
           </Badge>
         ) : (
-          <Badge className="text-white" style={{ backgroundColor: "orange" }}>
+          <Badge className="rounded-full border-amber-200 bg-amber-50 text-amber-700">
             Chưa duyệt
           </Badge>
         )}
@@ -109,11 +118,15 @@ export const createColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
-    cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
+    cell: ({ row }) => <DataTableDate date={row.original.createdAt ?? ""} />,
   },
   {
     id: "actions",
-    header: () => <span className="flex items-center justify-center">Thao tác</span>,
+    enableSorting: false,
+    enableHiding: false,
+    header: () => (
+      <span className="flex items-center justify-center">Thao tác</span>
+    ),
     cell: ({ row }) => {
       const topic = row.original;
       const idStr = String(topic.id);
@@ -128,15 +141,33 @@ export const createColumns = (
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(idStr)}>
+
+              <DropdownMenuItem
+                onClick={() => {
+                  navigator.clipboard.writeText(idStr);
+                  toast.success("Đã sao chép mã đề tài");
+                }}
+                className="cursor-pointer"
+              >
                 <Copy className="h-4 w-4" />
                 Sao chép mã
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handlers.onViewDetail(topic.id)}>
-                <Eye className="h-4 w-4" />
-                Xem chi tiết
+
+              <DropdownMenuItem asChild>
+                <Link
+                  to={`/moderators/topic-approval/${idStr}`}
+                  className="flex cursor-pointer items-center gap-2"
+                  onClick={() => handlers.onViewDetail?.(idStr)}
+                >
+                  <Eye className="h-4 w-4" />
+                  Xem chi tiết
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handlers.onAssignReviewer(topic)}>
+
+              <DropdownMenuItem
+                onClick={() => handlers.onAssignReviewer(topic)}
+                className="cursor-pointer"
+              >
                 <List className="h-4 w-4" />
                 Phân công reviewer
               </DropdownMenuItem>
@@ -145,7 +176,5 @@ export const createColumns = (
         </div>
       );
     },
-    enableSorting: false,
-    enableHiding: false,
   },
 ];

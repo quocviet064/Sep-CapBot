@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import { DataTable } from "@/components/globals/atoms/data-table";
 import { useTopics } from "@/hooks/useTopic";
 import LoadingPage from "@/pages/loading-page";
@@ -18,8 +17,8 @@ const DEFAULT_VISIBILITY = {
 };
 
 function TopicPage() {
-  const [semesterId, setSemesterId] = useState<string>("");
-  const [categoryId, setCategoryId] = useState<string>("");
+  const [semesterId] = useState<string>("");
+  const [categoryId] = useState<string>("");
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -56,9 +55,8 @@ function TopicPage() {
 
   return (
     <div className="space-y-4">
-      <div className="min-h-[600px] rounded-2xl border px-4 py-4">
+      <div className="min-h=[600px] rounded-2xl border px-4 py-4">
         <h2 className="text-xl font-bold">Danh sách đề tài</h2>
-
         <DataTable
           data={(topicsData?.listObjects || []).filter(
             (topic) => topic.isApproved === true,

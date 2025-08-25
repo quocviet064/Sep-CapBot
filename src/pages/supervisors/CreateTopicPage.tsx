@@ -27,9 +27,6 @@ import type { SemesterDTO } from "@/services/semesterService";
 import { useCategories } from "@/hooks/useCategory";
 import { useSemesters } from "@/hooks/useSemester";
 
-/* =========================
-   Small UI helpers
-========================= */
 function RequiredBadge() {
   return (
     <Badge className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-red-600 uppercase shadow-sm">
@@ -147,8 +144,10 @@ export default function CreateTopicPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const update = (key: keyof CreateTopicPayload, value: any) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const update = <K extends keyof CreateTopicPayload>(
+    key: K,
+    value: CreateTopicPayload[K],
+  ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const selectedCategoryName =
     (form.categoryId &&
@@ -208,16 +207,18 @@ export default function CreateTopicPage() {
       toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
       return;
     }
-    try {
-      await toast.promise(createTopic(form), {
-        loading: "Đang tạo đề tài...",
-        success: "🎉 Tạo đề tài thành công!",
-        error: (err) => err?.message || "Tạo đề tài thất bại",
-      });
-      resetForm();
-    } catch {
-      // đã toast trong promise
-    }
+
+    const p = createTopic(form);
+    toast.promise(p, {
+      loading: "Đang tạo đề tài...",
+      success: "🎉 Tạo đề tài thành công!",
+      error: (err: unknown) =>
+        (err as { message?: string } | undefined)?.message ||
+        "Tạo đề tài thất bại",
+    });
+
+    const ok = await p.then(() => true).catch(() => false);
+    if (ok) resetForm();
   };
 
   return (
@@ -291,7 +292,6 @@ export default function CreateTopicPage() {
                 />
               </Field>
 
-              {/* Danh mục */}
               <Field label="Danh mục" required error={errors.categoryId}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -351,11 +351,12 @@ export default function CreateTopicPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {catError ? (
-                  <p className="text-xs text-red-600">{catError.message}</p>
+                  <p className="text-xs text-red-600">
+                    {(catError as Error).message}
+                  </p>
                 ) : null}
               </Field>
 
-              {/* Kỳ học */}
               <Field label="Kỳ học" required error={errors.semesterId}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -412,11 +413,12 @@ export default function CreateTopicPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {semError ? (
-                  <p className="text-xs text-red-600">{semError.message}</p>
+                  <p className="text-xs text-red-600">
+                    {(semError as Error).message}
+                  </p>
                 ) : null}
               </Field>
 
-              {/* Mục tiêu */}
               <div className="md:col-span-2">
                 <Field label="Mục tiêu" required error={errors.objectives}>
                   <textarea
@@ -428,7 +430,6 @@ export default function CreateTopicPage() {
                 </Field>
               </div>
 
-              {/* Mô tả */}
               <div className="md:col-span-2">
                 <Field label="Mô tả" required error={errors.description}>
                   <textarea
@@ -442,7 +443,6 @@ export default function CreateTopicPage() {
             </div>
           </SectionCard>
 
-          {/* Nội dung nghiên cứu */}
           <SectionCard
             title="Nội dung nghiên cứu"
             desc="Các trường thông tin bổ sung, có thể điền sau."
@@ -487,7 +487,6 @@ export default function CreateTopicPage() {
           </SectionCard>
         </div>
 
-        {/* Cột phải: tóm tắt nhanh */}
         <div className="space-y-4">
           <SectionCard title="Tóm tắt" desc="Xem nhanh các thông tin đã chọn.">
             <div className="space-y-3 text-sm">
@@ -541,7 +540,6 @@ export default function CreateTopicPage() {
         </div>
       </div>
 
-      {/* STICKY ACTION BAR */}
       <div className="sticky bottom-3 z-30">
         <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 rounded-2xl border bg-white/70 px-3 py-2 shadow-lg backdrop-blur">
           <Button variant="ghost" onClick={resetForm} disabled={isPending}>
