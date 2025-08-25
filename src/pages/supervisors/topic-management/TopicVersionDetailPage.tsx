@@ -101,26 +101,37 @@ function InfoBlock({
   );
 }
 
-function StatusBadge({ status }: { status?: string }) {
+function StatusBadge({ status }: { status?: string | number | null }) {
+  const label = status == null ? undefined : String(status);
   const style =
-    status === "Approved"
+    label === "Approved"
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : status === "Rejected"
+      : label === "Rejected"
         ? "bg-red-50 text-red-700 border-red-200"
-        : status === "Submitted"
+        : label === "Submitted"
           ? "bg-blue-50 text-blue-700 border-blue-200"
           : "bg-gray-50 text-gray-700 border-gray-200";
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${style}`}
     >
-      {status || "--"}
+      {label || "--"}
     </span>
   );
 }
 
 const fmt = (s?: string | null) => (s && String(s).trim().length ? s : "--");
 const fmtDate = (d?: string | null) => (d ? formatDateTime(d) : "--");
+
+function normalizeStatusLabel(s?: string | number | null) {
+  if (s == null) return undefined;
+  const v = String(s).toLowerCase();
+  if (v === "0" || v === "draft") return "Draft";
+  if (v === "1" || v === "submitted") return "Submitted";
+  if (v === "2" || v === "approved") return "Approved";
+  if (v === "3" || v === "rejected") return "Rejected";
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
 
 export default function TopicVersionDetailPage() {
   const navigate = useNavigate();
@@ -150,8 +161,8 @@ export default function TopicVersionDetailPage() {
         error: "Xóa phiên bản thất bại",
       });
       navigate(`/topics/my/${topicId}`);
-    } catch (e) {
-      // toast đã hiển thị lỗi
+    } catch (err: unknown) {
+      console.error(err);
     }
   };
 
@@ -177,8 +188,6 @@ export default function TopicVersionDetailPage() {
       setDocumentUrl(ver.documentUrl || "");
     }
   }, [ver]);
-
-  const isDraft = ver?.status === "Draft";
 
   const requiredFilled = useMemo(() => {
     const req = {
@@ -225,10 +234,10 @@ export default function TopicVersionDetailPage() {
       });
       toast.success("🎉 Cập nhật phiên bản thành công!", { id: tid });
       setIsEditing(false);
-    } catch (err: any) {
-      toast.error(err?.message || "❌ Cập nhật phiên bản thất bại", {
-        id: tid,
-      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "❌ Cập nhật phiên bản thất bại";
+      toast.error(message, { id: tid });
     } finally {
       setSaving(false);
     }
@@ -246,6 +255,9 @@ export default function TopicVersionDetailPage() {
       </div>
     );
   }
+
+  const normalizedStatus = normalizeStatusLabel(ver.status);
+  const isDraft = normalizedStatus === "Draft";
 
   return (
     <div className="space-y-4">
@@ -277,7 +289,7 @@ export default function TopicVersionDetailPage() {
                 />
               </div>
             </div>
-            <StatusBadge status={ver.status} />
+            <StatusBadge status={normalizedStatus} />
             <Button
               variant="secondary"
               onClick={() => navigate(`/topics/my/${topicId}`)}
@@ -418,7 +430,7 @@ export default function TopicVersionDetailPage() {
           <SectionCard title="Trạng thái nộp duyệt">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <InfoBlock label="Trạng thái">
-                <StatusBadge status={ver.status} />
+                <StatusBadge status={normalizedStatus} />
               </InfoBlock>
               <InfoBlock label="Người nộp duyệt">
                 {fmt(ver.submittedByUserName)}

@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-
+import { useRef, useState } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -13,6 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import type { RowSelectionState, Updater } from "@tanstack/react-table";
 import { Plus, X } from "lucide-react";
 
 import { Input } from "@/components/globals/atoms/input";
@@ -24,9 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/globals/atoms/table";
-
 import DataTableViewOptions from "@/components/globals/molecules/data-table-view-options";
-
 import { Button } from "./button";
 import {
   DataTableFilter,
@@ -51,6 +49,8 @@ interface DataTableProps<TData, TValue> {
   onClearAllFilters?: () => void;
   addNewButton?: boolean;
   onAddNew?: () => void;
+  selectedRowIds?: RowSelectionState;
+  onSelectedRowIdsChange?: (updater: Updater<RowSelectionState>) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -69,6 +69,8 @@ export function DataTable<TData, TValue>({
   onClearAllFilters,
   addNewButton,
   onAddNew,
+  selectedRowIds,
+  onSelectedRowIdsChange,
 }: DataTableProps<TData, TValue>) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,7 +78,23 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] =
     useState<VisibilityState>(visibility);
-  const [rowSelection, setRowSelection] = useState({});
+  const [internalSelection, setInternalSelection] = useState<RowSelectionState>(
+    {},
+  );
+
+  const rowSelection: RowSelectionState =
+    selectedRowIds !== undefined ? selectedRowIds : internalSelection;
+
+  const handleRowSelectionChange: (
+    updater: Updater<RowSelectionState>,
+  ) => void = onSelectedRowIdsChange
+    ? onSelectedRowIdsChange
+    : (updater) =>
+        setInternalSelection((prev) =>
+          typeof updater === "function"
+            ? (updater as (old: RowSelectionState) => RowSelectionState)(prev)
+            : updater,
+        );
 
   const enableClientColumnFiltering = filters.length > 0;
 
@@ -91,7 +109,7 @@ export function DataTable<TData, TValue>({
       ? { getFilteredRowModel: getFilteredRowModel() }
       : {}),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleRowSelectionChange,
     state: {
       sorting,
       columnFilters,
@@ -101,8 +119,8 @@ export function DataTable<TData, TValue>({
   });
 
   const handleClearInput = () => {
-    if (setSearch) setSearch("");
-    if (inputRef.current) inputRef.current.focus();
+    setSearch?.("");
+    inputRef.current?.focus();
   };
 
   const showSearch =
@@ -134,13 +152,7 @@ export function DataTable<TData, TValue>({
           )}
 
           {filters.length === 1 ? (
-            <DataTableFilter
-              name={filters[0].name}
-              label={filters[0].label}
-              options={filters[0].options}
-              value={filters[0].value}
-              onChange={filters[0].onChange}
-            />
+            <DataTableFilter {...filters[0]} />
           ) : (
             filters.length > 1 && (
               <DataTableFilters
@@ -158,7 +170,6 @@ export function DataTable<TData, TValue>({
               Thêm mới
             </Button>
           )}
-
           <DataTableViewOptions table={table} />
         </div>
       </div>

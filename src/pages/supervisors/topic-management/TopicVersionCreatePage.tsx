@@ -86,10 +86,19 @@ type VersionSeed = {
   documentUrl: string;
 };
 
+function getErrorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "object" && e !== null && "message" in e) {
+    const m = (e as { message?: unknown }).message;
+    if (typeof m === "string") return m;
+  }
+  return "Đã xảy ra lỗi";
+}
+
 export default function TopicVersionCreatePage() {
   const navigate = useNavigate();
   const { topicId } = useParams<{ topicId: string }>();
-  const tid = Number(topicId);
+  const tid = topicId ? Number(topicId) : NaN;
 
   const location = useLocation() as { state?: { seed?: Partial<VersionSeed> } };
   const navSeed = location.state?.seed;
@@ -98,7 +107,7 @@ export default function TopicVersionCreatePage() {
     data: topic,
     isLoading: loadingTopic,
     error: topicError,
-  } = useTopicDetail(Number.isFinite(tid) ? tid : undefined);
+  } = useTopicDetail(topicId);
 
   const fetchedSeed: Partial<VersionSeed> | undefined = useMemo(() => {
     if (!topic) return undefined;
@@ -185,28 +194,22 @@ export default function TopicVersionCreatePage() {
       toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
       return;
     }
-
+    const id = toast.loading("Đang tạo phiên bản...");
     try {
-      const created = await toast.promise(
-        createVersion({
-          topicId: tid,
-          title,
-          description,
-          objectives,
-          methodology,
-          expectedOutcomes,
-          requirements,
-          documentUrl,
-        }),
-        {
-          loading: "Đang tạo phiên bản...",
-          success: "🎉 Tạo phiên bản thành công!",
-          error: (err) => err?.message || "Tạo phiên bản thất bại",
-        },
-      );
+      await createVersion({
+        topicId: tid,
+        title,
+        description,
+        objectives,
+        methodology,
+        expectedOutcomes,
+        requirements,
+        documentUrl,
+      });
+      toast.success("🎉 Tạo phiên bản thành công!", { id });
       navigate(`/topics/my/${tid}`);
-    } catch {
-      /* đã toast trong promise */
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err), { id });
     }
   };
 
@@ -238,7 +241,6 @@ export default function TopicVersionCreatePage() {
               </p>
             </div>
           </div>
-
           <div className="w-48">
             <div className="mb-1 flex items-center justify-between text-[11px]">
               <span>Tiến độ</span>
@@ -261,9 +263,7 @@ export default function TopicVersionCreatePage() {
             desc="Các trường bắt buộc để định danh phiên bản."
           >
             <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${
-                isPending ? "pointer-events-none opacity-70" : ""
-              }`}
+              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
             >
               <Field label="Tiêu đề" required error={errors.title}>
                 <input
@@ -312,9 +312,7 @@ export default function TopicVersionCreatePage() {
             desc="Các trường bổ sung (tuỳ chọn)."
           >
             <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${
-                isPending ? "pointer-events-none opacity-70" : ""
-              }`}
+              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
             >
               <Field label="Phương pháp (Methodology)">
                 <textarea

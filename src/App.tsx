@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoadingPage from "./pages/loading-page";
+import TopicApprovalDetailPage from "./pages/moderators/topic-approval/TopicApprovalDetailPage";
+import ReviewerAssignmentPage from "./pages/moderators/reviewer-assignment/ReviewerAssignmentPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -72,9 +74,7 @@ const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
 const ModeratorTopicApproval = lazy(
   () => import("./pages/moderators/topic-approval"),
 );
-const ModeratorReviewerAssign = lazy(
-  () => import("./pages/moderators/reviewer-assignment"),
-);
+
 const CurrentAssignmentsPage = lazy(
   () => import("./pages/moderators/reviewer-assignment/assignments"),
 );
@@ -181,8 +181,8 @@ function App() {
             element={<CurrentAssignmentsPage />}
           />
           <Route
-            path="/moderators/reviewer-assignment"
-            element={<ModeratorReviewerAssign />}
+            path="/moderators/reviewer-assignment/ReviewerAssignmentPage"
+            element={<ReviewerAssignmentPage />}
           />
           <Route
             path="/moderators/feedback-evaluation"
@@ -192,6 +192,10 @@ function App() {
           <Route
             path="/moderators/category-manager/category-page"
             element={<ModeratorCategoryPage />}
+          />
+          <Route
+            path="/moderators/topic-approval/:id"
+            element={<TopicApprovalDetailPage />}
           />
 
           <Route path="/*" element={<NotFoundPage />} />
