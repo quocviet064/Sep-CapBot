@@ -49,7 +49,6 @@ export const userBaseSchema = z.object({
 
   avatarUrl: z.string().optional(),
 
-  // ⬇️ dùng enum cho chắc
   role: z.enum(roles, { required_error: "Role is required" }),
 
   status: z.boolean(),
@@ -73,7 +72,6 @@ export const userInfoSchema = userBaseSchema.pick({
   avatarUrl: true,
 });
 
-// ⬇️ thêm role vào login
 export const loginUserSchema = userBaseSchema.pick({
   emailOrUsername: true,
   password: true,

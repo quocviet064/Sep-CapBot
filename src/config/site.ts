@@ -1,17 +1,13 @@
 import {
   AlignEndHorizontal,
   BarChart3,
-  BookOpen,
   Bot,
   CalendarDays,
   CalendarSearch,
   FileSearch,
   FileText,
   FolderSearch,
-  LockKeyhole,
   MessageSquareDiff,
-  Settings,
-  SlidersHorizontal,
   SquareTerminal,
   Users,
   FolderKanban,
@@ -58,29 +54,6 @@ export const siteSupervisor = [
     url: "/supervisors/category",
     icon: AlignEndHorizontal,
   },
-  {
-    title: "Đề tài cần được xử lý",
-    url: "#",
-    icon: BookOpen,
-    items: [
-      {
-        title: "Cần chỉnh sửa sau phản hồi",
-        url: "/supervisors/needs-action/edit-after-feedback",
-      },
-      {
-        title: "Từ chối bởi AI",
-        url: "/supervisors/needs-action/rejected-by-ai",
-      },
-      {
-        title: "Sắp tới hạn phản hồi",
-        url: "/supervisors/needs-action/deadline-coming",
-      },
-      {
-        title: "Có phản hồi mới",
-        url: "/supervisors/needs-action/new-feedback",
-      },
-    ],
-  },
 ];
 
 export const siteAdmin = [
@@ -115,8 +88,18 @@ export const siteAdmin = [
     ],
   },
   {
+    title: "Bộ tiêu chí",
+    url: "/admins/evaluation-criteria/EvaluationCriteriaPage",
+    icon: Bot,
+  },
+  {
     title: "Loại đề tài",
     url: "/admins/category-topic/CategoryPage",
+    icon: Bot,
+  },
+  {
+    title: "Quản lí tài khoản",
+    url: "/admins/auth-management/account-provision",
     icon: Bot,
   },
   {
@@ -137,96 +120,6 @@ export const siteAdmin = [
       { title: "Phiên bản đề tài", url: "/admins/topics-management/versions" },
     ],
   },
-  {
-    title: "Tiêu chí đánh giá",
-    url: "#",
-    icon: SlidersHorizontal,
-    isActive: false,
-    items: [
-      {
-        title: "Bộ tiêu chí theo PhaseType",
-        url: "/admins/evaluation-criteria/by-phase-type",
-      },
-      {
-        title: "Cấu hình trọng số & điểm",
-        url: "/admins/evaluation-criteria/weights",
-      },
-      {
-        title: "Mẫu phiếu review",
-        url: "/admins/evaluation-criteria/review-template",
-      },
-    ],
-  },
-  {
-    title: "Quản lý giảng viên",
-    url: "#",
-    icon: Users,
-    isActive: false,
-    items: [
-      { title: "Danh sách Lecturer", url: "/admins/lecturer-management/list" },
-      {
-        title: "Gán kỹ năng",
-        url: "/admins/lecturer-management/assign-skills",
-      },
-      {
-        title: "Gán / thu hồi vai trò",
-        url: "/admins/lecturer-management/assign-roles",
-      },
-      {
-        title: "Vô hiệu hóa tài khoản",
-        url: "/admins/lecturer-management/deactivate",
-      },
-    ],
-  },
-  {
-    title: "Phân quyền truy cập",
-    url: "#",
-    icon: LockKeyhole,
-    isActive: false,
-    items: [
-      {
-        title: "Quyền xem kho đề tài",
-        url: "/admins/access-control/topic-visibility",
-      },
-      {
-        title: "Ẩn danh vai trò review",
-        url: "/admins/access-control/anonymous-review",
-      },
-      {
-        title: "Truy cập đặc biệt",
-        url: "/admins/access-control/special-access",
-      },
-    ],
-  },
-  {
-    title: "Thống kê & báo cáo",
-    url: "#",
-    icon: BarChart3,
-    isActive: false,
-    items: [
-      { title: "Tổng hợp đề tài", url: "/admins/reports/summary" },
-      { title: "Lịch sử phản hồi", url: "/admins/reports/feedback-history" },
-      {
-        title: "Hiệu suất giảng viên",
-        url: "/admins/reports/supervisor-performance",
-      },
-      { title: "Xuất báo cáo", url: "/admins/reports/export" },
-    ],
-  },
-  {
-    title: "Cấu hình hệ thống",
-    url: "#",
-    icon: Settings,
-    isActive: false,
-    items: [
-      { title: "Logo & tên hệ thống", url: "/admins/system-settings/branding" },
-      { title: "Cấu hình thời gian", url: "/admins/system-settings/timing" },
-      {
-        title: "Cấu hình môi trường",
-        url: "/admins/system-settings/environment",
-      },
-    ],
-  },
 ];
 
 export const siteModerator = [
@@ -239,6 +132,11 @@ export const siteModerator = [
     title: "Quản lý học kỳ & Phase",
     url: "/moderators/semester-phase",
     icon: CalendarDays,
+  },
+  {
+    title: "Bộ tiêu chí",
+    url: "/admins/evaluation-criteria/EvaluationCriteriaPage",
+    icon: Bot,
   },
   {
     title: "Quản lý danh mục đề tài",
