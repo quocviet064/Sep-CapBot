@@ -16,7 +16,7 @@ import {
     type IdLike,
     type ReviewerAssignmentResponseDTO,
 } from "@/services/reviewerAssignmentService";
-import { createAssignmentColumns } from "./columns";
+import { createAssignmentColumns } from "../reviewer-assignment/columns";
 import { useMemo } from "react";
 import { toast } from "sonner";
 

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import { useSubmissions } from "@/hooks/useSubmission";
 import { type SubmissionType } from "@/services/submissionService";
-import SubmissionAssignmentsDialog from "./SubmissionAssignmentsDialog";
+import SubmissionAssignmentsDialog from "../submissions/SubmissionAssignmentsDialog";
 
 /** Visibility cho bảng submissions */
 const SUBMISSION_VISIBILITY = {

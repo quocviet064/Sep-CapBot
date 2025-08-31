@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlusSquare } from "lucide-react";
 import { DataTable } from "@/components/globals/atoms/data-table";
@@ -41,6 +41,27 @@ export default function SubmissionApprovalIndexPage() {
     Keyword: searchTerm,
   });
 
+  // Handlers & columns MUST be declared before any conditional return
+  const onViewDetail = useCallback(
+    (submissionId: number | string) => {
+      navigate(`/moderators/topic-approval/${submissionId}`);
+    },
+    [navigate]
+  );
+
+  const onAssignReviewer = useCallback(
+    (submissionId: number | string) => {
+      navigate(`/moderators/reviewer-assignment?submissionId=${submissionId}`);
+    },
+    [navigate]
+  );
+
+  const columns = useMemo(
+    () => createColumns({ onViewDetail, onAssignReviewer }),
+    [onViewDetail, onAssignReviewer]
+  );
+
+  // Safe to return after all hooks above have been called
   if (query.isLoading) return <LoadingPage />;
   if (query.error)
     return <div className="p-4 text-red-600">Error: {query.error.message}</div>;
@@ -48,19 +69,6 @@ export default function SubmissionApprovalIndexPage() {
   const resp = (query.data as RawSubmissionResponse | undefined) ?? undefined;
   const rows: SubmissionListItem[] = resp?.listObjects ?? [];
   const totalPages = resp?.totalPages ?? 1;
-
-  const onViewDetail = (submissionId: number | string) => {
-    navigate(`/moderators/topic-approval/${submissionId}`);
-  };
-
-  const onAssignReviewer = (submissionId: number | string) => {
-    navigate(`/moderators/reviewer-assignment?submissionId=${submissionId}`);
-  };
-
-  const columns = useMemo(
-    () => createColumns({ onViewDetail, onAssignReviewer }),
-    []
-  );
 
   return (
     <div className="space-y-4">

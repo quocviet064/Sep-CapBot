@@ -8,8 +8,8 @@ import { createReviewerAssignmentColumns } from "./columnsReviewerAssignments";
 import { useSubmissions } from "@/hooks/useSubmission";
 import type { SubmissionType } from "@/services/submissionService";
 import { useBulkAssignReviewers } from "@/hooks/useReviewerAssignment";
-import ReviewerPickerDialog from "./ReviewerPickerDialog";
-import SubmissionDetailDialog from "./SubmissionDetailDialog";
+import ReviewerPickerDialog from "../submissions/ReviewerPickerDialog";
+import SubmissionDetailDialog from "../submissions/SubmissionDetailDialog";
 
 const DEFAULT_VISIBILITY = {
   submittedByName: true,
