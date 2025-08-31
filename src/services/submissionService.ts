@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export type IdLike = number | string;
 
 type ApiResponse<T> = {
-  statusCode: number;
+  statusCode: number | string; 
   success: boolean;
   data: T;
   errors: unknown;
@@ -70,6 +70,8 @@ export interface SubmissionDTO {
   submittedAt?: string;
 }
 
+// Alias tiện dùng với DataTable
+export type SubmissionListItem = SubmissionDTO;
 export type SubmissionType = SubmissionDTO;
 
 export type RawSubmissionResponse = {
@@ -125,22 +127,17 @@ export const fetchSubmissions = async (
       params,
     });
     if (!res.data.success) {
-      throw new Error(
-        res.data.message || "Không lấy được danh sách submission",
-      );
+      throw new Error(res.data.message || "Không lấy được danh sách submission");
     }
+
     const src = res.data.data as Record<string, unknown> | unknown;
     const items = normalizeList<SubmissionDTO>(src);
-    const obj = (
-      typeof src === "object" && src !== null
-        ? (src as Record<string, unknown>)
-        : {}
-    ) as Record<string, unknown>;
-    const pagingObj = (
-      typeof obj.paging === "object" && obj.paging !== null
-        ? (obj.paging as Record<string, unknown>)
-        : {}
-    ) as Record<string, unknown>;
+    const obj = (typeof src === "object" && src !== null
+      ? (src as Record<string, unknown>)
+      : {}) as Record<string, unknown>;
+    const pagingObj = (typeof obj.paging === "object" && obj.paging !== null
+      ? (obj.paging as Record<string, unknown>)
+      : {}) as Record<string, unknown>;
 
     const pageNumber = asNumber(pagingObj.pageNumber) ?? PageNumber;
     const pageSize = asNumber(pagingObj.pageSize) ?? PageSize;
@@ -202,8 +199,7 @@ export const fetchAllSubmissions = async (args: {
   const result: SubmissionType[] = [];
   const size = args.PageSize ?? 50;
   const maxPages = Math.max(1, args.MaxPages ?? 100);
-  let page = 1;
-  for (; page <= maxPages; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     const pageData = await fetchSubmissions(
       args.TopicVersionId,
       args.PhaseId,
@@ -218,8 +214,7 @@ export const fetchAllSubmissions = async (args: {
       !pageData.hasNextPage ||
       page >= pageData.totalPages ||
       pageData.listObjects.length < size
-    )
-      break;
+    ) break;
   }
   return result;
 };

@@ -1,9 +1,8 @@
-// src/components/reviewer-assignment/columnsReviewerAssignments.tsx
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import { Button } from "@/components/globals/atoms/button";
 import {
-  DropdownMenu,
+  DropdownMenu, 
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
