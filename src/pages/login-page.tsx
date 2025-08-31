@@ -428,6 +428,9 @@ function LoginPage() {
                               <Eye size={16} />
                             )}
                           </button>
+                          <p className="text-center text-xl text-red-700/70">
+                            Tài khoản của bạn đang chờ xét duyệt
+                          </p>
                         </div>
                         {registerErrors.password && (
                           <p className="mt-1 text-sm text-amber-300">

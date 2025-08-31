@@ -3,6 +3,9 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import LoadingPage from "./pages/loading-page";
 import TopicApprovalDetailPage from "./pages/moderators/topic-approval/TopicApprovalDetailPage";
 import ReviewerAssignmentPage from "./pages/moderators/reviewer-assignment/ReviewerAssignmentPage";
+import TopicDuplicateCheckerPage from "./pages/supervisors/ai-check";
+import CheckAIFormatTemplatePage from "./pages/supervisors/topic-management/format-check";
+import AllSubmittedTopicsPage from "./pages/supervisors/topic-management/AllSubmittedTopicsPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -105,6 +108,18 @@ function App() {
           <Route
             path="/supervisors/topics/myTopic-page"
             element={<AllMyTopics />}
+          />
+          <Route
+            path="/supervisors/check-ai"
+            element={<TopicDuplicateCheckerPage />}
+          />
+          <Route
+            path="/supervisors/check-format"
+            element={<CheckAIFormatTemplatePage />}
+          />
+          <Route
+            path="/supervisors/submissions/SubmissionPage"
+            element={<AllSubmittedTopicsPage />}
           />
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"

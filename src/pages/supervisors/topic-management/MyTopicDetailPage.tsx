@@ -269,7 +269,7 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
             </span>
           </div>
 
-          <Button
+          {/* <Button
             onClick={() => {
               const seed = {
                 title: data.title ?? "",
@@ -285,7 +285,7 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
             className="inline-flex items-center gap-2"
           >
             + Tạo phiên bản mới
-          </Button>
+          </Button> */}
         </div>
 
         <VersionTabs
@@ -550,7 +550,7 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
                 onClick={() => setIsEditing(true)}
                 className="inline-flex min-w-36 items-center gap-2"
               >
-                <PencilLine className="h-4 w-4" /> Chỉnh sửa
+                <PencilLine className="h-4 w-4" /> Submit
               </Button>
             )}
           </div>
