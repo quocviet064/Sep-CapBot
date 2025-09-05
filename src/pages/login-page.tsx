@@ -40,6 +40,8 @@ import {
   registerSchema,
   roles as ROLE_OPTIONS,
 } from "@/schemas/userSchema";
+import { toast } from "sonner";
+import { tryGetMyUserProfile } from "@/services/userProfileService";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -92,7 +94,13 @@ function LoginPage() {
         Moderator: "/moderators/dashboard",
         Reviewer: "/reviewers/dashboard/assigned-count",
       };
-      navigate(roleRoutes[role] || "/");
+      const prof = await tryGetMyUserProfile();
+      if (prof) {
+        toast("Login thành công");
+        navigate(roleRoutes[role] || "/");
+      } else {
+        navigate("/profile/CreateProfilePage");
+      }
     } finally {
       setIsLoading(false);
     }

@@ -10,7 +10,7 @@ export interface IAuthResponseData {
     tokenData: {
       accessToken: string;
       refreshToken: string;
-      expiryTime: string; // ISO string
+      expiryTime: string;
     };
   };
   errors: string;
@@ -28,7 +28,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  // ⬇️ thêm role
   login: (
     emailOrUsername: string,
     password: string,
@@ -39,18 +38,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const base64UrlDecode = (str: string) => {
+  let s = str.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = s.length % 4;
+  if (pad) s += "=".repeat(4 - pad);
+  const decoded = atob(s);
+  try {
+    return decodeURIComponent(
+      decoded
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join(""),
+    );
+  } catch {
+    return decoded;
+  }
+};
+
 export const parseJwt = (token: string): IUserData | null => {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    // dự phòng nhiều cách đặt claim
+    const payloadStr = base64UrlDecode(token.split(".")[1] || "");
+    const payload = JSON.parse(payloadStr);
     const role =
       payload.role ||
       payload.Role ||
-      (Array.isArray(payload.roles) ? payload.roles[0] : undefined);
-
+      (Array.isArray(payload.roles) ? payload.roles[0] : "");
     return {
-      unique_name: payload.unique_name,
-      email: payload.email || payload.Email,
+      unique_name: payload.unique_name || payload.name || "",
+      email: payload.email || payload.Email || "",
       role,
     };
   } catch {
@@ -79,12 +94,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password,
         role,
       });
-
       const { accessToken, expiryTime } = response.data.data.tokenData;
-
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("expiryTime", expiryTime);
-
       const decoded = parseJwt(accessToken);
       if (decoded) {
         setUser(decoded);
@@ -92,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         throw new Error("Token không hợp lệ");
       }
-    } catch (err: any) {
+    } catch {
       setError("Đăng nhập thất bại");
       setUser(null);
       setIsAuthenticated(false);
@@ -111,19 +123,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const accessToken = localStorage.getItem("accessToken");
     const expiryTime = localStorage.getItem("expiryTime");
-
+    let timer: number | undefined;
     if (accessToken && expiryTime) {
       const now = new Date();
       const expiryDate = new Date(expiryTime);
-
       if (now < expiryDate) {
         const decoded = parseJwt(accessToken);
         if (decoded) {
           setUser(decoded);
           setIsAuthenticated(true);
           const timeout = expiryDate.getTime() - now.getTime();
-          const timer = setTimeout(logout, timeout);
-          return () => clearTimeout(timer);
+          timer = window.setTimeout(logout, timeout);
         } else {
           logout();
         }
@@ -131,8 +141,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logout();
       }
     }
-
     setLoading(false);
+    return () => {
+      if (timer) window.clearTimeout(timer);
+    };
   }, []);
 
   return (

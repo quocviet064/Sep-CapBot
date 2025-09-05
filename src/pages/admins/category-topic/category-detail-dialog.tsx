@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from "@/components/globals/atoms/dialog";
 import {
@@ -130,6 +131,8 @@ export default function CategoryDetailDialog({
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<UpdateCategoryPayload | null>(null);
 
+  const [isConfirm, setIsConfirm] = useState(false);
+
   const { mutate: updateMutate, isPending: isSaving } = useUpdateCategory();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteCategory();
 
@@ -208,20 +211,21 @@ export default function CategoryDetailDialog({
 
   const handleDelete = () => {
     if (!detail) return;
-    const ok = window.confirm(
-      `Xóa danh mục "${detail.name}"? Hành động này không thể hoàn tác.`,
-    );
-    if (!ok) return;
+
     deleteMutate(Number(detail.id), {
       onSuccess: () => {
         toast.success("Đã xóa danh mục");
         onClose();
       },
-      onError: (e: unknown) => {
-        const msg = e instanceof Error ? e.message : "Xóa thất bại";
-        toast.error(msg);
-      },
     });
+  };
+
+  const handleClose = () => {
+    setIsConfirm(false);
+  };
+
+  const handleConfirmDelete = () => {
+    setIsConfirm(true);
   };
 
   useEffect(() => {
@@ -400,7 +404,7 @@ export default function CategoryDetailDialog({
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={handleDelete}
+                  onClick={handleConfirmDelete}
                   disabled={isDeleting || isSaving || !detail}
                   className="gap-2 border-red-300 text-red-600 hover:bg-red-50"
                 >
@@ -453,6 +457,26 @@ export default function CategoryDetailDialog({
           </div>
         )}
       </DialogContent>
+
+      <Dialog open={isConfirm} onOpenChange={handleClose}>
+        <DialogContent className="w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Xác nhận thao tác</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xoá đề tài này?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClose}>
+              Huỷ
+            </Button>
+            <Button variant="default" onClick={handleDelete}>
+              Xác nhận
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
