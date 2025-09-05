@@ -13,8 +13,10 @@ import { Checkbox } from "@/components/globals/atoms/checkbox";
 import {
   useAvailableReviewers,
   useAutoAssignReviewers,
+  useBulkAssignReviewers,
   useRecommendedReviewers,
 } from "@/hooks/useReviewerAssignment";
+import { toast } from "sonner";
 
 type RowVM = {
   id: number | string;
@@ -28,17 +30,16 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   submissionId?: string | number;
-  onConfirm: (params: { reviewerIds: (string | number)[]; assignmentType: number }) => void;
+  onAssignedSuccess?: () => void;
 }
 
 export default function ReviewerPickerDialog({
   isOpen,
   onClose,
   submissionId,
-  onConfirm,
+  onAssignedSuccess,
 }: Props) {
   const [tab, setTab] = useState<"all" | "recommended">("all");
-
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [assignmentType, setAssignmentType] = useState<number>(1);
@@ -50,6 +51,8 @@ export default function ReviewerPickerDialog({
 
   const [minSkillScore, setMinSkillScore] = useState<number | undefined>(2.0);
   const [recMaxWorkload, setRecMaxWorkload] = useState<number | undefined>(undefined);
+
+  const [inlineError, setInlineError] = useState<string>("");
 
   /** Reset state mỗi lần đóng/mở */
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function ReviewerPickerDialog({
       setSkillTagsInput("");
       setMinSkillScore(2.0);
       setRecMaxWorkload(undefined);
+      setInlineError("");
     }
   }, [isOpen]);
 
@@ -74,6 +78,7 @@ export default function ReviewerPickerDialog({
 
   const available = useAvailableReviewers(submissionId);
   const autoMut = useAutoAssignReviewers();
+  const bulkMut = useBulkAssignReviewers();
 
   const recNormalized: RowVM[] = (recommended.data ?? []).map((r) => ({
     id: r.reviewerId,
@@ -92,7 +97,6 @@ export default function ReviewerPickerDialog({
   const activeListRaw: RowVM[] = tab === "recommended" ? recNormalized : allNormalized;
   const isListLoading = tab === "recommended" ? recommended.isLoading : available.isLoading;
 
-  /** Lọc theo search */
   const filtered = useMemo(() => {
     if (!search.trim()) return activeListRaw;
     const q = search.toLowerCase();
@@ -101,7 +105,6 @@ export default function ReviewerPickerDialog({
     );
   }, [activeListRaw, search]);
 
-  /** Tick chọn */
   const toggle = (id: string | number, checked: boolean) => {
     setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
   };
@@ -110,7 +113,7 @@ export default function ReviewerPickerDialog({
   const recommendedDisabled = !submissionId;
   const autoDisabled = !submissionId || autoMut.isPending;
 
-  // /** Gọi Auto-assign */
+  // Auto-assign
   const doAutoAssign = () => {
     if (!submissionId) return;
     const tags = skillTagsInput
@@ -125,8 +128,63 @@ export default function ReviewerPickerDialog({
         prioritizeHighPerformance,
         topicSkillTags: tags.length ? tags : undefined,
       },
-      { onSuccess: () => onClose() }
+      {
+        onSuccess: () => {
+          onAssignedSuccess?.();
+          onClose();
+        },
+        onError: (e) => {
+          const msg = e instanceof Error ? e.message : "Auto assign thất bại";
+          setInlineError(msg);
+          toast.error(msg);
+        },
+      }
     );
+  };
+
+  // Bulk-assign ngay trong dialog
+  const doBulkAssign = () => {
+    setInlineError("");
+    if (!submissionId) {
+      const msg = "Thiếu submissionId.";
+      setInlineError(msg);
+      toast.info(msg);
+      return;
+    }
+    if (!selected.length) {
+      const msg = "Chọn ít nhất 1 reviewer";
+      setInlineError(msg);
+      toast.info(msg);
+      return;
+    }
+
+    const payload = {
+      assignments: selected.map((rid) => ({
+        submissionId,
+        reviewerId: rid,
+        assignmentType,
+      })),
+    };
+
+    bulkMut.mutate(payload, {
+      onSuccess: (resp) => {
+        if (resp?.success) {
+          onAssignedSuccess?.();
+          onClose();
+        } else {
+          const msg =
+            resp?.message ||
+            "Bulk assign thất bại";
+          setInlineError(String(msg));
+          toast.error(String(msg)); 
+        }
+      },
+      onError: (e) => {
+        const msg = e instanceof Error ? e.message : "Bulk assign thất bại";
+        setInlineError(msg);
+        toast.error(msg); 
+      },
+    });
   };
 
   return (
@@ -138,15 +196,22 @@ export default function ReviewerPickerDialog({
             <DialogTitle>Chọn reviewer</DialogTitle>
             <DialogDescription>
               {submissionId
-                ? `Tìm và tick reviewer để phân công cho Submission #${submissionId}, hoặc dùng Auto assign.`
-                : "Chế độ phân công nhiều submission: hãy chọn reviewer thủ công. (Recommended & Auto assign chỉ áp dụng khi mở theo 1 submission)"}
+                ? `Tick reviewer để phân công cho Submission #${submissionId}, hoặc dùng Auto assign.`
+                : "Vui lòng mở dialog theo 1 submission để dùng tính năng này."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
         {/* Body */}
         <div className="flex-1 space-y-4 overflow-auto px-6 pb-6 pt-4">
-          {/* Auto assign panel */}
+          {/* Banner lỗi inline */}
+          {inlineError && (
+            <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {inlineError}
+            </div>
+          )}
+
+          {/* Auto assign */}
           <div className="rounded-md border p-4">
             <div className="flex items-center justify-between">
               <div className="font-medium">Tự động phân công</div>
@@ -220,7 +285,7 @@ export default function ReviewerPickerDialog({
                 variant={tab === "recommended" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setTab("recommended")}
-                disabled={recommendedDisabled}
+                disabled={!submissionId}
                 title={!submissionId ? "Cần mở theo 1 submission" : undefined}
                 aria-pressed={tab === "recommended"}
               >
@@ -344,14 +409,11 @@ export default function ReviewerPickerDialog({
         {/* Footer */}
         <div className="sticky bottom-0 z-10 border-t bg-white px-6 py-4">
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={onClose} disabled={bulkMut.isPending || autoMut.isPending}>
               Hủy
             </Button>
-            <Button
-              onClick={() => onConfirm({ reviewerIds: selected, assignmentType })}
-              disabled={!canConfirm}
-            >
-              Xác nhận ({selected.length})
+            <Button onClick={doBulkAssign} disabled={!canConfirm || bulkMut.isPending}>
+              {bulkMut.isPending ? "Đang phân công..." : `Xác nhận (${selected.length})`}
             </Button>
           </DialogFooter>
         </div>

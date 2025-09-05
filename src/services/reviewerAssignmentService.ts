@@ -138,18 +138,15 @@ export const assignReviewer = async (
 /** Phân công hàng loạt */
 export const bulkAssignReviewers = async (
   payload: BulkAssignReviewerDTO
-): Promise<ReviewerAssignmentResponseDTO[]> => {
+): Promise<ApiResponse<ReviewerAssignmentResponseDTO[]>> => {
   try {
     const res = await capBotAPI.post<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
       "/reviewer-assignments/bulk",
       payload
     );
-    if (!res.data.success) throw new Error(res.data.message || "");
-    toast.success("Bulk assign thành công");
-    return res.data.data;
+    return res.data;
   } catch (e) {
     const msg = getAxiosMessage(e, "Bulk assign thất bại");
-    toast.error(msg);
     throw new Error(msg);
   }
 };
@@ -268,6 +265,24 @@ export async function getRecommendedReviewers(
   }
 }
 
+/** Assignments theo reviewer */
+export const getAssignmentsByReviewer = async (
+  reviewerId: IdLike
+): Promise<ReviewerAssignmentResponseDTO[]> => {
+  try {
+    const rid = encodeURIComponent(String(reviewerId));
+    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
+      `/reviewer-assignments/by-reviewer/${rid}`
+    );
+    if (!res.data.success) throw new Error(res.data.message || "");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy assignments theo reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
 export interface ReviewerWorkloadDTO {
   reviewerId: IdLike;
   reviewerName?: string;
@@ -293,24 +308,6 @@ export interface AnalyzeReviewerMatchDTO {
   reasons?: string[];
   ineligibilityReasons?: string[];
 }
-
-/** Assignments theo reviewer */
-export const getAssignmentsByReviewer = async (
-  reviewerId: IdLike
-): Promise<ReviewerAssignmentResponseDTO[]> => {
-  try {
-    const rid = encodeURIComponent(String(reviewerId));
-    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      `/reviewer-assignments/by-reviewer/${rid}`
-    );
-    if (!res.data.success) throw new Error(res.data.message || "");
-    return res.data.data;
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể lấy assignments theo reviewer");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-};
 
 /** Thống kê workload reviewers */
 export const getReviewersWorkload = async (

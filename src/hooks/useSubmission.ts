@@ -4,11 +4,11 @@ import {
   fetchAllSubmissions,
   type RawSubmissionResponse,
   type SubmissionType,
-  SubmissionDTO,
+  type SubmissionDTO,
   getSubmissionDetail,
 } from "@/services/submissionService";
 
-export const useSubmissions = (args: {
+type UseSubsArgs = {
   TopicVersionId?: number;
   PhaseId?: number;
   SemesterId?: number;
@@ -17,7 +17,9 @@ export const useSubmissions = (args: {
   PageSize?: number;
   Keyword?: string;
   TotalRecord?: number;
-}) =>
+};
+
+export const useSubmissions = (args: UseSubsArgs) =>
   useQuery<RawSubmissionResponse, Error>({
     queryKey: [
       "submissions",
@@ -28,7 +30,6 @@ export const useSubmissions = (args: {
       args.PageNumber ?? 1,
       args.PageSize ?? 10,
       args.Keyword ?? null,
-      args.TotalRecord ?? null,
     ],
     queryFn: () =>
       fetchSubmissions(
@@ -42,6 +43,7 @@ export const useSubmissions = (args: {
         args.TotalRecord,
       ),
     staleTime: 1000 * 60 * 5,
+    keepPreviousData: true,
   });
 
 export const useAllSubmissions = (args: {
@@ -68,8 +70,8 @@ export const useAllSubmissions = (args: {
     staleTime: 1000 * 60 * 5,
   });
 
-  export const useSubmissionDetail = (id?: string | number) =>
-  useQuery<SubmissionDTO>({
+export const useSubmissionDetail = (id?: string | number) =>
+  useQuery<SubmissionDTO, Error>({
     queryKey: ["submission-detail", id ?? null],
     queryFn: () => getSubmissionDetail(id!),
     enabled: !!id,

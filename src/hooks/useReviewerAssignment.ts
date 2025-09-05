@@ -24,6 +24,15 @@ import {
   AssignmentStatus,
 } from "@/services/reviewerAssignmentService";
 import { startReview } from "@/services/reviewService";
+import { toast } from "sonner";
+
+type ApiResponse<T> = {
+  statusCode: number | string;
+  success: boolean;
+  data: T;
+  errors: unknown;
+  message: string | null;
+};
 
 export function useAvailableReviewers(submissionId?: IdLike) {
   const key = submissionId == null ? "" : String(submissionId);
@@ -82,7 +91,6 @@ export const useAssignmentsByReviewer = (reviewerId?: IdLike) =>
     staleTime: 1000 * 60 * 3,
   });
 
-
 export function useAssignReviewer() {
   const qc = useQueryClient();
   return useMutation<ReviewerAssignmentResponseDTO, Error, AssignReviewerDTO>({
@@ -97,19 +105,19 @@ export function useAssignReviewer() {
   });
 }
 
+/** Bulk assign */
 export function useBulkAssignReviewers() {
   const qc = useQueryClient();
-  return useMutation<
-    ReviewerAssignmentResponseDTO[],
-    Error,
-    BulkAssignReviewerDTO
-  >({
+  return useMutation<ApiResponse<ReviewerAssignmentResponseDTO[]>, Error, BulkAssignReviewerDTO>({
     mutationFn: (payload) => bulkAssignReviewers(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
       qc.invalidateQueries({ queryKey: ["availableReviewers"] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers"] });
       qc.invalidateQueries({ queryKey: ["my-assignments"] });
+    },
+    onError: (e) => {
+      toast.error(e.message || "Bulk assign thất bại");
     },
   });
 }
