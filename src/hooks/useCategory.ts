@@ -43,7 +43,6 @@ export const useCreateCategory = () => {
   return useMutation<void, Error, CreateCategoryPayload>({
     mutationFn: createCategory,
     onSuccess: () => {
-      toast.success("✅ Tạo danh mục thành công!");
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
     onError: (error) => {

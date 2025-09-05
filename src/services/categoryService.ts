@@ -28,8 +28,6 @@ export const createCategory = async (
     const { success, message } = response.data;
 
     if (!success) throw new Error(message || "Tạo danh mục thất bại");
-
-    toast.success("🎉 Tạo danh mục thành công!");
   } catch (error) {
     const msg = axios.isAxiosError(error)
       ? error.response?.data?.message || "Tạo danh mục thất bại"
@@ -137,7 +135,6 @@ export const deleteCategoryById = async (id: number): Promise<void> => {
       }
     }
 
-    toast.error(`❌ ${msg}`);
     throw new Error(msg);
   }
 };
