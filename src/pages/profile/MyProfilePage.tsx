@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { safeSrc } from "@/utils/safeSrc";
+import { normalizeAssetUrl } from "@/utils/assetUrl";
 
 type WithResponseStatus = { response?: { status?: number } };
 type MaybeStatus = { status?: number };
@@ -40,12 +41,16 @@ export default function MyProfilePage() {
   const nameFromAuth =
     user?.unique_name ||
     (email.includes("@") ? email.split("@")[0] : "Người dùng");
+
   const cover =
-    safeSrc(data?.coverImage) ||
+    safeSrc(normalizeAssetUrl(data?.coverImage)) ||
     "https://images.unsplash.com/photo-1520975922329-0003f0327bb3?q=80&w=1600&auto=format&fit=crop";
+
   const avatar =
-    safeSrc(data?.avatar) ||
-    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data?.fullName || nameFromAuth)}`;
+    safeSrc(normalizeAssetUrl(data?.avatar)) ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+      data?.fullName || nameFromAuth,
+    )}`;
 
   if (isLoading) {
     return (
@@ -169,7 +174,9 @@ export default function MyProfilePage() {
                   onError={(e) => {
                     const img = e.currentTarget as HTMLImageElement;
                     img.onerror = null;
-                    img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data?.fullName || nameFromAuth)}`;
+                    img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                      data?.fullName || nameFromAuth,
+                    )}`;
                   }}
                 />
               </div>

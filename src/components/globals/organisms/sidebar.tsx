@@ -22,6 +22,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { NavSecondary } from "./nav-footer";
 import { LogOut } from "lucide-react";
 import { useMyProfile } from "@/hooks/useUserProfile";
+import { normalizeAssetUrl } from "@/utils/assetUrl";
+import { safeSrc } from "@/utils/safeSrc";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
@@ -41,11 +43,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const fallbackName =
       user?.unique_name ||
       (user?.email ? user.email.split("@")[0] : "Người dùng");
+
     const name = myProfile?.fullName || fallbackName;
     const email = user?.email || "—";
+
+    // Chuẩn hoá avatar: hỗ trợ path tương đối và thay host 7190 -> host API hiện tại
+    const rawAvatar = myProfile?.avatar || "";
+    const normalized = rawAvatar ? normalizeAssetUrl(rawAvatar) : "";
     const avatar =
-      myProfile?.avatar ||
-      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`;
+      safeSrc(normalized) ||
+      `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+        name,
+      )}`;
+
     return { name, email, avatar };
   }, [myProfile, user]);
 

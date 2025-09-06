@@ -24,12 +24,24 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { safeSrc } from "@/utils/safeSrc";
+import { normalizeAssetUrl, toRelativeIfMatches } from "@/utils/assetUrl";
+
+const isAbsoluteHttpUrl = (v: string) => /^https?:\/\//i.test(v);
+const urlOrRelative = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .refine(
+    (v) => !v || v.startsWith("/") || isAbsoluteHttpUrl(v),
+    "URL/đường dẫn ảnh không hợp lệ",
+  );
 
 const schema = z.object({
-  fullName: z.string().min(3, "Họ tên tối thiểu 3 ký tự"),
-  address: z.string().min(3, "Địa chỉ tối thiểu 3 ký tự"),
-  avatarUrl: z.string().url("URL không hợp lệ").optional().or(z.literal("")),
-  coverUrl: z.string().url("URL không hợp lệ").optional().or(z.literal("")),
+  fullName: z.string().trim().min(3, "Họ tên tối thiểu 3 ký tự"),
+  address: z.string().trim().min(3, "Địa chỉ tối thiểu 3 ký tự"),
+  avatarUrl: urlOrRelative,
+  coverUrl: urlOrRelative,
 });
 type FormType = z.infer<typeof schema>;
 
@@ -40,13 +52,16 @@ export default function EditProfilePage() {
   const { user } = useAuth();
   const { data, isLoading, isError, error } = useMyProfile();
   const updateMut = useUpdateUserProfile();
+
   const [submitting, setSubmitting] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [submittedOnce, setSubmittedOnce] = useState(false);
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +77,7 @@ export default function EditProfilePage() {
     defaultValues: { fullName: "", address: "", avatarUrl: "", coverUrl: "" },
     mode: "onChange",
   });
+
   const {
     register,
     handleSubmit,
@@ -77,6 +93,7 @@ export default function EditProfilePage() {
       reset({
         fullName: data.fullName || "",
         address: data.address || "",
+
         avatarUrl: data.avatar || "",
         coverUrl: data.coverImage || "",
       });
@@ -94,6 +111,7 @@ export default function EditProfilePage() {
 
   const email = user?.email || "—";
   const role = user?.role || "—";
+
   const pickAvatar = () => avatarInputRef.current?.click();
   const pickCover = () => coverInputRef.current?.click();
 
@@ -106,6 +124,7 @@ export default function EditProfilePage() {
       if (prev) URL.revokeObjectURL(prev);
       return url;
     });
+
     setValue("avatarUrl", "");
   };
 
@@ -121,42 +140,31 @@ export default function EditProfilePage() {
     setValue("coverUrl", "");
   };
 
-  const hasAvatar = !!avatarFile || !!getValues("avatarUrl") || !!data?.avatar;
-  const hasCover = !!coverFile || !!getValues("coverUrl") || !!data?.coverImage;
-
-  const onInvalid = () => {
+  const onInvalid = (errs: typeof errors) => {
     setSubmittedOnce(true);
     const firstErr =
-      errors.fullName?.message ||
-      errors.address?.message ||
-      (!hasCover && "Vui lòng chọn ảnh bìa.") ||
-      (!hasAvatar && "Vui lòng chọn ảnh đại diện.") ||
-      "Vui lòng điền đầy đủ thông tin bắt buộc.";
-    toast.error(String(firstErr));
+      errs.fullName?.message ||
+      errs.address?.message ||
+      errs.avatarUrl?.message ||
+      errs.coverUrl?.message;
+    toast.error(String(firstErr || "Vui lòng nhập đủ thông tin bắt buộc."));
   };
 
   const onSubmit = async (formData: FormType) => {
     if (!data) return;
     setSubmittedOnce(true);
-    if (!hasAvatar && !hasCover) {
-      toast.error("Vui lòng chọn ảnh đại diện và ảnh bìa.");
-      return;
-    }
-    if (!hasAvatar) {
-      toast.error("Vui lòng chọn ảnh đại diện.");
-      return;
-    }
-    if (!hasCover) {
-      toast.error("Vui lòng chọn ảnh bìa.");
-      return;
-    }
     setSubmitting(true);
     try {
       let avatarFinal = (formData.avatarUrl || "").trim() || data.avatar || "";
       let coverFinal =
         (formData.coverUrl || "").trim() || data.coverImage || "";
+
       if (avatarFile) avatarFinal = await uploadFileToUrl(avatarFile, "image");
       if (coverFile) coverFinal = await uploadFileToUrl(coverFile, "image");
+
+      avatarFinal = toRelativeIfMatches(avatarFinal);
+      coverFinal = toRelativeIfMatches(coverFinal);
+
       await updateMut.mutateAsync({
         id: data.id,
         fullName: formData.fullName.trim(),
@@ -164,6 +172,7 @@ export default function EditProfilePage() {
         avatar: avatarFinal,
         coverImage: coverFinal,
       });
+
       setJustSaved(true);
       setTimeout(
         () => navigate("/profile/MyProfilePage", { replace: true }),
@@ -175,15 +184,20 @@ export default function EditProfilePage() {
   };
 
   const nameLive = watch("fullName");
-  const showCover =
+
+  const showCoverRaw =
     coverPreview ||
     getValues("coverUrl") ||
     data?.coverImage ||
     "https://images.unsplash.com/photo-1520975922329-0003f0327bb3?q=80&w=1600&auto=format&fit=crop";
-  const initialsSeed = encodeURIComponent(nameLive || data?.fullName || "U");
+  const showCover = safeSrc(normalizeAssetUrl(showCoverRaw));
+
+  const avatarRaw = avatarPreview || getValues("avatarUrl") || data?.avatar;
   const showAvatar =
-    safeSrc(avatarPreview || getValues("avatarUrl") || data?.avatar) ||
-    `https://api.dicebear.com/7.x/initials/svg?seed=${initialsSeed}`;
+    safeSrc(normalizeAssetUrl(avatarRaw)) ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+      nameLive || data?.fullName || "U",
+    )}`;
 
   if (isLoading) {
     return (
@@ -191,7 +205,6 @@ export default function EditProfilePage() {
         <div className="pointer-events-none absolute top-[-180px] left-[-180px] h-[520px] w-[520px] rounded-full bg-gradient-to-br from-orange-500/30 via-amber-400/25 to-transparent blur-[120px]" />
         <div className="pointer-events-none absolute right-[-220px] bottom-[-220px] h-[620px] w-[620px] rounded-full bg-gradient-to-tr from-rose-400/25 via-orange-500/20 to-transparent blur-[140px]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,.06),transparent_40%),radial-gradient(ellipse_at_bottom,rgba(255,255,255,.05),transparent_40%)]" />
-        <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(255,255,255,.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,.06)_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.06]" />
         <div className="relative mx-auto max-w-5xl px-6 py-10">
           <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -256,7 +269,7 @@ export default function EditProfilePage() {
           <div className="h-44 w-full overflow-hidden">
             <div className="relative h-full w-full">
               <img
-                src={safeSrc(showCover)}
+                src={showCover}
                 alt=""
                 className="h-full w-full object-cover"
                 onError={(e) => {
@@ -372,15 +385,6 @@ export default function EditProfilePage() {
 
               <input type="hidden" {...register("avatarUrl")} />
               <input type="hidden" {...register("coverUrl")} />
-
-              {submittedOnce && !hasCover && (
-                <p className="text-sm text-amber-300">Vui lòng chọn ảnh bìa.</p>
-              )}
-              {submittedOnce && !hasAvatar && (
-                <p className="text-sm text-amber-300">
-                  Vui lòng chọn ảnh đại diện.
-                </p>
-              )}
 
               <Button
                 type="submit"
