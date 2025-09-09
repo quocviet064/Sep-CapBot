@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoadingPage from "./pages/loading-page";
+
 import TopicApprovalDetailPage from "./pages/moderators/topic-approval/TopicApprovalDetailPage";
 import ReviewerAssignmentPage from "./pages/moderators/reviewer-assignment/ReviewerAssignmentPage";
 import TopicDuplicateCheckerPage from "./pages/supervisors/ai-check";
@@ -67,30 +68,25 @@ const AccountProvisionPage = lazy(
   () => import("./pages/admins/auth-management/account-provision"),
 );
 
+// Reviewer 
 const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
-const ReviewerAssignedList = lazy(
-  () => import("./pages/reviewers/assigned-topics/list"),
-);
+const ReviewerAssignedList = lazy(() => import("./pages/reviewers/assigned-topics/list"));
+const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
+const ReviewerFeedbackHistory = lazy(() => import("./pages/reviewers/feedback-history"));
+const ReviewerTopicArchive = lazy(() => import("./pages/reviewers/topic-archive"));
 const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
-const ReviewerReview = lazy(
-  () => import("./pages/reviewers/evaluate-topics/review"),
-);
+const ReviewerReview = lazy(() => import("./pages/reviewers/evaluate-topics/review"));
 
 const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
-const ModeratorTopicApproval = lazy(
-  () => import("./pages/moderators/topic-approval"),
-);
-
-const CurrentAssignmentsPage = lazy(
-  () => import("./pages/moderators/reviewer-assignment/assignments"),
-);
-const ModeratorFeedbackEval = lazy(
-  () => import("./pages/moderators/feedback-evaluation"),
-);
+const ModeratorSubmissionsLayout = lazy(() => import("./pages/moderators/submissions"));
+const TabOverview = lazy(() => import("./pages/moderators/submissions/tabs/TabOverview"));
+const TabApprove = lazy(() => import("./pages/moderators/submissions/tabs/TabApprove"));
+const TabAssign = lazy(() => import("./pages/moderators/submissions/tabs/TabAssign"));
+const TabReviews = lazy(() => import("./pages/moderators/submissions/tabs/TabReviews"));
+const ModeratorFeedbackEval = lazy(() => import("./pages/moderators/feedback-evaluation"));
 const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
-const ModeratorCategoryPage = lazy(
-  () => import("./pages/moderators/category-manager/category-page"),
-);
+const ModeratorCategoryPage = lazy(() => import("./pages/moderators/category-manager/category-page"));
+const ModeratorSemesterPhase = lazy(() => import("./pages/moderators/semester-phase"));
 
 const NotFoundPage = lazy(() => import("./pages/not-found-page"));
 
@@ -117,18 +113,6 @@ function App() {
           <Route
             path="/supervisors/topics/myTopic-page"
             element={<AllMyTopics />}
-          />
-          <Route
-            path="/supervisors/check-ai"
-            element={<TopicDuplicateCheckerPage />}
-          />
-          <Route
-            path="/supervisors/check-format"
-            element={<CheckAIFormatTemplatePage />}
-          />
-          <Route
-            path="/supervisors/submissions/SubmissionPage"
-            element={<AllSubmittedTopicsPage />}
           />
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"
@@ -179,53 +163,31 @@ function App() {
           />
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-          <Route
-            path="/reviewers/assigned-topics/list"
-            element={<ReviewerAssignedList />}
-          />
-          <Route
-            path="/reviewers/evaluation-stats"
-            element={<ReviewerStats />}
-          />
-          <Route
-            path="/reviewers/evaluate-topics/:assignmentId"
-            element={<ReviewerReview />}
+          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
+          <Route path="/reviewers/assigned-topics/detail" element={<ReviewerAssignedDetail />} />
+          <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
+          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
+          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
+          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
           />
 
-          <Route
-            path="/moderators/dashboard"
-            element={<ModeratorDashboard />}
-          />
-          <Route
-            path="/moderators/topic-approval"
-            element={<ModeratorTopicApproval />}
-          />
-          <Route
-            path="/moderators/reviewer-assignment/assignments"
-            element={<CurrentAssignmentsPage />}
-          />
-          <Route
-            path="/moderators/reviewer-assignment/ReviewerAssignmentPage"
-            element={<ReviewerAssignmentPage />}
-          />
-          <Route
-            path="/moderators/feedback-evaluation"
-            element={<ModeratorFeedbackEval />}
-          />
+          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
+          <Route path="/moderators/submissions" element={<ModeratorSubmissionsLayout />}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<TabOverview />} />
+            <Route path="approve" element={<TabApprove />} />
+            <Route path="assign" element={<TabAssign />} />
+            <Route path="reviews" element={<TabReviews />} />
+          </Route>
+          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
-          <Route
-            path="/moderators/category-manager/category-page"
-            element={<ModeratorCategoryPage />}
-          />
-          <Route
-            path="/moderators/topic-approval/:id"
-            element={<TopicApprovalDetailPage />}
-          />
           <Route path="/profile/MyProfilePage" element={<MyProfilePage />} />
           <Route
             path="/profile/EditProfilePage"
             element={<EditProfilePage />}
           />
+          <Route path="/moderators/category-manager/category-page" element={<ModeratorCategoryPage />} />
+          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
 
           <Route path="/*" element={<NotFoundPage />} />
         </Route>
