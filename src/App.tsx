@@ -2,6 +2,15 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoadingPage from "./pages/loading-page";
 
+import TopicApprovalDetailPage from "./pages/moderators/topic-approval/TopicApprovalDetailPage";
+import ReviewerAssignmentPage from "./pages/moderators/reviewer-assignment/ReviewerAssignmentPage";
+import TopicDuplicateCheckerPage from "./pages/supervisors/ai-check";
+import CheckAIFormatTemplatePage from "./pages/supervisors/topic-management/format-check";
+import AllSubmittedTopicsPage from "./pages/supervisors/topic-management/AllSubmittedTopicsPage";
+import CreateProfilePage from "./pages/profile/CreateProfilePage";
+import MyProfilePage from "./pages/profile/MyProfilePage";
+import EditProfilePage from "./pages/profile/EditProfilePage";
+
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
 );
@@ -87,6 +96,12 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/profile/create" element={<CreateProfilePage />} />
+        <Route
+          path="/profile/CreateProfilePage"
+          element={<Navigate to="/profile/create" replace />}
+        />
+
         <Route element={<LectureLayout />}>
           <Route path="/home" element={<Home />} />
 
@@ -166,6 +181,11 @@ function App() {
           </Route>
           <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
+          <Route path="/profile/MyProfilePage" element={<MyProfilePage />} />
+          <Route
+            path="/profile/EditProfilePage"
+            element={<EditProfilePage />}
+          />
           <Route path="/moderators/category-manager/category-page" element={<ModeratorCategoryPage />} />
           <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
 

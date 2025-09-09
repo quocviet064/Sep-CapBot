@@ -92,7 +92,7 @@ export const createTopic = async (
     );
     const { success, message, data } = response.data;
     if (!success) throw new Error(message || "Tạo chủ đề thất bại");
-    toast.success("🎉 Tạo chủ đề thành công!");
+
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
