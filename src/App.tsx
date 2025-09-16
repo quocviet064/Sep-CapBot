@@ -78,11 +78,8 @@ const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
 const ReviewerReview = lazy(() => import("./pages/reviewers/evaluate-topics/review"));
 
 const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
-const ModeratorSubmissionsLayout = lazy(() => import("./pages/moderators/submissions"));
-const TabOverview = lazy(() => import("./pages/moderators/submissions/tabs/TabOverview"));
-const TabApprove = lazy(() => import("./pages/moderators/submissions/tabs/TabApprove"));
-const TabAssign = lazy(() => import("./pages/moderators/submissions/tabs/TabAssign"));
-const TabReviews = lazy(() => import("./pages/moderators/submissions/tabs/TabReviews"));
+const SubmissionsListPage = lazy(() => import("./pages/moderators/submissions"));
+const SubmissionDetailPage = lazy(() => import("./pages/moderators/submissions/SubmissionDetailPage"));
 const ModeratorFeedbackEval = lazy(() => import("./pages/moderators/feedback-evaluation"));
 const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
 const ModeratorCategoryPage = lazy(() => import("./pages/moderators/category-manager/category-page"));
@@ -172,22 +169,18 @@ function App() {
           />
 
           <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
-          <Route path="/moderators/submissions" element={<ModeratorSubmissionsLayout />}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<TabOverview />} />
-            <Route path="approve" element={<TabApprove />} />
-            <Route path="assign" element={<TabAssign />} />
-            <Route path="reviews" element={<TabReviews />} />
-          </Route>
+          <Route path="/moderators/submissions" element={<SubmissionsListPage />} />
+          <Route path="/moderators/submissions/:submissionId" element={<SubmissionDetailPage />} />
           <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
+          <Route path="/moderators/category-manager/category-page" element={<ModeratorCategoryPage />} />
+          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
+
           <Route path="/profile/MyProfilePage" element={<MyProfilePage />} />
           <Route
             path="/profile/EditProfilePage"
             element={<EditProfilePage />}
           />
-          <Route path="/moderators/category-manager/category-page" element={<ModeratorCategoryPage />} />
-          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
 
           <Route path="/*" element={<NotFoundPage />} />
         </Route>
