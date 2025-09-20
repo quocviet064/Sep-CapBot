@@ -58,6 +58,7 @@ export interface SubmissionDTO {
   id: IdLike;
   topicId?: IdLike;
   topicVersionId?: IdLike;
+  topicTitle?: string;
   phaseId?: IdLike;
   documentUrl?: string | null;
   additionalNotes?: string | null;

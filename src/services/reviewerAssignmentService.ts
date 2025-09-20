@@ -47,7 +47,7 @@ export interface AvailableReviewerDTO {
   averageScoreGiven?: number;
   onTimeRate?: number;
   qualityRating?: number;
-  skills: string[];
+  skills: Record<string, number>;
   skillMatchScore?: number;
   isAvailable: boolean;
   unavailableReason?: string;
@@ -69,6 +69,7 @@ export interface ReviewerAssignmentResponseDTO {
   assignedByUser?: { id: IdLike; userName: string };
   submissionTitle?: string;
   topicTitle?: string;
+  notes?: string;
 }
 
 export interface RecommendationQuery {
@@ -194,8 +195,7 @@ export const updateAssignmentStatus = async (
 ): Promise<void> => {
   try {
     const res = await capBotAPI.put<ApiResponse<null>>(
-      `/reviewer-assignments/${assignmentId}/status`,
-      status
+      `/reviewer-assignments/${assignmentId}/status`, { status }
     );
     if (!res.data.success) throw new Error(res.data.message || "");
     toast.success("Cập nhật status thành công");

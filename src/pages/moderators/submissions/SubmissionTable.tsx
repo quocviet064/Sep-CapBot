@@ -8,7 +8,7 @@ import {
 } from "@/pages/moderators/submissions/columns";
 
 type Props = {
-  mode: SubmissionMode; // "assign" | "approve"
+  mode: SubmissionMode;
   rows: SubmissionListItem[];
   totalPages: number;
 
