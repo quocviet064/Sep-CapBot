@@ -1,4 +1,5 @@
-import { ColumnDef } from "@tanstack/react-table";
+// columnsMyTopics.tsx
+import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
 import {
@@ -9,19 +10,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/globals/atoms/dropdown-menu";
 import { Copy, Eye, MoreHorizontal } from "lucide-react";
-import { TopicType } from "@/schemas/topicSchema";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
 import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
+import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
+import type { TopicListItem } from "@/services/topicService";
 
 export type ColumnActionsHandlers = {
-  onViewDetail: (id: string) => void;
+  onViewDetail: (id: number) => void;
 };
 
 export const createMyTopicColumns = (
   handlers: ColumnActionsHandlers,
-): ColumnDef<TopicType>[] => [
+): ColumnDef<TopicListItem, unknown>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -54,23 +56,33 @@ export const createMyTopicColumns = (
     ),
   },
   {
-    accessorKey: "title",
-    meta: { title: "Đề tài" },
+    accessorKey: "eN_Title",
+    meta: { title: "Title (EN)" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Đề tài" />
+      <DataTableColumnHeader column={column} title="Title (EN)" />
     ),
     cell: ({ row }) => (
       <DataTableCellTopic
-        title={row.original.title}
+        title={row.original.eN_Title || "-"}
         supervisor={row.original.supervisorName}
       />
     ),
   },
   {
-    accessorKey: "supervisorName",
-    meta: { title: "Giảng viên" },
+    accessorKey: "vN_title",
+    meta: { title: "Tiêu đề (VN)" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Giảng viên" />
+      <DataTableColumnHeader column={column} title="Tiêu đề (VN)" />
+    ),
+    cell: ({ row }) => (
+      <span className="line-clamp-2">{row.original.vN_title || "-"}</span>
+    ),
+  },
+  {
+    accessorKey: "abbreviation",
+    meta: { title: "Viết tắt" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Viết tắt" />
     ),
   },
   {
@@ -87,18 +99,94 @@ export const createMyTopicColumns = (
       <DataTableColumnHeader column={column} title="Học kỳ" />
     ),
   },
-  // {
-  //   accessorKey: "maxStudents",
-  //   meta: { title: "Số SV tối đa" },
-  //   header: ({ column }) => (
-  //     <DataTableColumnHeader column={column} title="Số SV tối đa" />
-  //   ),
-  // },
+  {
+    accessorKey: "description",
+    meta: { title: "Mô tả" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Mô tả" />
+    ),
+    cell: ({ row }) =>
+      row.original.description ? (
+        <DataTableCellDescription description={row.original.description} />
+      ) : (
+        <span>--</span>
+      ),
+  },
+  {
+    accessorKey: "problem",
+    meta: { title: "Vấn đề" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Vấn đề" />
+    ),
+    cell: ({ row }) =>
+      row.original.problem ? (
+        <DataTableCellDescription description={row.original.problem} />
+      ) : (
+        <span>--</span>
+      ),
+  },
+  {
+    accessorKey: "context",
+    meta: { title: "Bối cảnh" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Bối cảnh" />
+    ),
+    cell: ({ row }) =>
+      row.original.context ? (
+        <DataTableCellDescription description={row.original.context} />
+      ) : (
+        <span>--</span>
+      ),
+  },
+  {
+    accessorKey: "content",
+    meta: { title: "Nội dung" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Nội dung" />
+    ),
+    cell: ({ row }) =>
+      row.original.content ? (
+        <DataTableCellDescription description={row.original.content} />
+      ) : (
+        <span>--</span>
+      ),
+  },
+  {
+    accessorKey: "maxStudents",
+    meta: { title: "SV tối đa" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="SV tối đa" />
+    ),
+  },
+  {
+    accessorKey: "currentStatus",
+    meta: { title: "Trạng thái" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Trạng thái" center />
+    ),
+    cell: ({ row }) => (
+      <div className="flex justify-center pr-4">
+        <Badge>{row.original.currentStatus || "-"}</Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "currentVersionNumber",
+    meta: { title: "Version" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Version" center />
+    ),
+    cell: ({ row }) => (
+      <div className="flex justify-center pr-4">
+        {row.original.currentVersionNumber ?? "-"}
+      </div>
+    ),
+  },
   {
     accessorKey: "isLegacy",
-    meta: { title: "Reviewer" },
+    meta: { title: "Legacy" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Reviewer" center />
+      <DataTableColumnHeader column={column} title="Legacy" center />
     ),
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
@@ -106,20 +194,27 @@ export const createMyTopicColumns = (
           className="text-white"
           style={{ backgroundColor: row.original.isLegacy ? "green" : "red" }}
         >
-          {row.original.isLegacy ? "Đã gán" : "Chưa gán"}
+          {row.original.isLegacy ? "Có" : "Không"}
         </Badge>
       </div>
     ),
   },
   {
     accessorKey: "isApproved",
-    meta: { title: "Trạng thái" },
+    meta: { title: "Duyệt" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trạng thái" center />
+      <DataTableColumnHeader column={column} title="Duyệt" center />
     ),
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
-        {row.original.isApproved ? "Đã duyệt" : "Chưa duyệt"}
+        <Badge
+          className="text-white"
+          style={{
+            backgroundColor: row.original.isApproved ? "green" : "orange",
+          }}
+        >
+          {row.original.isApproved ? "Đã duyệt" : "Chưa duyệt"}
+        </Badge>
       </div>
     ),
   },
@@ -138,7 +233,6 @@ export const createMyTopicColumns = (
     header: () => <span className="flex justify-center">Thao tác</span>,
     cell: ({ row }) => {
       const topic = row.original;
-
       return (
         <div className="flex justify-center">
           <DropdownMenu>
@@ -151,16 +245,12 @@ export const createMyTopicColumns = (
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() =>
-                  navigator.clipboard.writeText(topic.id.toString())
-                }
+                onClick={() => navigator.clipboard.writeText(String(topic.id))}
               >
                 <Copy className="h-4 w-4" />
                 Sao chép mã
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handlers.onViewDetail(topic.id.toString())}
-              >
+              <DropdownMenuItem onClick={() => handlers.onViewDetail(topic.id)}>
                 <Eye className="h-4 w-4" />
                 Xem chi tiết
               </DropdownMenuItem>

@@ -9,7 +9,6 @@ import {
   FolderSearch,
   MessageSquareDiff,
   SquareTerminal,
-  Users,
   FolderKanban,
 } from "lucide-react";
 
@@ -123,12 +122,28 @@ export const siteAdmin = [
 ];
 
 export const siteModerator = [
-  { title: "Tổng quan hệ thống",       url: "/moderators/dashboard",                       icon: SquareTerminal },
-  { title: "Quản lý học kỳ & Phase",   url: "/moderators/semester-phase",                  icon: CalendarDays },
-  { title: "Bộ tiêu chí",              url: "/admins/evaluation-criteria/EvaluationCriteriaPage", icon: Bot },
-  { title: "Quản lý danh mục đề tài",  url: "/moderators/category-manager/category-page",  icon: FolderKanban },
-  { title: "Submissions",              url: "/moderators/submissions",                     icon: FileText },
-  { title: "Thống kê & báo cáo",       url: "/moderators/reports",                         icon: BarChart3 },
+  {
+    title: "Tổng quan hệ thống",
+    url: "/moderators/dashboard",
+    icon: SquareTerminal,
+  },
+  {
+    title: "Quản lý học kỳ & Phase",
+    url: "/moderators/semester-phase",
+    icon: CalendarDays,
+  },
+  {
+    title: "Bộ tiêu chí",
+    url: "/admins/evaluation-criteria/EvaluationCriteriaPage",
+    icon: Bot,
+  },
+  {
+    title: "Quản lý danh mục đề tài",
+    url: "/moderators/category-manager/category-page",
+    icon: FolderKanban,
+  },
+  { title: "Submissions", url: "/moderators/submissions", icon: FileText },
+  { title: "Thống kê & báo cáo", url: "/moderators/reports", icon: BarChart3 },
 ];
 
 export const siteReviewer = [

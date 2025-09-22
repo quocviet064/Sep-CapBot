@@ -5,15 +5,15 @@ import {
   fetchMyTopics,
   updateTopic,
   createTopic,
+  deleteTopic,
   type UpdateTopicPayload,
-  type UpdateTopicResponse,
   type RawMyTopicResponse,
   type TopicDetailResponse,
   type CreateTopicPayload,
   type RawTopicResponse,
+  type TopicListItem,
 } from "@/services/topicService";
 import { approveTopic } from "@/services/topicApproveService";
-import type { TopicType } from "@/schemas/topicSchema";
 import { toast } from "sonner";
 
 export const useCreateTopic = () => {
@@ -49,8 +49,8 @@ export function useApproveTopic() {
 }
 
 export const useTopics = (
-  SemesterId?: string,
-  CategoryId?: string,
+  SemesterId?: number,
+  CategoryId?: number,
   PageNumber?: number,
   PageSize?: number,
   Keyword?: string,
@@ -110,13 +110,32 @@ export const useMyTopics = (
 
 export const useUpdateTopic = () => {
   const qc = useQueryClient();
-  return useMutation<UpdateTopicResponse, Error, UpdateTopicPayload>({
+  return useMutation<TopicDetailResponse, Error, UpdateTopicPayload>({
     mutationFn: updateTopic,
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["my-topics"] });
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      qc.setQueryData(["topicDetail", String(data.id)], data);
     },
     onError: (e) => {
       toast.error(e.message || "Cập nhật đề tài thất bại");
+    },
+  });
+};
+
+export const useDeleteTopic = () => {
+  const qc = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (topicId) => deleteTopic(topicId),
+    onSuccess: (_data, topicId) => {
+      qc.invalidateQueries({ queryKey: ["topics"] });
+      qc.invalidateQueries({ queryKey: ["my-topics"] });
+
+      qc.removeQueries({ queryKey: ["topicDetail", String(topicId)] });
+      toast.success("Xoá đề tài thành công");
+    },
+    onError: (e) => {
+      toast.error(e.message || "Xoá đề tài thất bại");
     },
   });
 };
@@ -125,11 +144,11 @@ export const fetchAllMyTopics = async (
   semesterId?: number,
   categoryId?: number,
   keyword?: string,
-): Promise<TopicType[]> => {
+): Promise<TopicListItem[]> => {
   const pageSize = 100;
   let pageNumber = 1;
   let hasNext = true;
-  const all: TopicType[] = [];
+  const all: TopicListItem[] = [];
   const kw = keyword && keyword.trim() ? keyword.trim() : undefined;
 
   while (hasNext) {

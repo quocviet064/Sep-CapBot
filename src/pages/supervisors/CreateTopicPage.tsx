@@ -1,4 +1,3 @@
-// src/pages/topics/CreateTopicPage.tsx
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/globals/atoms/badge";
@@ -20,6 +19,7 @@ import {
   Upload,
   FileText,
   X,
+  Asterisk,
 } from "lucide-react";
 import { useCreateTopic } from "@/hooks/useTopic";
 import type { CreateTopicPayload } from "@/services/topicService";
@@ -27,10 +27,16 @@ import type { CategoryType } from "@/schemas/categorySchema";
 import type { SemesterDTO } from "@/services/semesterService";
 import { useCategories } from "@/hooks/useCategory";
 import { useSemesters } from "@/hooks/useSemester";
+import { uploadFileReturnId } from "@/services/fileService";
 
 function RequiredBadge() {
   return (
-    <Badge className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-red-600 uppercase shadow-sm">
+    <Badge
+      className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-rose-50 px-0.5 py-0 text-[7px] leading-tight font-medium text-rose-700 shadow-sm"
+      title="Trường bắt buộc"
+      aria-label="Trường bắt buộc"
+    >
+      <Asterisk className="h-2.5 w-2.5" />
       Bắt buộc
     </Badge>
   );
@@ -138,28 +144,40 @@ export default function CreateTopicPage() {
     );
   }, [semQuery, semesters]);
 
-  const [form, setForm] = useState<CreateTopicPayload>({
-    title: "",
+  const [form, setForm] = useState<{
+    eN_Title: string;
+    vN_title: string;
+    abbreviation: string;
+    problem: string;
+    context: string;
+    content: string;
+    description: string;
+    objectives: string;
+    categoryId: number;
+    semesterId: number;
+    maxStudents: number;
+  }>({
+    eN_Title: "",
+    vN_title: "",
+    abbreviation: "",
+    problem: "",
+    context: "",
+    content: "",
     description: "",
     objectives: "",
     categoryId: 0,
     semesterId: 0,
     maxStudents: 5,
-    methodology: "",
-    expectedOutcomes: "",
-    requirements: "",
-    documentUrl: "",
   });
 
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const update = <K extends keyof CreateTopicPayload>(
+  const update = <K extends keyof typeof form>(
     key: K,
-    value: CreateTopicPayload[K],
+    value: (typeof form)[K],
   ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const selectedCategoryName =
@@ -173,8 +191,13 @@ export default function CreateTopicPage() {
         ?.name) ||
     "Kỳ học";
 
-  const requiredKeys: (keyof CreateTopicPayload)[] = [
-    "title",
+  const requiredKeys: (keyof typeof form)[] = [
+    "eN_Title",
+    "vN_title",
+    "abbreviation",
+    "problem",
+    "context",
+    "content",
     "description",
     "objectives",
     "categoryId",
@@ -190,13 +213,18 @@ export default function CreateTopicPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.title?.trim()) e.title = "Vui lòng nhập tên đề tài";
+    if (!form.eN_Title?.trim()) e.eN_Title = "Vui lòng nhập EN Title";
+    if (!form.vN_title?.trim()) e.vN_title = "Vui lòng nhập VN Title";
+    if (!form.abbreviation?.trim()) e.abbreviation = "Vui lòng nhập viết tắt";
+    if (!form.problem?.trim()) e.problem = "Vui lòng mô tả problem";
+    if (!form.context?.trim()) e.context = "Vui lòng mô tả context";
+    if (!form.content?.trim()) e.content = "Vui lòng nhập content";
     if (!form.description?.trim()) e.description = "Vui lòng nhập mô tả";
-    if (!form.objectives?.trim()) e.objectives = "Vui lòng nhập mục tiêu";
+    if (!form.objectives?.trim()) e.objectives = "Vui lòng nhập objectives";
     if (!form.categoryId) e.categoryId = "Vui lòng chọn danh mục";
     if (!form.semesterId) e.semesterId = "Vui lòng chọn kỳ học";
     if (!form.maxStudents || Number(form.maxStudents) <= 0)
-      e.maxStudents = "Số SV tối đa phải lớn hơn 0";
+      e.maxStudents = "SV tối đa phải > 0";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -221,73 +249,127 @@ export default function CreateTopicPage() {
 
   const onFiles = (list: FileList | null) => {
     if (!list) return;
-    const incoming = Array.from(list);
-    const valids: File[] = [];
-    for (const f of incoming) {
-      const err = validateFile(f);
-      if (err) {
-        setFileError(err);
-        toast.error(err);
-        continue;
-      }
-      valids.push(f);
+    const incoming = Array.from(list).slice(0, 1);
+    const f = incoming[0];
+    if (!f) return;
+    const err = validateFile(f);
+    if (err) {
+      setFileError(err);
+      toast.error(err);
+      return;
     }
-    const merged = [...docFiles, ...valids];
-    const deduped = merged.filter(
-      (f, idx, arr) =>
-        arr.findIndex(
-          (x) => x.name === f.name && x.size === f.size && x.type === f.type,
-        ) === idx,
-    );
-    setDocFiles(deduped);
+    setDocFiles([f]);
     setFileError(undefined);
   };
 
-  const removeFile = (i: number) =>
-    setDocFiles((p) => p.filter((_, idx) => idx !== i));
+  const removeFile = () => {
+    setDocFiles([]);
+    setFileError(undefined);
+  };
 
   const resetForm = () => {
     setForm({
-      title: "",
+      eN_Title: "",
+      vN_title: "",
+      abbreviation: "",
+      problem: "",
+      context: "",
+      content: "",
       description: "",
       objectives: "",
       categoryId: 0,
       semesterId: 0,
       maxStudents: 5,
-      methodology: "",
-      expectedOutcomes: "",
-      requirements: "",
-      documentUrl: "",
     });
     setDocFiles([]);
     setFileError(undefined);
+    setErrors({});
   };
 
   const onSubmit = async () => {
+    console.groupCollapsed(
+      "%c[CreateTopic] Pre-submit",
+      "color:#0f172a;background:#bfdbfe;padding:2px 6px;border-radius:6px;",
+    );
+    console.log("Raw form before validate:", JSON.parse(JSON.stringify(form)));
+    console.groupEnd();
+
     if (!validate()) {
       toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
       return;
     }
-    const fd = new FormData();
-    fd.append("title", form.title);
-    fd.append("description", form.description || "");
-    fd.append("objectives", form.objectives || "");
-    fd.append("categoryId", String(form.categoryId || 0));
-    fd.append("semesterId", String(form.semesterId || 0));
-    fd.append("maxStudents", String(form.maxStudents || 0));
-    fd.append("methodology", form.methodology || "");
-    fd.append("expectedOutcomes", form.expectedOutcomes || "");
-    fd.append("requirements", form.requirements || "");
-    fd.append("documentUrl", "");
-    docFiles.forEach((f) => fd.append("documents", f, f.name));
-    await toast.promise(createTopic(fd as unknown as CreateTopicPayload), {
-      loading: "Đang tạo đề tài...",
-      success: "🎉 Tạo đề tài thành công!",
-      error: (err: unknown) =>
-        (err as { message?: string } | undefined)?.message ||
-        "Tạo đề tài thất bại",
-    });
-    resetForm();
+
+    let fileId: number | null = null;
+
+    if (docFiles.length > 0) {
+      const toastId = toast.loading("Đang upload tài liệu...");
+      try {
+        const id = await uploadFileReturnId(docFiles[0]);
+        toast.success("Upload thành công", { id: toastId });
+        fileId = id;
+      } catch {
+        toast.error("Upload thất bại", { id: toastId });
+        return;
+      }
+    } else {
+      console.log("[CreateTopic] Không chọn file. Sẽ gửi fileId = null.");
+    }
+
+    const payload: CreateTopicPayload = {
+      eN_Title: form.eN_Title.trim(),
+      abbreviation: form.abbreviation.trim(),
+      vN_title: form.vN_title.trim(),
+      problem: form.problem.trim(),
+      context: form.context.trim(),
+      content: form.content.trim(),
+      description: form.description.trim(),
+      objectives: form.objectives.trim(),
+      categoryId: Number(form.categoryId),
+      semesterId: Number(form.semesterId),
+      maxStudents: Number(form.maxStudents),
+      fileId,
+    };
+
+    const cat = (categories as CategoryType[]).find(
+      (c) => c.id === form.categoryId,
+    );
+    const sem = (semesters as SemesterDTO[]).find(
+      (s) => s.id === form.semesterId,
+    );
+    console.groupCollapsed(
+      "%c[CreateTopic] Submit debug",
+      "color:#111;background:#E5E7EB;padding:2px 6px;border-radius:6px;",
+    );
+    console.log("Form state:", JSON.parse(JSON.stringify(form)));
+    console.log("Category ↔ Name:", { id: form.categoryId, name: cat?.name });
+    console.log("Semester ↔ Name:", { id: form.semesterId, name: sem?.name });
+    if (docFiles.length) {
+      const f = docFiles[0];
+      console.log("Selected file:", {
+        name: f.name,
+        type: f.type,
+        size: f.size,
+      });
+    } else {
+      console.log("Selected file: <none>");
+    }
+    console.log("fileId (after upload):", fileId);
+    console.log("Final payload (POST /api/topic/create):", payload);
+    console.groupEnd();
+
+    try {
+      await toast.promise(
+        createTopic(payload as unknown as CreateTopicPayload),
+        {
+          loading: "Đang tạo đề tài...",
+          success: "Tạo đề tài thành công!",
+          error: "Tạo đề tài thất bại",
+        },
+      );
+      resetForm();
+    } catch {
+      toast.error("Tạo đề tài thất bại");
+    }
   };
 
   return (
@@ -303,7 +385,7 @@ export default function CreateTopicPage() {
             <div>
               <h2 className="text-lg font-semibold">Tạo đề tài mới</h2>
               <p className="text-xs text-white/70">
-                Nhập thông tin cơ bản và nội dung nghiên cứu
+                Nhập thông tin theo đúng mẫu API
               </p>
             </div>
           </div>
@@ -325,35 +407,79 @@ export default function CreateTopicPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <SectionCard
-            title="Thông tin cơ bản"
-            desc="Các trường bắt buộc để định danh đề tài và phân loại."
+            title="Thông tin bắt buộc"
+            desc="Nhập toàn bộ nội dung thông tin"
             icon={<CheckCircle2 className="h-4 w-4" />}
           >
             <div
               className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
             >
-              <Field label="Tên đề tài" required error={errors.title}>
+              <Field label="EN Title" required error={errors.eN_Title}>
                 <input
                   type="text"
                   className="w-full rounded-xl border px-3 py-2 text-sm ring-0 transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  placeholder="Nhập tên đề tài"
-                  value={form.title}
-                  onChange={(e) => update("title", e.target.value)}
+                  placeholder="English title"
+                  value={form.eN_Title}
+                  onChange={(e) => update("eN_Title", e.target.value)}
                 />
               </Field>
-              <Field
-                label="Số lượng SV tối đa"
-                required
-                error={errors.maxStudents}
-              >
+              <Field label="VN Title" required error={errors.vN_title}>
                 <input
-                  type="number"
-                  min={1}
+                  type="text"
+                  className="w-full rounded-xl border px-3 py-2 text-sm ring-0 transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Tiêu đề tiếng Việt"
+                  value={form.vN_title}
+                  onChange={(e) => update("vN_title", e.target.value)}
+                />
+              </Field>
+              <Field label="Viết tắt" required error={errors.abbreviation}>
+                <input
+                  type="text"
                   className="w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  value={form.maxStudents}
-                  onChange={(e) =>
-                    update("maxStudents", Number(e.target.value))
-                  }
+                  placeholder="Abbreviation"
+                  value={form.abbreviation}
+                  onChange={(e) => update("abbreviation", e.target.value)}
+                />
+              </Field>
+              <Field label="Vấn đề" required error={errors.problem}>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Vấn đề cần giải quyết"
+                  value={form.problem}
+                  onChange={(e) => update("problem", e.target.value)}
+                />
+              </Field>
+              <Field label="Bối cảnh" required error={errors.context}>
+                <textarea
+                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Bối cảnh"
+                  value={form.context}
+                  onChange={(e) => update("context", e.target.value)}
+                />
+              </Field>
+              <Field label="Nội dung" required error={errors.content}>
+                <textarea
+                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Nội dung chính"
+                  value={form.content}
+                  onChange={(e) => update("content", e.target.value)}
+                />
+              </Field>
+              <Field label="Mô tả" required error={errors.description}>
+                <textarea
+                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Tóm tắt đề tài"
+                  value={form.description}
+                  onChange={(e) => update("description", e.target.value)}
+                />
+              </Field>
+              <Field label="Mục tiêu" required error={errors.objectives}>
+                <textarea
+                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Mục tiêu"
+                  value={form.objectives}
+                  onChange={(e) => update("objectives", e.target.value)}
                 />
               </Field>
               <Field label="Danh mục" required error={errors.categoryId}>
@@ -475,75 +601,38 @@ export default function CreateTopicPage() {
                   </p>
                 ) : null}
               </Field>
-              <div className="md:col-span-2">
-                <Field label="Mục tiêu" required error={errors.objectives}>
-                  <textarea
-                    className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                    placeholder="Trình bày mục tiêu đề tài"
-                    value={form.objectives}
-                    onChange={(e) => update("objectives", e.target.value)}
-                  />
-                </Field>
-              </div>
-              <div className="md:col-span-2">
-                <Field label="Mô tả" required error={errors.description}>
-                  <textarea
-                    className="min-h-[120px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                    placeholder="Tóm tắt đề tài, phạm vi, ý nghĩa..."
-                    value={form.description}
-                    onChange={(e) => update("description", e.target.value)}
-                  />
-                </Field>
-              </div>
+              <Field label="SV tối đa" required error={errors.maxStudents}>
+                <input
+                  type="number"
+                  min={1}
+                  className="w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  value={form.maxStudents}
+                  onChange={(e) =>
+                    update("maxStudents", Number(e.target.value))
+                  }
+                />
+              </Field>
             </div>
           </SectionCard>
 
-          <SectionCard
-            title="Nội dung nghiên cứu"
-            desc="Các trường thông tin bổ sung, có thể điền sau."
-          >
+          <SectionCard title="Tài liệu đính kèm" desc="Upload file">
             <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
+              className={`grid grid-cols-1 gap-4 ${isPending ? "pointer-events-none opacity-70" : ""}`}
             >
-              <Field label="Phương pháp (Methodology)">
-                <textarea
-                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  placeholder="Phương pháp thực hiện nghiên cứu"
-                  value={form.methodology}
-                  onChange={(e) => update("methodology", e.target.value)}
-                />
-              </Field>
-              <Field label="Kết quả kỳ vọng (Expected outcomes)">
-                <textarea
-                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  placeholder="Sản phẩm/kết quả mong đợi"
-                  value={form.expectedOutcomes}
-                  onChange={(e) => update("expectedOutcomes", e.target.value)}
-                />
-              </Field>
-              <Field label="Yêu cầu (Requirements)">
-                <textarea
-                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  placeholder="Chuẩn đầu vào, công cụ, kiến thức cần có..."
-                  value={form.requirements}
-                  onChange={(e) => update("requirements", e.target.value)}
-                />
-              </Field>
-
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <label className="font-medium">Tài liệu đính kèm</label>
+                  <label className="font-medium">Tài liệu</label>
                   <span className="text-xs text-neutral-500">
-                    PDF, DOC, DOCX • Tối đa 20MB
+                    PDF, DOC, DOCX • Tối đa 20MB • 1 tệp
                   </span>
                 </div>
                 <div
-                  className={`group relative flex min-h-[90px] w-full items-start gap-3 rounded-2xl border-2 border-dashed p-3 transition ${
+                  className={`group min-height-[90px] relative flex w-full items-start gap-3 rounded-2xl border-2 border-dashed p-3 transition ${
                     fileError
                       ? "border-red-300 bg-red-50"
                       : "border-neutral-200 hover:border-neutral-300"
                   }`}
-                  onClick={pickFile}
+                  onClick={() => pickFile()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -557,27 +646,26 @@ export default function CreateTopicPage() {
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">
                         {docFiles.length > 0
-                          ? `Đã chọn ${docFiles.length} tệp`
+                          ? `Đã chọn 1 tệp`
                           : "Kéo & thả tệp vào đây"}
                       </span>
                       <span className="text-[11px] text-neutral-500">
                         {docFiles.length > 0
-                          ? "Bấm để thêm tệp khác"
+                          ? "Bấm để thay tệp khác"
                           : "Hoặc bấm để chọn"}
                       </span>
                     </div>
                   </div>
-
                   {docFiles.length > 0 && (
                     <div className="ml-auto flex max-h-20 max-w-[55%] flex-wrap items-center gap-2 overflow-y-auto">
-                      {docFiles.map((f, i) => (
+                      {docFiles.map((f) => (
                         <div
                           key={f.name + f.size}
                           className="flex items-center gap-2 rounded-md border bg-white/80 px-2 py-1 text-[12px] shadow-sm"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <FileText className="h-3.5 w-3.5" />
-                          <span className="max-w-[140px] truncate">
+                          <span className="max-w-[160px] truncate">
                             {f.name}
                           </span>
                           <span className="text-[10px] text-neutral-500">
@@ -588,7 +676,7 @@ export default function CreateTopicPage() {
                             className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-md hover:bg-neutral-100"
                             onClick={(e) => {
                               e.stopPropagation();
-                              removeFile(i);
+                              removeFile();
                             }}
                           >
                             <X className="h-3 w-3" />
@@ -597,11 +685,9 @@ export default function CreateTopicPage() {
                       ))}
                     </div>
                   )}
-
                   <input
                     ref={fileInputRef}
                     type="file"
-                    multiple
                     accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     className="hidden"
                     onChange={(e) => onFiles(e.target.files)}
@@ -618,7 +704,7 @@ export default function CreateTopicPage() {
         </div>
 
         <div className="space-y-4">
-          <SectionCard title="Tóm tắt" desc="Xem nhanh các thông tin đã chọn.">
+          <SectionCard title="Tóm tắt" desc="Xem nhanh thông tin đã nhập.">
             <div className="space-y-3 text-sm">
               <div className="rounded-xl border p-3">
                 <div className="flex items-center justify-between">
@@ -641,15 +727,23 @@ export default function CreateTopicPage() {
                 </div>
               </div>
               <div className="rounded-xl border p-3">
-                <div className="text-muted-foreground mb-1">Tên đề tài</div>
-                <div className="line-clamp-2 text-sm font-medium">
-                  {form.title || "—"}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">EN Title</span>
+                  <span className="font-medium">{form.eN_Title || "—"}</span>
                 </div>
               </div>
               <div className="rounded-xl border p-3">
-                <div className="text-muted-foreground mb-1">Tài liệu</div>
-                <div className="text-sm font-medium">
-                  {docFiles.length > 0 ? `${docFiles.length} tệp` : "—"}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">VN Title</span>
+                  <span className="font-medium">{form.vN_title || "—"}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Tài liệu</span>
+                  <span className="font-medium">
+                    {docFiles.length > 0 ? `1 tệp` : "—"}
+                  </span>
                 </div>
               </div>
             </div>

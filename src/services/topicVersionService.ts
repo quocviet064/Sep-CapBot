@@ -26,6 +26,11 @@ export interface TopicVersionDetail {
   topicId: number;
   versionNumber: number;
   title: string;
+  problem: string;
+  eN_Title: string;
+  vN_title: string;
+  context: string;
+  content: string;
   description: string;
   objectives: string;
   methodology: string;
@@ -43,13 +48,18 @@ export interface TopicVersionDetail {
 
 export interface UpdateTopicVersionPayload {
   id: number;
-  title: string;
   description: string;
   objectives: string;
   methodology: string;
   expectedOutcomes: string;
   requirements: string;
   documentUrl: string;
+  eN_Title: string;
+  vN_title: string;
+  problem: string;
+  context: string;
+  content: string;
+  status: string | number;
 }
 
 export interface PagingData {
@@ -111,7 +121,7 @@ export const updateTopicVersion = async (
     );
     const { success, data, message } = response.data;
     if (!success) throw new Error(message || "Cập nhật phiên bản thất bại");
-    toast.success("🎉 Cập nhật phiên bản thành công!");
+
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
