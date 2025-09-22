@@ -145,7 +145,6 @@ function TopicDetailDialog({ isOpen, onClose, data }: TopicDetailDialogProps) {
               <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
               <InfoBlock label="Tóm tắt đề tài">{description}</InfoBlock>
               <InfoBlock label="Mục tiêu">{objectives}</InfoBlock>
-              {/* <InfoBlock label="Số lượng SV tối đa">{maxStudents}</InfoBlock> */}
             </>
           )}
 

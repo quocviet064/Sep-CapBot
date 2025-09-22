@@ -12,19 +12,17 @@ import DataTableColumnHeader from "@/components/globals/molecules/data-table-col
 import DataTableDate from "@/components/globals/molecules/data-table-date";
 import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
-import { TopicType } from "@/schemas/topicSchema";
-
-import { ColumnDef } from "@tanstack/react-table";
-
+import type { ColumnDef } from "@tanstack/react-table";
+import type { TopicListItem } from "@/services/topicService";
 import { Copy, Eye, MoreHorizontal } from "lucide-react";
 
 export type ColumnActionsHandlers = {
-  onViewDetail: (id: string) => void;
+  onViewDetail: (id: number) => void;
 };
 
 export const createColumns = (
   handlers: ColumnActionsHandlers,
-): ColumnDef<TopicType>[] => [
+): ColumnDef<TopicListItem, unknown>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -33,7 +31,7 @@ export const createColumns = (
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && "indeterminate")
         }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
         aria-label="Select all"
         className="mb-2"
       />
@@ -41,7 +39,7 @@ export const createColumns = (
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        onCheckedChange={(v) => row.toggleSelected(!!v)}
         aria-label="Select row"
         className="mb-2"
       />
@@ -57,18 +55,31 @@ export const createColumns = (
     ),
   },
   {
-    accessorKey: "title",
+    id: "title",
     meta: { title: "Tên đề tài" },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tên đề tài" />
     ),
     cell: ({ row }) => {
-      const titleTopic = row.original.title;
-      const supervisorTopic = row.original.supervisorName;
+      const title =
+        row.original.eN_Title ||
+        row.original.vN_title ||
+        row.original.abbreviation ||
+        "-";
       return (
-        <DataTableCellTopic title={titleTopic} supervisor={supervisorTopic} />
+        <DataTableCellTopic
+          title={title}
+          supervisor={row.original.supervisorName}
+        />
       );
     },
+  },
+  {
+    accessorKey: "abbreviation",
+    meta: { title: "Viết tắt" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Viết tắt" />
+    ),
   },
   {
     accessorKey: "categoryName",
@@ -94,26 +105,50 @@ export const createColumns = (
   },
   {
     accessorKey: "maxStudents",
-    meta: { title: "Số lượng SV tối đa" },
+    meta: { title: "SV tối đa" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Số lượng SV tối đa" />
+      <DataTableColumnHeader column={column} title="SV tối đa" />
+    ),
+  },
+  {
+    accessorKey: "currentStatus",
+    meta: { title: "Trạng thái" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Trạng thái" center />
+    ),
+    cell: ({ row }) => (
+      <div className="flex justify-center pr-4">
+        <Badge>{row.original.currentStatus || "-"}</Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "currentVersionNumber",
+    meta: { title: "Version" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Version" center />
+    ),
+    cell: ({ row }) => (
+      <div className="flex justify-center pr-4">
+        {row.original.currentVersionNumber ?? "-"}
+      </div>
     ),
   },
   {
     accessorKey: "isLegacy",
-    meta: { title: "Reviewer" },
+    meta: { title: "Legacy" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Reviewer" center />
+      <DataTableColumnHeader column={column} title="Legacy" center />
     ),
     cell: ({ row }) => {
-      const isLegacy = row.original.isLegacy;
+      const v = row.original.isLegacy;
       return (
         <div className="flex justify-center pr-4">
           <Badge
             className="text-white"
-            style={{ backgroundColor: isLegacy ? "green" : "red" }}
+            style={{ backgroundColor: v ? "green" : "red" }}
           >
-            {isLegacy ? "Đã gán" : "Chưa gán"}
+            {v ? "Có" : "Không"}
           </Badge>
         </div>
       );
@@ -121,15 +156,20 @@ export const createColumns = (
   },
   {
     accessorKey: "isApproved",
-    meta: { title: "Trạng thái" },
+    meta: { title: "Duyệt" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trạng thái" center />
+      <DataTableColumnHeader column={column} title="Duyệt" center />
     ),
     cell: ({ row }) => {
-      const isApproved = row.original.isApproved;
+      const v = row.original.isApproved;
       return (
         <div className="flex justify-center pr-4">
-          {isApproved ? "Đã duyệt" : "Chưa duyệt"}
+          <Badge
+            className="text-white"
+            style={{ backgroundColor: v ? "green" : "orange" }}
+          >
+            {v ? "Đã duyệt" : "Chưa duyệt"}
+          </Badge>
         </div>
       );
     },
@@ -140,10 +180,7 @@ export const createColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
-    cell: ({ row }) => {
-      const createdAt = row.original.createdAt;
-      return <DataTableDate date={createdAt} />;
-    },
+    cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
   },
   {
     id: "actions",
@@ -151,7 +188,7 @@ export const createColumns = (
       <span className="flex items-center justify-center">Thao tác</span>
     ),
     cell: ({ row }) => {
-      const topicData = row.original;
+      const topic = row.original;
       return (
         <div className="flex justify-center">
           <DropdownMenu>
@@ -164,14 +201,12 @@ export const createColumns = (
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(topicData.id)}
+                onClick={() => navigator.clipboard.writeText(String(topic.id))}
               >
                 <Copy className="h-4 w-4" />
                 Sao chép mã
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handlers.onViewDetail(topicData.id)}
-              >
+              <DropdownMenuItem onClick={() => handlers.onViewDetail(topic.id)}>
                 <Eye className="h-4 w-4" />
                 Xem chi tiết
               </DropdownMenuItem>

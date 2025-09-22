@@ -1,33 +1,38 @@
+// MyTopicPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
 import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
-
 import { fetchAllMyTopics, useMyTopics } from "@/hooks/useTopic";
 
 const DEFAULT_VISIBILITY = {
   id: false,
-  title: true,
+  eN_Title: true,
+  vN_title: true,
+  abbreviation: true,
   supervisorName: true,
   categoryName: true,
   semesterName: true,
+  description: true,
+  problem: false,
+  context: false,
+  content: true,
+  maxStudents: false,
+  currentStatus: true,
+  currentVersionNumber: false,
   isApproved: true,
   isLegacy: true,
-  maxStudents: true,
   createdAt: true,
 };
 
 function MyTopicPage() {
   const [semesterId] = useState<number | undefined>(undefined);
   const [categoryId] = useState<number | undefined>(undefined);
-
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
-
   const [searchTerm, setSearchTerm] = useState<string>("");
-
   const [filterStatus, setFilterStatus] = useState<
     "all" | "approved" | "pending" | "rejecting"
   >("all");
@@ -71,10 +76,12 @@ function MyTopicPage() {
         const pending = all.filter(
           (t) => t.isApproved === false || t.isApproved === null,
         ).length;
-        const rejecting = all.filter((t) => t.currentStatus === 2).length;
+        const rejecting = all.filter((t) =>
+          String(t.currentStatus).toLowerCase().includes("reject"),
+        ).length;
         setStats({ approved, pending, rejecting, total: all.length });
-      } catch {
-        // im lặng: thống kê phụ, không ảnh hưởng bảng
+      } catch (err) {
+        console.error(err);
       }
     };
     loadStats();
@@ -101,7 +108,9 @@ function MyTopicPage() {
             (t) => t.isApproved === false || t.isApproved === null,
           )
         : filterStatus === "rejecting"
-          ? serverPage.filter((t) => t.currentStatus === 2)
+          ? serverPage.filter((t) =>
+              String(t.currentStatus).toLowerCase().includes("reject"),
+            )
           : serverPage;
 
   return (
@@ -109,7 +118,6 @@ function MyTopicPage() {
       <div className="min-h-[600px] rounded-2xl border px-4 py-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold">Danh sách đề tài của tôi</h2>
-
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
