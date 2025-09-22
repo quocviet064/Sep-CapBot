@@ -69,9 +69,12 @@ export interface SubmissionDTO {
   submittedByName?: string;
   submissionRound?: number;
   submittedAt?: string;
+
+  aiCheckStatus?: number | string | null;
+  aiCheckScore?: number | null;
+  aiCheckDetails?: string | Record<string, unknown> | null;
 }
 
-// Alias tiện dùng với DataTable
 export type SubmissionListItem = SubmissionDTO;
 export type SubmissionType = SubmissionDTO;
 

@@ -57,17 +57,100 @@ export const getSubmissionReviewSummary = async (
   submissionId: IdLike
 ): Promise<SubmissionReviewSummaryDTO> => {
   try {
-    const res = await capBotAPI.get<ApiResponse<SubmissionReviewSummaryDTO>>(
+    const res = await capBotAPI.get<ApiResponse<unknown>>(
       `/submission-reviews/${encodeURIComponent(String(submissionId))}/summary`
     );
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được summary");
-    return res.data.data;
+    if (!res.data.success) throw new Error((res.data as any).message || "Không lấy được summary");
+
+    const raw: any = res.data.data ?? {};
+
+    // Normalize reviews array (accept camelCase / PascalCase)
+    const rawReviews = raw.reviews ?? raw.Reviews ?? [];
+    const reviews = Array.isArray(rawReviews)
+      ? rawReviews.map((r: any) => {
+          const recommendationRaw = r.recommendation ?? r.Recommendation;
+          const recommendation = Number.isFinite(Number(recommendationRaw))
+            ? (Number(recommendationRaw) as ReviewerRecommendation)
+            : undefined;
+
+          return {
+            reviewId: r.reviewId ?? r.ReviewId ?? r.id,
+            reviewerId: r.reviewerId ?? r.ReviewerId ?? r.reviewerId,
+            reviewerName:
+              r.reviewerName ??
+              r.ReviewerName ??
+              r.reviewerName ??
+              r.reviewer ??
+              undefined,
+            overallScore:
+              r.overallScore ?? r.OverallScore ?? r.overall_score ?? null,
+            recommendation: recommendation as ReviewerRecommendation | undefined,
+            submittedAt: r.submittedAt ?? r.SubmittedAt ?? null,
+          };
+        })
+      : [];
+
+    // totalReviews: prefer explicit field from backend, fallback to reviews.length
+    const totalReviews =
+      (Number.isFinite(Number(raw.completedReviewCount))
+        ? Number(raw.completedReviewCount)
+        : Number.isFinite(Number(raw.completedReviews))
+        ? Number(raw.completedReviews)
+        : reviews.length) || 0;
+
+    // averageScore: map from finalScore or FinalScore
+    const averageScore = raw.finalScore ?? raw.FinalScore ?? null;
+
+    // recommendations count
+    const recCounts = { approve: 0, minor: 0, major: 0, reject: 0 };
+    for (const rv of reviews) {
+      const rec = rv.recommendation;
+      if (rec === 1) recCounts.approve++;
+      else if (rec === 2) recCounts.minor++;
+      else if (rec === 3) recCounts.major++;
+      else if (rec === 4) recCounts.reject++;
+    }
+
+    // finalDecision mapping (if provided)
+    const hasFinal =
+      raw.finalRecommendation ??
+      raw.FinalRecommendation ??
+      raw.finalRecommendationValue ??
+      null;
+
+    const finalDecision = hasFinal
+      ? {
+          finalRecommendation: Number.isFinite(
+            Number(raw.finalRecommendation ?? raw.FinalRecommendation ?? raw.finalRecommendationValue)
+          )
+            ? (Number(raw.finalRecommendation ?? raw.FinalRecommendation ?? raw.finalRecommendationValue) as ReviewerRecommendation)
+            : undefined,
+          finalScore: raw.finalScore ?? raw.FinalScore ?? null,
+          moderatorNotes: raw.moderatorNotes ?? raw.ModeratorNotes ?? null,
+          revisionDeadline: raw.revisionDeadline ?? raw.RevisionDeadline ?? null,
+          decidedAt: raw.decidedAt ?? raw.DecidedAt ?? null,
+          decidedBy: raw.decidedBy ?? raw.DecidedBy ?? null,
+          decidedByName: raw.decidedByName ?? raw.DecidedByName ?? null,
+        }
+      : null;
+
+    const mapped: SubmissionReviewSummaryDTO = {
+      submissionId: raw.submissionId ?? raw.SubmissionId ?? submissionId,
+      totalReviews,
+      averageScore,
+      recommendationsCount: recCounts,
+      reviews,
+      finalDecision,
+    };
+
+    return mapped;
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được tổng hợp đánh giá");
     toast.error(msg);
     throw new Error(msg);
   }
 };
+
 
 /** POST /api/submission-reviews/moderator-final-review */
 export const moderatorFinalReview = async (payload: {

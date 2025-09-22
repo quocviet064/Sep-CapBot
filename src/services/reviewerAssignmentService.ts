@@ -100,6 +100,32 @@ export interface RecommendedReviewerDTO {
   ineligibilityReasons: string[];
 }
 
+/** New DTOs for suggestion flow (FE-side convenience types) */
+export interface SuggestedReviewerItem {
+  reviewerId: IdLike;
+  assignmentType?: AssignmentTypes | null;
+  deadline?: string | null;
+  skillMatchScore?: number | null;
+  reviewerName?: string | null;
+  reviewerEmail?: string | null;
+}
+
+export interface ReviewerSuggestionInputDTO {
+  submissionId: number;
+  maxSuggestions?: number;
+  usePrompt?: boolean;
+  deadline?: string | null;
+}
+
+export interface AssignFromSuggestionDTO {
+  submissionId: number;
+  reviewerId: number;
+  assignmentType?: AssignmentTypes | null;
+  deadline?: string | null;
+  createdBy?: number | string | null;
+}
+
+/** Generic ApiResponse type */
 interface ApiResponse<T> {
   statusCode: number | string;
   success: boolean;
@@ -108,14 +134,27 @@ interface ApiResponse<T> {
   message: string | null;
 }
 
+/** Utility: extract friendly message from axios error */
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError(e)) {
-    const data = e.response?.data as any;
+    const data = (e.response?.data ?? (e as any).data) as any;
     if (typeof data === "string") return data || fallback;
-    if (data?.message && typeof data.message === "string") return data.message;
+    if (data && typeof data === "object") {
+      if (typeof data.message === "string" && data.message.trim()) return data.message;
+      if (Array.isArray(data.errors) && data.errors.length > 0) {
+        const first = data.errors[0];
+        if (typeof first === "string") return first;
+        if (first && typeof first.message === "string") return first.message;
+      }
+    }
+    return (e as any).message ?? fallback;
   }
   return fallback;
 };
+
+/** Helper to normalize possible PascalCase/camelCase keys for arrays/objects */
+const normalizeArray = <T = any>(value: unknown): T[] =>
+  Array.isArray(value) ? (value as T[]) : Array.isArray((value as any)?.items) ? ((value as any).items as T[]) : [];
 
 /** Phân công 1 reviewer */
 export const assignReviewer = async (
@@ -245,7 +284,62 @@ export const autoAssignReviewers = async (
   }
 };
 
-/** Gợi ý reviewer */
+export const getReviewerSuggestions = async (
+  submissionId: IdLike,
+  maxSuggestions = 5,
+  usePrompt = true,
+  deadline?: string | null,
+  assign = false 
+): Promise<SuggestedReviewerItem[]> => {
+  try {
+    const payload: ReviewerSuggestionInputDTO = {
+      submissionId: Number(submissionId as any),
+      maxSuggestions,
+      usePrompt,
+      deadline: deadline ?? null,
+    };
+
+    const url = assign
+      ? `/reviewer-suggestion/ai-suggest-by-submission?assign=true`
+      : `/reviewer-suggestion/ai-suggest-by-submission`;
+
+    const res = await capBotAPI.post<ApiResponse<any>>(url, payload);
+    if (!res.data.success) throw new Error(res.data.message || "");
+    const raw = res.data.data ?? {};
+    const suggestionsRaw = raw.Suggestions ?? raw.suggestions ?? raw.suggestionsList ?? raw;
+    const list = Array.isArray(suggestionsRaw) ? suggestionsRaw : normalizeArray<any>(suggestionsRaw);
+
+    return list.map((r: any) => ({
+      reviewerId: r.reviewerId ?? r.ReviewerId ?? r.reviewer?.id ?? r.id,
+      assignmentType: r.assignmentType ?? r.AssignmentType ?? null,
+      deadline: r.deadline ?? r.Deadline ?? null,
+      skillMatchScore: (r.skillMatchScore ?? r.SkillMatchScore ?? null) as number | null,
+      reviewerName: r.reviewerName ?? r.ReviewerName ?? r.name ?? null,
+      reviewerEmail: r.reviewerEmail ?? r.ReviewerEmail ?? null,
+    }));
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không lấy được gợi ý reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+/** Assign from suggestion helper */
+export const assignFromSuggestion = async (
+  payload: AssignFromSuggestionDTO
+): Promise<ReviewerAssignmentResponseDTO> => {
+  const assignPayload: AssignReviewerDTO = {
+    submissionId: payload.submissionId,
+    reviewerId: payload.reviewerId,
+    assignmentType: (payload.assignmentType as AssignmentTypes) ?? AssignmentTypes.Primary,
+    deadline: payload.deadline ?? undefined,
+    notes: undefined,
+    skillMatchScore: undefined,
+  };
+  return assignReviewer(assignPayload);
+};
+
+/** Original GET-style recommendations endpoint */
 export async function getRecommendedReviewers(
   submissionId: IdLike,
   query?: RecommendationQuery
