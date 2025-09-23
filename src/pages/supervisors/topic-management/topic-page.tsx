@@ -3,7 +3,10 @@ import { DataTable } from "@/components/globals/atoms/data-table";
 import { useTopics } from "@/hooks/useTopic";
 import LoadingPage from "@/pages/loading-page";
 import { createColumns } from "./columnsTopic";
-import { getTopicDetail, TopicDetailResponse } from "@/services/topicService";
+import {
+  getTopicDetail,
+  type TopicDetailResponse,
+} from "@/services/topicService";
 import TopicDetailDialog from "./TopicDetailDialog";
 
 const DEFAULT_VISIBILITY = {
@@ -17,8 +20,8 @@ const DEFAULT_VISIBILITY = {
 };
 
 function TopicPage() {
-  const [semesterId] = useState<string>("");
-  const [categoryId] = useState<string>("");
+  const [semesterId] = useState<number | undefined>(undefined);
+  const [categoryId] = useState<number | undefined>(undefined);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -33,7 +36,7 @@ function TopicPage() {
     useState<TopicDetailResponse | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState<boolean>(false);
 
-  const handleViewDetail = async (topicId: string) => {
+  const handleViewDetail = async (topicId: number | string) => {
     try {
       const topicDetail = await getTopicDetail(Number(topicId));
       setSelectedTopic(topicDetail);
@@ -55,11 +58,11 @@ function TopicPage() {
 
   return (
     <div className="space-y-4">
-      <div className="min-h=[600px] rounded-2xl border px-4 py-4">
+      <div className="min-h-[600px] rounded-2xl border px-4 py-4">
         <h2 className="text-xl font-bold">Danh sách đề tài</h2>
         <DataTable
           data={(topicsData?.listObjects || []).filter(
-            (topic) => topic.isApproved === true,
+            (t) => t.isApproved === true,
           )}
           columns={columns}
           visibility={DEFAULT_VISIBILITY}

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export type IdLike = number | string;
 
 type ApiResponse<T> = {
-  statusCode: number | string; 
+  statusCode: number | string;
   success: boolean;
   data: T;
   errors: unknown;
@@ -131,17 +131,23 @@ export const fetchSubmissions = async (
       params,
     });
     if (!res.data.success) {
-      throw new Error(res.data.message || "Không lấy được danh sách submission");
+      throw new Error(
+        res.data.message || "Không lấy được danh sách submission",
+      );
     }
 
     const src = res.data.data as Record<string, unknown> | unknown;
     const items = normalizeList<SubmissionDTO>(src);
-    const obj = (typeof src === "object" && src !== null
-      ? (src as Record<string, unknown>)
-      : {}) as Record<string, unknown>;
-    const pagingObj = (typeof obj.paging === "object" && obj.paging !== null
-      ? (obj.paging as Record<string, unknown>)
-      : {}) as Record<string, unknown>;
+    const obj = (
+      typeof src === "object" && src !== null
+        ? (src as Record<string, unknown>)
+        : {}
+    ) as Record<string, unknown>;
+    const pagingObj = (
+      typeof obj.paging === "object" && obj.paging !== null
+        ? (obj.paging as Record<string, unknown>)
+        : {}
+    ) as Record<string, unknown>;
 
     const pageNumber = asNumber(pagingObj.pageNumber) ?? PageNumber;
     const pageSize = asNumber(pagingObj.pageSize) ?? PageSize;
@@ -218,15 +224,18 @@ export const fetchAllSubmissions = async (args: {
       !pageData.hasNextPage ||
       page >= pageData.totalPages ||
       pageData.listObjects.length < size
-    ) break;
+    )
+      break;
   }
   return result;
 };
 
-export const getSubmissionDetail = async (id: IdLike): Promise<SubmissionDTO> => {
+export const getSubmissionDetail = async (
+  id: IdLike,
+): Promise<SubmissionDTO> => {
   try {
     const res = await capBotAPI.get<ApiResponse<SubmissionDTO>>(
-      `/submission/detail/${encodeURIComponent(String(id))}`
+      `/submission/detail/${encodeURIComponent(String(id))}`,
     );
     if (!res.data.success) {
       throw new Error(res.data.message || "Không lấy được chi tiết submission");
