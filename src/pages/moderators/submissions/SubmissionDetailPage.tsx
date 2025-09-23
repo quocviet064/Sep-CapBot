@@ -1,3 +1,4 @@
+// src/pages/moderators/submissions/SubmissionDetailPage.tsx
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +12,7 @@ import {
 } from "@/hooks/useReviewerAssignment";
 import ReviewerPickerDialog from "./ReviewerPickerDialog";
 import SubmissionAssignmentsDialog from "./SubmissionAssignmentsDialog";
+import ReviewerSuggestionDialog from "./ReviewerSuggestionDialog";
 
 type AiCheckDetails = {
   overall_score?: number;
@@ -32,6 +34,11 @@ type AiCheckDetails = {
   [k: string]: any;
 };
 
+function clamp(n?: number, min = 0, max = 100) {
+  if (typeof n !== "number" || !isFinite(n)) return 0;
+  return Math.max(min, Math.min(max, n));
+}
+
 function scoreColor(score?: number) {
   if (score == null) return "bg-gray-500";
   if (score >= 80) return "bg-emerald-500";
@@ -46,11 +53,6 @@ function scoreColorSmall(score?: number) {
   return "text-rose-600";
 }
 
-function clamp(n?: number, min = 0, max = 100) {
-  if (typeof n !== "number" || !isFinite(n)) return 0;
-  return Math.max(min, Math.min(max, n));
-}
-
 export default function SubmissionDetailPage() {
   const navigate = useNavigate();
   const { submissionId } = useParams<{ submissionId: string }>();
@@ -58,20 +60,20 @@ export default function SubmissionDetailPage() {
   const initialRow = (state?.row as SubmissionListItem | undefined) ?? undefined;
 
   const [showReviews, setShowReviews] = useState<boolean>(false);
-  const [isPickerOpen, setIsPickerOpen] = useState(false); // open ReviewerPickerDialog
-  const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(false); // open SubmissionAssignmentsDialog
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(false);
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+
+  // expanded state for each criterion
   const [expandedCriteria, setExpandedCriteria] = useState<Record<string, boolean>>({});
 
   const { data: submissionDetail } = useSubmissionDetail(submissionId);
   const bulkAssign = useBulkAssignReviewers();
 
-  // fetch assignments for this submission (shows assigned reviewers)
   const { data: assignments, isLoading: loadingAssignments } = useAssignmentsBySubmission(submissionId);
-
-  // NOTE: useAvailableReviewers will run only when we pass submissionId (we pass it only when dialog open)
   const { data: availableReviewers } = useAvailableReviewers(isPickerOpen ? submissionId : undefined);
 
-  // Parse AI check safely
+  // parse AI details
   const aiCheck = useMemo(() => {
     const raw: unknown = (submissionDetail as any)?.aiCheckDetails;
     if (!raw) return { raw: null, parsed: null, error: null };
@@ -84,7 +86,7 @@ export default function SubmissionDetailPage() {
     }
   }, [submissionDetail]);
 
-  // Reviews lazy query
+  // reviews lazy query
   const {
     data: summary,
     isLoading: loadingSummary,
@@ -96,7 +98,6 @@ export default function SubmissionDetailPage() {
         const res = await getSubmissionReviewSummary(submissionId!);
         return res;
       } catch (e: any) {
-        // BE can return 500 if no reviews — treat as empty summary
         if (e?.response?.status === 500) {
           return {
             submissionId,
@@ -116,7 +117,7 @@ export default function SubmissionDetailPage() {
   const header = {
     id: submissionId,
     code: String(initialRow?.id ?? submissionId),
-    title: initialRow?.title ?? (submissionDetail as any)?.topicTitle ?? `Submission #${submissionId}`,
+    title: initialRow?.topicTitle ?? (submissionDetail as any)?.topicTitle ?? `Submission #${submissionId}`,
     submittedByName: initialRow?.submittedByName ?? (submissionDetail as any)?.submittedByName ?? "-",
     round: initialRow?.submissionRound ?? (submissionDetail as any)?.submissionRound ?? "-",
     submittedAt: initialRow?.submittedAt ?? (submissionDetail as any)?.submittedAt ?? "-",
@@ -128,7 +129,6 @@ export default function SubmissionDetailPage() {
     if (next) await refetchSummary();
   };
 
-  // open picker: enable availableReviewers fetch
   const openPicker = () => {
     if (!submissionId) return;
     setIsPickerOpen(true);
@@ -141,13 +141,16 @@ export default function SubmissionDetailPage() {
   };
   const closeAssignments = () => setIsAssignmentsOpen(false);
 
+  const openSuggestions = () => {
+    if (!submissionId) return;
+    setIsSuggestionOpen(true);
+  };
+  const closeSuggestions = () => setIsSuggestionOpen(false);
+
   const handleConfirmAssign = async (selectedReviewerIds: (number | string)[]) => {
     if (!submissionId) return;
     try {
       await bulkAssign.mutateAsync({ submissionId, reviewerIds: selectedReviewerIds } as any);
-      // refetch assignments & reviews
-      // useAssignmentsBySubmission has its own cache; react-query should auto-update if service invalidates,
-      // but to be safe you can call refetchSummary and optionally trigger assignments refetch if you keep its refetch.
       if (showReviews) refetchSummary();
       closePicker();
     } catch {
@@ -189,12 +192,6 @@ export default function SubmissionDetailPage() {
     }
   };
 
-  const toggleCriterion = (id: string) => {
-    setExpandedCriteria((s) => ({ ...s, [id]: !s[id] }));
-  };
-
-  // compute overallScorePercent: prefer aiCheck.parsed.overall_score (0-100),
-  // else use submissionDetail.aiCheckScore (assumed 0-10) * 10
   const overallScorePercent = useMemo(() => {
     if (aiCheck.parsed?.overall_score != null) return clamp(aiCheck.parsed.overall_score);
     const score10 = (submissionDetail as any)?.aiCheckScore;
@@ -212,278 +209,287 @@ export default function SubmissionDetailPage() {
   const overallRating = aiCheck.parsed?.overall_rating ?? (submissionDetail as any)?.aiCheckStatus ?? null;
   const overallSummaryShort = aiCheck.parsed?.summary ?? undefined;
 
+  // toggle a specific criterion expand state
+  const toggleCriterion = (id: string) => {
+    setExpandedCriteria((s) => ({ ...s, [id]: !s[id] }));
+  };
+
   return (
-    <div className="container mx-auto p-4 space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="inline-flex items-center rounded border px-3 py-2"
-          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/moderators/submissions"))}
-        >
-          ← Trở về
-        </button>
+    // Outer: allow content to take full width of content column (do not hard-limit with max-w)
+    <div className="w-full px-4 py-4">
+      <div className="flex items-start gap-4">
         <div>
-          <div className="text-lg font-semibold">{header.title}</div>
-          <div className="text-sm text-muted-foreground">
-            #{header.code} • {header.submittedByName}
-          </div>
-        </div>
-
-        <div className="ml-auto flex gap-2">
-          <button type="button" className="rounded border px-3 py-2" onClick={toggleShowReviews}>
-            {showReviews ? "Ẩn đánh giá" : "Xem đánh giá"}
-          </button>
-
           <button
             type="button"
-            className="rounded border px-3 py-2"
-            onClick={openPicker}
-            disabled={!submissionId}
-            title={!submissionId ? "Chưa chọn submission" : undefined}
+            className="inline-flex items-center rounded border px-3 py-2"
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/moderators/submissions"))}
           >
-            Assign reviewers
-          </button>
-
-          {/* Show manage button when assignment exist */}
-          <button
-            type="button"
-            className="rounded border px-3 py-2"
-            onClick={openAssignments}
-            disabled={!submissionId || loadingAssignments || (assignments?.length ?? 0) === 0}
-            title={
-              !submissionId ? "Chưa chọn submission" :
-              loadingAssignments ? "Đang tải..." :
-              (assignments?.length ?? 0) === 0 ? "Chưa có reviewer để quản lý" : undefined
-            }
-          >
-            Manage assignments
+            ← Trở về
           </button>
         </div>
-      </div>
 
-      {/* Topic + Reviewers (use assignments API) */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="rounded border p-4">
-          <div className="text-sm font-semibold mb-2">Topic</div>
-          <div className="text-base">{(submissionDetail as any)?.topicTitle ?? "—"}</div>
-          <div className="mt-3 text-sm text-muted-foreground">
-            {(submissionDetail as any)?.additionalNotes ?? "No notes."}
-          </div>
-        </div>
+        {/* Main content area: flex-1 + min-w-0 is critical so this area can grow & correctly handle overflow */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-4">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold">{header.title}</h2>
+              <div className="text-sm text-slate-500">#{header.code} • {header.submittedByName}</div>
+            </div>
 
-        <div className="rounded border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold">Reviewers</div>
-            <div className="text-xs text-muted-foreground">{loadingAssignments ? "Đang tải..." : `${assignments?.length ?? 0}`}</div>
+            <div className="ml-auto" />
           </div>
 
-          {loadingAssignments ? (
-            <div className="text-sm text-muted-foreground">Đang tải danh sách reviewers…</div>
-          ) : (assignments && assignments.length > 0) ? (
-            <ul className="space-y-2">
-              {assignments.map((a) => (
-                <li key={String(a.id)} className="flex justify-between items-center">
+          <div className="mt-6 grid gap-6 md:grid-cols-3">
+            {/* Left: main content */}
+            <div className="md:col-span-2 space-y-4 min-w-0">
+              {/* Topic card */}
+              <div className="bg-white border rounded-md p-4 w-full overflow-x-auto">
+                <div className="text-sm font-semibold mb-2">Topic</div>
+                <div className="text-base">{(submissionDetail as any)?.topicTitle ?? "—"}</div>
+                <div className="mt-3 text-sm text-slate-500">
+                  {(submissionDetail as any)?.additionalNotes ?? "No notes."}
+                </div>
+              </div>
+
+              {/* AI check */}
+              <div className="bg-white border rounded-md p-4 w-full overflow-x-auto">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">{a.reviewer?.userName ?? `#${a.reviewerId}`}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {a.assignmentType === 1 ? "Primary" : a.assignmentType === 2 ? "Secondary" : "Additional"}
-                      {a.deadline ? ` • Deadline: ${new Date(a.deadline).toLocaleString()}` : ""}
+                    <div className="text-sm font-semibold">AI Check Overall</div>
+                    <div className="text-xs text-slate-500">{overallRating ?? "No status"}</div>
+                    {overallSummaryShort && (
+                      <div className="mt-1 text-sm text-slate-500 line-clamp-2">{overallSummaryShort}</div>
+                    )}
+                  </div>
+
+                  <div className="w-48">
+                    {overallScorePercent != null ? (
+                      <div>
+                        <div className="w-full bg-slate-200 h-2 rounded overflow-hidden">
+                          <div style={{ width: `${overallScorePercent}%` }} className="h-2 bg-emerald-500" />
+                        </div>
+                        <div className={`mt-1 text-sm ${scoreColorSmall(overallScorePercent)}`}>
+                          {overallScorePercent}% {overallScoreRaw != null && <>• Raw: {overallScoreRaw}</>}
+                          {aiCheck.parsed?.overall_rating ? ` • ${aiCheck.parsed.overall_rating}` : ""}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">No overall score</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t my-3" />
+
+                {aiCheck.error && <div className="text-sm text-yellow-600 mb-3">Không thể parse aiCheckDetails: {aiCheck.error}</div>}
+
+                {!aiCheck.parsed && !aiCheck.error && <div className="text-sm text-slate-500">Không có AI Check details.</div>}
+
+                {aiCheck.parsed && (
+                  <div className="space-y-4">
+                    {aiCheck.parsed.summary && (
+                      <div>
+                        <div className="text-sm font-semibold">Summary</div>
+                        <div className="mt-1 text-sm">{aiCheck.parsed.summary}</div>
+                      </div>
+                    )}
+
+                    {/* ===== Criteria with expand/collapse per item ===== */}
+                    {Array.isArray(aiCheck.parsed.criteria) && aiCheck.parsed.criteria.length > 0 && (
+                      <div>
+                        <div className="text-sm font-semibold mb-2">Criteria</div>
+                        <div className="space-y-2">
+                          {aiCheck.parsed.criteria.map((c, idx) => {
+                            const idKey = c.id ?? `crit-${idx}`;
+                            const expanded = !!expandedCriteria[idKey];
+                            const score = typeof c.score === "number" ? c.score : undefined;
+                            const pct = clamp(typeof score === "number" && score <= 10 ? score * 10 : (score ?? 0), 0, 100);
+                            return (
+                              <div key={idKey} className="border rounded">
+                                <button
+                                  type="button"
+                                  className="w-full flex items-center justify-between p-3"
+                                  onClick={() => toggleCriterion(idKey)}
+                                  aria-expanded={expanded}
+                                >
+                                  <div className="text-left font-medium truncate">{c.question ?? `Criterion ${idx + 1}`}</div>
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className={`text-xs px-2 py-0.5 rounded ${scoreColor(pct)} text-white font-semibold`}
+                                        style={{ minWidth: 44, textAlign: "center" }}
+                                      >
+                                        {score ?? "-"}
+                                      </div>
+                                      <div style={{ width: 120 }} className="hidden sm:block">
+                                        <div className="w-full bg-slate-800 h-2 rounded overflow-hidden">
+                                          <div style={{ width: `${pct}%` }} className={`${scoreColor(pct)} h-2`} />
+                                        </div>
+                                      </div>
+                                      <div className="text-sm text-slate-500">{expanded ? "▲" : "▼"}</div>
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {expanded && (
+                                  <div className="p-3 pt-0">
+                                    {c.assessment && <div className="text-sm mb-2">{c.assessment}</div>}
+                                    {c.evidence && <div className="text-xs text-slate-500 mb-2">Evidence: {c.evidence}</div>}
+                                    {Array.isArray(c.recommendations) && c.recommendations.length > 0 && (
+                                      <div>
+                                        <div className="text-sm font-semibold mb-1">Recommendations</div>
+                                        <ul className="list-disc ml-5 text-sm">
+                                          {c.recommendations.map((r, i) => (
+                                            <li key={i}>{r}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-3 gap-3">
+                      {Array.isArray(aiCheck.parsed.missing_fields) && aiCheck.parsed.missing_fields.length > 0 && (
+                        <div className="rounded border p-3">
+                          <div className="text-sm font-semibold mb-1">Missing fields</div>
+                          <ul className="list-disc ml-5 text-sm">
+                            {aiCheck.parsed.missing_fields.map((m, i) => <li key={i}>{m}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {Array.isArray(aiCheck.parsed.risks) && aiCheck.parsed.risks.length > 0 && (
+                        <div className="rounded border p-3">
+                          <div className="text-sm font-semibold mb-1">Risks</div>
+                          <ul className="list-disc ml-5 text-sm">
+                            {aiCheck.parsed.risks.map((r, i) => <li key={i}>{r}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {Array.isArray(aiCheck.parsed.next_steps) && aiCheck.parsed.next_steps.length > 0 && (
+                        <div className="rounded border p-3">
+                          <div className="text-sm font-semibold mb-1">Next steps</div>
+                          <ul className="list-disc ml-5 text-sm">
+                            {aiCheck.parsed.next_steps.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex gap-2">
+                      {aiCheck.raw && (
+                        <>
+                          <button className="rounded border px-2 py-1 text-sm" onClick={copyAiPretty}>Copy JSON</button>
+                          <button className="rounded border px-2 py-1 text-sm" onClick={downloadAiPretty}>Tải JSON</button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{a.status ? (a.status === 1 ? "Assigned" : a.status === 2 ? "In progress" : a.status === 3 ? "Completed" : "Overdue") : "—"}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-sm text-muted-foreground">No reviewers assigned.</div>
-          )}
-        </div>
-      </div>
-
-      {/* AI Check section */}
-      <div className="rounded border p-4 space-y-4">
-        {/* Overall card */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold">AI Check Overall</div>
-            <div className="text-xs text-muted-foreground">{overallRating ?? "No status"}</div>
-            {overallSummaryShort && (
-              <div className="mt-1 text-sm text-muted-foreground line-clamp-2">{overallSummaryShort}</div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="w-64">
-              {overallScorePercent != null ? (
-                <div className="w-full">
-                  <div className="w-full bg-slate-800 h-2 rounded overflow-hidden">
-                    <div style={{ width: `${overallScorePercent}%` }} className={`${scoreColor(overallScorePercent)} h-2`} />
-                  </div>
-                  <div className={`mt-1 text-sm ${scoreColorSmall(overallScorePercent)}`}>
-                    {overallScorePercent}%{" "}
-                    {overallScoreRaw != null && <>• Raw: {overallScoreRaw}</>}
-                    {aiCheck.parsed?.overall_rating ? ` • ${aiCheck.parsed.overall_rating}` : ""}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">No overall score</div>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              {aiCheck.raw && (
-                <>
-                  <button type="button" className="rounded border px-2 py-1 text-sm" onClick={copyAiPretty}>
-                    Copy JSON
-                  </button>
-                  <button type="button" className="rounded border px-2 py-1 text-sm" onClick={downloadAiPretty}>
-                    Tải JSON
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t" />
-
-        {/* Details header */}
-        <div className="flex justify-between items-center mb-1">
-          <div className="text-sm font-semibold">AI Check Details</div>
-        </div>
-
-        {aiCheck.error && (
-          <div className="text-sm text-yellow-600 mb-3">Không thể parse aiCheckDetails: {aiCheck.error}</div>
-        )}
-
-        {!aiCheck.parsed && !aiCheck.error && (
-          <div className="text-sm text-muted-foreground">Không có AI Check details.</div>
-        )}
-
-        {aiCheck.parsed && (
-          <div className="space-y-4">
-            {aiCheck.parsed.summary && (
-              <div>
-                <div className="text-sm font-semibold">Summary</div>
-                <div className="mt-1 text-sm">{aiCheck.parsed.summary}</div>
+                )}
               </div>
-            )}
 
-            {/* Divider */}
-            <div className="border-t" />
+              {showReviews && (
+                <div className="bg-white border rounded-md p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-semibold">Reviews</div>
+                    <div className="text-sm text-slate-500">{loadingSummary ? "Đang tải..." : `Total: ${summary?.totalReviews ?? 0}`}</div>
+                  </div>
+                  {/* You can render review summary details here */}
+                </div>
+              )}
+            </div>
 
-            {Array.isArray(aiCheck.parsed.criteria) && aiCheck.parsed.criteria.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2">Criteria</div>
-                <div className="space-y-2">
-                  {aiCheck.parsed.criteria.map((c, idx) => {
-                    const idKey = c.id ?? `crit-${idx}`;
-                    const expanded = !!expandedCriteria[idKey];
-                    const score = typeof c.score === "number" ? c.score : undefined;
-                    const pct = clamp(typeof score === "number" && score <= 10 ? score * 10 : (score ?? 0), 0, 100);
-                    return (
-                      <div key={idKey} className="border rounded">
-                        <button
-                          type="button"
-                          className="w-full flex items-center justify-between p-3"
-                          onClick={() => toggleCriterion(idKey)}
-                          aria-expanded={expanded}
-                        >
-                          <div className="text-left font-medium">{c.question ?? `Criterion ${idx + 1}`}</div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`text-xs px-2 py-0.5 rounded ${scoreColor(pct)} text-white font-semibold`}
-                                style={{ minWidth: 44, textAlign: "center" }}
-                              >
-                                {score ?? "-"}
-                              </div>
-                              <div style={{ width: 120 }} className="hidden sm:block">
-                                <div className="w-full bg-slate-800 h-2 rounded overflow-hidden">
-                                  <div style={{ width: `${pct}%` }} className={`${scoreColor(pct)} h-2`} />
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground">{expanded ? "▲" : "▼"}</div>
-                            </div>
+            {/* Right: sidebar */}
+            <aside className="space-y-4 min-w-0">
+              <div className="bg-white border rounded-md p-4">
+                <div className="text-sm font-semibold mb-2">Reviewers</div>
+                {loadingAssignments ? (
+                  <div className="text-sm text-slate-500">Đang tải danh sách reviewers…</div>
+                ) : assignments && assignments.length > 0 ? (
+                  <div className="space-y-2">
+                    {assignments.map((a) => (
+                      <div key={String(a.id)} className="border rounded p-3 flex items-center justify-between">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{a.reviewer?.userName ?? `#${a.reviewerId}`}</div>
+                          <div className="text-xs text-slate-500">
+                            {a.assignmentType === 1 ? "Primary" : a.assignmentType === 2 ? "Secondary" : "Additional"}
+                            {a.deadline ? ` • Deadline: ${new Date(a.deadline).toLocaleString()}` : ""}
                           </div>
-                        </button>
-
-                        {expanded && (
-                          <div className="p-3 pt-0">
-                            {c.assessment && <div className="text-sm mb-2">{c.assessment}</div>}
-                            {c.evidence && <div className="text-xs text-muted-foreground mb-2">Evidence: {c.evidence}</div>}
-                            {Array.isArray(c.recommendations) && c.recommendations.length > 0 && (
-                              <div>
-                                <div className="text-sm font-semibold mb-1">Recommendations</div>
-                                <ul className="list-disc ml-5 text-sm">
-                                  {c.recommendations.map((r, i) => (
-                                    <li key={i}>{r}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        </div>
+                        <div className="text-xs text-slate-500 whitespace-nowrap">{a.status ? (a.status === 1 ? "Assigned" : a.status === 2 ? "In progress" : a.status === 3 ? "Completed" : "Overdue") : "—"}</div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500">No reviewers assigned.</div>
+                )}
+              </div>
+
+              <div className="bg-white border rounded-md p-4">
+                <div className="text-sm font-semibold mb-2">Quick actions</div>
+
+                {/* Consolidated actions */}
+                <div className="flex flex-col gap-2">
+                  <button
+                    className="rounded border px-3 py-2 text-sm text-left"
+                    onClick={toggleShowReviews}
+                  >
+                    {showReviews ? "Ẩn đánh giá" : "Xem đánh giá"}
+                  </button>
+
+                  <button
+                    className="rounded border px-3 py-2 text-sm text-left"
+                    onClick={openPicker}
+                    disabled={!submissionId}
+                  >
+                    Assign reviewers
+                  </button>
+
+                  <button
+                    className="rounded border px-3 py-2 text-sm text-left"
+                    onClick={openSuggestions}
+                    disabled={!submissionId}
+                  >
+                    Gợi ý reviewer (AI)
+                  </button>
+
+                  <button
+                    className="rounded border px-3 py-2 text-sm text-left"
+                    onClick={openAssignments}
+                    disabled={!submissionId || loadingAssignments || (assignments?.length ?? 0) === 0}
+                  >
+                    Manage assignments
+                  </button>
+
+                  <button
+                    className="rounded border px-3 py-2 text-sm text-left"
+                    onClick={() => window.alert("Download doc (mock)")}
+                  >
+                    Download document (chức năng chưa hoàn thiện)
+                  </button>
+
+                  <button
+                    className="rounded border px-3 py-2 text-sm text-left"
+                    onClick={() => window.alert("Open assignments manager (mock)")}
+                  >
+                    Open assignments manager (chức năng chưa hoàn thiện)
+                  </button>
                 </div>
               </div>
-            )}
-
-            <div className="grid md:grid-cols-3 gap-3">
-              {Array.isArray(aiCheck.parsed.missing_fields) && aiCheck.parsed.missing_fields.length > 0 && (
-                <div className="rounded border p-3">
-                  <div className="text-sm font-semibold mb-1">Missing fields</div>
-                  <ul className="list-disc ml-5 text-sm">
-                    {aiCheck.parsed.missing_fields.map((m, i) => (
-                      <li key={i}>{m}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {Array.isArray(aiCheck.parsed.risks) && aiCheck.parsed.risks.length > 0 && (
-                <div className="rounded border p-3">
-                  <div className="text-sm font-semibold mb-1">Risks</div>
-                  <ul className="list-disc ml-5 text-sm">
-                    {aiCheck.parsed.risks.map((r, i) => (
-                      <li key={i}>{r}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {Array.isArray(aiCheck.parsed.next_steps) && aiCheck.parsed.next_steps.length > 0 && (
-                <div className="rounded border p-3">
-                  <div className="text-sm font-semibold mb-1">Next steps</div>
-                  <ul className="list-disc ml-5 text-sm">
-                    {aiCheck.parsed.next_steps.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            </aside>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Reviews */}
-      {showReviews && (
-        <section className="rounded border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm font-semibold">Reviews</div>
-            <div className="text-sm opacity-70">{loadingSummary ? "Đang tải..." : `Total: ${summary?.totalReviews ?? 0}`}</div>
-          </div>
-          {/* TODO: Render chi tiết review (reuse summary) */}
-        </section>
-      )}
-
-      {/* Reviewer picker dialog */}
-      {isPickerOpen && (
+      {/* dialogs */}
+      {isPickerOpen && submissionId && (
         <ReviewerPickerDialog
           isOpen={isPickerOpen}
           submissionId={submissionId}
@@ -493,8 +499,15 @@ export default function SubmissionDetailPage() {
         />
       )}
 
-      {/* Assignments management dialog */}
-      {isAssignmentsOpen && (
+      {isSuggestionOpen && submissionId && (
+        <ReviewerSuggestionDialog
+          submissionId={Number(submissionId)}
+          open={isSuggestionOpen}
+          onClose={closeSuggestions}
+        />
+      )}
+
+      {isAssignmentsOpen && submissionId && (
         <SubmissionAssignmentsDialog
           isOpen={isAssignmentsOpen}
           submissionId={submissionId}
