@@ -1,85 +1,63 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import type {
-  CreateEvaluationCriteriaDTO,
-  EvaluationCriteriaDTO,
-  UpdateEvaluationCriteriaDTO,
-  IdLike,
-} from "@/services/evaluationCriteriaService";
 import {
-  createEvaluationCriteria,
-  deleteEvaluationCriteria,
-  getActiveEvaluationCriteria,
-  getEvaluationCriteriaById,
-  updateEvaluationCriteria,
+  fetchCriteria,
+  createCriteria,
+  updateCriteria,
+  type GetCriteriaQuery,
+  type CriteriaPagedResponse,
+  type EvaluationCriteriaDTO,
+  type CreateCriteriaPayload,
+  type UpdateCriteriaPayload,
+  getCriteriaDetail,
 } from "@/services/evaluationCriteriaService";
+import { toast } from "sonner";
 
-const keys = {
-  root: ["evaluation-criteria"] as const,
-  active: ["evaluation-criteria", "active"] as const,
-  detail: (id: IdLike) =>
-    ["evaluation-criteria", "detail", String(id)] as const,
-};
-
-export function useActiveEvaluationCriteria() {
-  return useQuery<EvaluationCriteriaDTO[], Error>({
-    queryKey: keys.active,
-    queryFn: getActiveEvaluationCriteria,
+export function useCriteria(args: GetCriteriaQuery) {
+  return useQuery<CriteriaPagedResponse, Error>({
+    queryKey: [
+      "criteria",
+      args.PageNumber ?? 1,
+      args.PageSize ?? 10,
+      args.Keyword ?? null,
+      args.TotalRecord ?? null,
+    ] as const,
+    queryFn: () => fetchCriteria(args),
+    placeholderData: (prev) => prev,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
-export function useEvaluationCriteria(id?: IdLike) {
-  return useQuery<EvaluationCriteriaDTO, Error>({
-    queryKey: id ? keys.detail(id) : [...keys.root, "detail", "undefined"],
-    queryFn: () => getEvaluationCriteriaById(id as IdLike),
-    enabled: id !== undefined && id !== null && String(id).length > 0,
-  });
-}
-
-export function useCreateEvaluationCriteria() {
+export function useCreateCriteria() {
   const qc = useQueryClient();
-  return useMutation<EvaluationCriteriaDTO, Error, CreateEvaluationCriteriaDTO>(
-    {
-      mutationFn: createEvaluationCriteria,
-      onSuccess: (data) => {
-        toast.success("Tạo tiêu chí đánh giá thành công");
-        qc.invalidateQueries({ queryKey: keys.active });
-        qc.setQueryData(keys.detail(data.id), data);
-      },
-      onError: (err) => {
-        toast.error(err.message || "Tạo tiêu chí đánh giá thất bại");
-      },
-    },
-  );
-}
-
-export function useUpdateEvaluationCriteria() {
-  const qc = useQueryClient();
-  return useMutation<EvaluationCriteriaDTO, Error, UpdateEvaluationCriteriaDTO>(
-    {
-      mutationFn: updateEvaluationCriteria,
-      onSuccess: (data) => {
-        toast.success("Cập nhật tiêu chí đánh giá thành công");
-        qc.invalidateQueries({ queryKey: keys.active });
-        qc.setQueryData(keys.detail(data.id), data);
-      },
-      onError: (err) => {
-        toast.error(err.message || "Cập nhật tiêu chí đánh giá thất bại");
-      },
-    },
-  );
-}
-
-export function useDeleteEvaluationCriteria() {
-  const qc = useQueryClient();
-  return useMutation<void, Error, IdLike>({
-    mutationFn: deleteEvaluationCriteria,
+  return useMutation<EvaluationCriteriaDTO, Error, CreateCriteriaPayload>({
+    mutationFn: createCriteria,
     onSuccess: () => {
-      toast.success("Xóa tiêu chí đánh giá thành công");
-      qc.invalidateQueries({ queryKey: keys.active });
+      toast.success("Tạo tiêu chí thành công");
+      qc.invalidateQueries({ queryKey: ["criteria"] });
     },
-    onError: (err) => {
-      toast.error(err.message || "Xóa tiêu chí đánh giá thất bại");
+    onError: (e) => {
+      toast.error(e.message || "Tạo tiêu chí thất bại");
     },
   });
 }
+
+export function useUpdateCriteria() {
+  const qc = useQueryClient();
+  return useMutation<EvaluationCriteriaDTO, Error, UpdateCriteriaPayload>({
+    mutationFn: updateCriteria,
+    onSuccess: () => {
+      toast.success("Cập nhật tiêu chí thành công");
+      qc.invalidateQueries({ queryKey: ["criteria"] });
+    },
+    onError: (e) => {
+      toast.error(e.message || "Cập nhật tiêu chí thất bại");
+    },
+  });
+}
+export const useCriteriaDetail = (id?: number | string) =>
+  useQuery<EvaluationCriteriaDTO, Error>({
+    queryKey: ["criteria-detail", String(id ?? "")],
+    queryFn: () => getCriteriaDetail(Number(id)),
+    enabled: id !== undefined && id !== null && String(id).length > 0,
+    staleTime: 1000 * 60 * 5,
+  });

@@ -35,3 +35,80 @@ export async function registerUser(payload: RegisterUserDTO): Promise<void> {
     throw new Error(getAxiosMessage(e, "Không thể tạo tài khoản"));
   }
 }
+
+export interface ApiEnvelope<T> {
+  statusCode: string | number;
+  success: boolean;
+  data: T;
+  errors: unknown;
+  message: string | null;
+}
+
+export interface UserOverviewRoleDTO {
+  id: number;
+  name: string;
+}
+
+export interface UserDTO {
+  id: number;
+  email: string;
+  userName: string;
+  phoneNumber: string | null;
+  roleInUserOverviewDTOs: UserOverviewRoleDTO[];
+  createdAt: string;
+}
+
+export interface UsersPageDTO<TItem> {
+  paging: {
+    pageNumber: number;
+    pageSize: number;
+    keyword: string | null;
+    totalRecord: number;
+  };
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  listObjects: TItem[];
+}
+
+export type GetUsersQuery = {
+  PageNumber?: number;
+  PageSize?: number;
+  Keyword?: string;
+  TotalRecord?: number;
+};
+
+export async function fetchUsers(
+  args: GetUsersQuery,
+): Promise<UsersPageDTO<UserDTO>> {
+  const { PageNumber = 1, PageSize = 10, Keyword, TotalRecord } = args ?? {};
+  try {
+    const params: Record<string, unknown> = {
+      PageNumber,
+      PageSize,
+      Keyword,
+      TotalRecord,
+    };
+    const res = await capBotAPI.get<ApiEnvelope<UsersPageDTO<UserDTO>>>(
+      "/Account/users",
+      { params },
+    );
+    if (!res.data?.success)
+      throw new Error(
+        res.data?.message || "Không lấy được danh sách người dùng",
+      );
+    return res.data.data;
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Không lấy được danh sách người dùng"));
+  }
+}
+
+export async function deleteUser(userId: number | string): Promise<void> {
+  try {
+    await capBotAPI.delete(
+      `/Account/users/${encodeURIComponent(String(userId))}`,
+    );
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Không thể xoá người dùng"));
+  }
+}

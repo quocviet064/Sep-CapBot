@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
-import { createMyTopicColumns } from "./columnsMyTopics";
 import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
 import { fetchAllMyTopics, useMyTopics } from "@/hooks/useTopic";
+import { createMyTopicColumns } from "./ColumnsAllSubmittedTopics";
+import type { TopicListItem } from "@/services/topicService";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -19,14 +20,36 @@ const DEFAULT_VISIBILITY = {
   context: false,
   content: true,
   maxStudents: false,
-  currentStatus: true,
+  hasSubmitted: false,
+  currentVersionStatus: true,
+  latestSubmissionStatus: true,
+  latestSubmittedAt: true,
   currentVersionNumber: false,
   isApproved: true,
   isLegacy: false,
-  createdAt: true,
+  createdAt: false,
 };
 
-function MyTopicPage() {
+type StatusValue = string | number | null | undefined;
+type TopicLike = TopicListItem & {
+  currentVersionStatus?: StatusValue;
+  latestSubmissionStatus?: StatusValue;
+};
+
+const lc = (v?: StatusValue) => (v ?? "").toString().toLowerCase();
+
+const isApprovedTopic = (t: TopicLike) =>
+  t.isApproved === true ||
+  lc(t.currentVersionStatus) === "approved" ||
+  lc(t.latestSubmissionStatus) === "approved" ||
+  lc(t.currentStatus) === "approved";
+
+const isRejectedTopic = (t: TopicLike) => {
+  const s = `${lc(t.currentVersionStatus)} ${lc(t.latestSubmissionStatus)} ${lc(t.currentStatus)}`;
+  return s.includes("reject") || s.includes("rejected") || s.includes("denied");
+};
+
+function AllSubmittedTopicPage() {
   const [semesterId] = useState<number | undefined>(undefined);
   const [categoryId] = useState<number | undefined>(undefined);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -40,7 +63,7 @@ function MyTopicPage() {
   const columns = useMemo(
     () =>
       createMyTopicColumns({
-        onViewDetail: (id) => navigate(`/topics/my/${id}`),
+        onViewDetail: (id) => navigate(`/submitted/topics/${id}`),
       }),
     [navigate],
   );
@@ -71,16 +94,15 @@ function MyTopicPage() {
           searchTerm.trim() ? searchTerm.trim() : undefined,
         );
         if (!mounted) return;
-        const approved = all.filter((t) => t.isApproved === true).length;
-        const pending = all.filter(
-          (t) => t.isApproved === false || t.isApproved === null,
+        const submitted = all.filter((t) => t.hasSubmitted === true);
+        const approved = submitted.filter(isApprovedTopic).length;
+        const rejecting = submitted.filter(isRejectedTopic).length;
+        const pending = submitted.filter(
+          (t) => !isApprovedTopic(t) && !isRejectedTopic(t),
         ).length;
-        const rejecting = all.filter((t) =>
-          String(t.currentStatus).toLowerCase().includes("reject"),
-        ).length;
-        setStats({ approved, pending, rejecting, total: all.length });
-      } catch (err) {
-        console.error(err);
+        setStats({ approved, pending, rejecting, total: submitted.length });
+      } catch (e) {
+        console.error("loadStats error", e);
       }
     };
     loadStats();
@@ -93,30 +115,38 @@ function MyTopicPage() {
     setPageNumber(1);
   }, [pageSize, searchTerm, filterStatus, semesterId, categoryId]);
 
+  const serverPage: TopicListItem[] = data?.listObjects ?? [];
+
+  const submittedFirst = useMemo(
+    () => serverPage.filter((t) => t.hasSubmitted === true),
+    [serverPage],
+  );
+
+  const pageAfterStatusFilter = useMemo(() => {
+    if (filterStatus === "approved")
+      return submittedFirst.filter(isApprovedTopic);
+    if (filterStatus === "pending")
+      return submittedFirst.filter(
+        (t) => !isApprovedTopic(t) && !isRejectedTopic(t),
+      );
+    if (filterStatus === "rejecting")
+      return submittedFirst.filter(isRejectedTopic);
+    return submittedFirst;
+  }, [submittedFirst, filterStatus]);
+
+  const totalPagesLocal = Math.max(
+    1,
+    Math.ceil(pageAfterStatusFilter.length / pageSize),
+  );
+
   if (isLoading) return <LoadingPage />;
   if (error) return <p className="text-red-500">Lỗi: {error.message}</p>;
 
-  const serverPage = data?.listObjects ?? [];
-  const totalPagesFromServer = data?.totalPages ?? 1;
-
-  const pageAfterStatusFilter =
-    filterStatus === "approved"
-      ? serverPage.filter((t) => t.isApproved === true)
-      : filterStatus === "pending"
-        ? serverPage.filter(
-            (t) => t.isApproved === false || t.isApproved === null,
-          )
-        : filterStatus === "rejecting"
-          ? serverPage.filter((t) =>
-              String(t.currentStatus).toLowerCase().includes("reject"),
-            )
-          : serverPage;
-
   return (
     <div className="space-y-4">
-      <div className="min-h-[600px] rounded-2xl border px-4 py-4">
+      <div className="min-h[600px] rounded-2xl border px-4 py-4">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-bold">Danh sách đề tài của tôi</h2>
+          <h2 className="text-xl font-bold">Danh sách đề tài đã nộp</h2>
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -133,7 +163,7 @@ function MyTopicPage() {
           visibility={DEFAULT_VISIBILITY}
           page={pageNumber}
           setPage={setPageNumber}
-          totalPages={totalPagesFromServer}
+          totalPages={totalPagesLocal}
           limit={pageSize}
           setLimit={setPageSize}
         />
@@ -142,4 +172,4 @@ function MyTopicPage() {
   );
 }
 
-export default MyTopicPage;
+export default AllSubmittedTopicPage;

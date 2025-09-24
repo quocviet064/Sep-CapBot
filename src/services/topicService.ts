@@ -32,11 +32,14 @@ export interface TopicListItem {
   categoryName: string;
   semesterName: string;
   maxStudents: number;
+  latestSubmissionStatus: number;
   isApproved: boolean;
   isLegacy: boolean;
+  hasSubmitted: boolean;
   currentStatus: string;
   currentVersionNumber: number;
   createdAt: string;
+  latestSubmittedAt: string;
 }
 
 export interface RawTopicResponse {
@@ -76,6 +79,7 @@ export interface TopicDetailResponse {
   supervisorName: string;
   categoryId: number;
   categoryName: string;
+  hasSubmitted: boolean;
   semesterId: number;
   semesterName: string;
   maxStudents: number;
