@@ -815,7 +815,9 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
                 <span className="text-muted-foreground">
                   Trạng thái hiện tại
                 </span>
-                <span className="font-medium">{data.currentStatus}</span>
+                <span className="font-medium">
+                  <Badge>{data.hasSubmitted ? "Đã nộp" : "Chưa nộp"}</Badge>
+                </span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Tổng số phiên bản</span>

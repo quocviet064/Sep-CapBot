@@ -29,7 +29,7 @@ export const siteSupervisor = [
       },
       {
         title: "Tất cả đề tài đã nộp",
-        url: "/supervisors/submissions/SubmissionPage",
+        url: "/supervisors/all-submitted-topics/AllSubmittedTopicsPage",
       },
     ],
   },

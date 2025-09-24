@@ -7,20 +7,22 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/globals/atoms/dropdown-menu";
-import { Copy, Eye, MoreHorizontal } from "lucide-react";
+import { Copy, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
-import type { EvaluationCriteriaDTO } from "@/services/evaluationCriteriaService";
+import type { UserDTO } from "@/services/authService";
 
-export type CriteriaColumnHandlers = {
-  onViewDetail?: (id: number) => void;
-  onCopyId?: (id: number) => void;
+export type UserColumnHandlers = {
+  onViewDetail?: (id: string | number) => void;
+  onCopyId?: (id: string | number) => void;
+  onDelete?: (id: string | number) => void;
 };
 
-export const createCriteriaColumns = (
-  handlers: CriteriaColumnHandlers = {},
-): ColumnDef<EvaluationCriteriaDTO>[] => [
+export const createUserColumns = (
+  handlers: UserColumnHandlers = {},
+): ColumnDef<UserDTO>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -54,56 +56,46 @@ export const createCriteriaColumns = (
     cell: ({ row }) => <span>#{row.original.id}</span>,
   },
   {
-    accessorKey: "name",
-    meta: { title: "Tên tiêu chí" },
+    accessorKey: "userName",
+    meta: { title: "Tên đăng nhập" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tên tiêu chí" />
-    ),
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  },
-  {
-    accessorKey: "description",
-    meta: { title: "Mô tả" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Mô tả" />
+      <DataTableColumnHeader column={column} title="Tên đăng nhập" />
     ),
     cell: ({ row }) => (
-      <span className="truncate">{row.original.description || "--"}</span>
+      <span className="font-medium">{row.original.userName || "--"}</span>
     ),
   },
   {
-    accessorKey: "maxScore",
-    meta: { title: "Điểm tối đa" },
+    accessorKey: "email",
+    meta: { title: "Email" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Điểm tối đa" />
-    ),
-  },
-  {
-    accessorKey: "weight",
-    meta: { title: "Trọng số" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trọng số" />
-    ),
-  },
-  {
-    accessorKey: "isActive",
-    meta: { title: "Trạng thái" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trạng thái" center />
+      <DataTableColumnHeader column={column} title="Email" />
     ),
     cell: ({ row }) => (
-      <div className="flex justify-center pr-4">
-        <span
-          className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ${
-            row.original.isActive
-              ? "bg-emerald-600 text-white"
-              : "bg-neutral-300 text-neutral-800"
-          }`}
-        >
-          {row.original.isActive ? "Active" : "Inactive"}
-        </span>
-      </div>
+      <span className="truncate">{row.original.email || "--"}</span>
     ),
+  },
+  {
+    accessorKey: "phoneNumber",
+    meta: { title: "SĐT" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="SĐT" />
+    ),
+    cell: ({ row }) => (
+      <span className="truncate">{row.original.phoneNumber || "--"}</span>
+    ),
+  },
+  {
+    accessorKey: "roleInUserOverviewDTOs",
+    meta: { title: "Vai trò" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Vai trò" />
+    ),
+    cell: ({ row }) => {
+      const roles = row.original.roleInUserOverviewDTOs ?? [];
+      const text = roles.map((r) => r.name).join(", ");
+      return <span className="truncate">{text || "--"}</span>;
+    },
   },
   {
     accessorKey: "createdAt",
@@ -147,14 +139,19 @@ export const createCriteriaColumns = (
                 Sao chép mã
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  handlers.onViewDetail?.(item.id);
-                }}
+                onClick={() => handlers.onViewDetail?.(item.id)}
                 className="cursor-pointer"
               >
                 <Eye className="h-4 w-4" />
                 Xem chi tiết
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handlers.onDelete?.(item.id)}
+                className="cursor-pointer text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4" />
+                Xoá
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

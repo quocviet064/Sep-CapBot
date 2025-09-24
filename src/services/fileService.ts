@@ -1,4 +1,3 @@
-// src/services/fileService.ts
 import capBotAPI from "@/lib/CapBotApi";
 
 type UploadImageFlat = { url?: string; message?: string };

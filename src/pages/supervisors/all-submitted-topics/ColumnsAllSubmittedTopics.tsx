@@ -1,4 +1,3 @@
-// columnsMyTopics.tsx
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
@@ -178,6 +177,35 @@ export const createMyTopicColumns = (
     ),
   },
   {
+    accessorKey: "latestSubmissionStatus",
+    meta: { title: "Trạng thái " },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Trạng thái " center />
+    ),
+    cell: ({ row }) => {
+      const s = (row.original.latestSubmissionStatus ?? "").toString();
+      const sv = s.toLowerCase();
+      const color =
+        sv === "approved"
+          ? "green"
+          : sv.includes("reject")
+            ? "red"
+            : sv === "underreview" || sv === "under_review" || sv === "review"
+              ? "dodgerblue"
+              : sv === "submitted"
+                ? "slategray"
+                : "orange";
+      return (
+        <div className="flex justify-center pr-4">
+          <Badge className="text-white" style={{ backgroundColor: color }}>
+            {s || "--"}
+          </Badge>
+        </div>
+      );
+    },
+  },
+
+  {
     accessorKey: "currentVersionNumber",
     meta: { title: "Version" },
     header: ({ column }) => (
@@ -232,6 +260,19 @@ export const createMyTopicColumns = (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
     cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
+  },
+  {
+    accessorKey: "latestSubmittedAt",
+    meta: { title: "Ngày nộp" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Ngày nộp" />
+    ),
+    cell: ({ row }) =>
+      row.original.latestSubmittedAt ? (
+        <DataTableDate date={row.original.latestSubmittedAt} />
+      ) : (
+        <span>--</span>
+      ),
   },
   {
     id: "actions",
