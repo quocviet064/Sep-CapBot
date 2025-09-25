@@ -161,7 +161,7 @@ function App() {
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
           <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
-          <Route path="/reviewers/assigned-topics/detail" element={<ReviewerAssignedDetail />} />
+          <Route path="/reviewers/assigned-topics/detail/:submissionId" element={<ReviewerAssignedDetail />} />
           <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
           <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
           <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />

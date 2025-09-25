@@ -1,5 +1,5 @@
+// src/pages/reviewers/assigned-topics/columns.tsx
 import { ColumnDef } from "@tanstack/react-table";
-import { Button } from "@/components/globals/atoms/button";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
@@ -158,53 +158,91 @@ export function createColumns(
         <span className="flex items-center justify-center">Thao tác</span>
       ),
       cell: ({ row }) => {
-        const a = row.original;
-        const statusKey = String(a.status || "");
-        const canEvaluate = statusKey === "Assigned";
-        const canWithdraw = handlers.canWithdrawFromStatus(statusKey);
+        const a = row.original as any;
 
-        const evaluateTitle = canEvaluate
-          ? "Mở trang đánh giá"
-          : statusKey === "InProgress"
-            ? "Đề tài đang ở trạng thái Đang đánh giá — tạm thời không thể đánh giá"
-            : statusKey === "Completed"
-              ? "Đề tài đã hoàn thành — không thể đánh giá"
-              : "Trạng thái hiện tại không cho phép đánh giá";
+        // enriched review fields
+        const reviewStatus = (a.reviewStatus ?? a.review?.status) as string | null;
+        const reviewId = a.reviewId ?? a.review?.id ?? null;
+        const statusKey = String(a.status || "");
+        const canEvaluateByAssignment = statusKey === "Assigned";
+        const canWithdrawByAssignment = handlers.canWithdrawFromStatus(statusKey);
 
         return (
           <div className="flex items-center justify-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
+            {/* Nút xem chi tiết submission */}
+            <button
+              title="Xem chi tiết submission"
               onClick={() => handlers.onViewSubmission(a.submissionId)}
-              title="Xem submission"
+              className="p-2 rounded-md hover:bg-slate-100"
             >
-              <Eye className="h-4 w-4" />
-            </Button>
+              <Eye className="h-4 w-4 text-slate-700" />
+            </button>
 
-            <Button
-              size="sm"
-              onClick={() => handlers.onOpenReview(a)}
-              disabled={!canEvaluate}
-              title={evaluateTitle}
-              aria-disabled={!canEvaluate}
-            >
-              Đánh giá
-            </Button>
+            {reviewStatus === "Draft" ? (
+              <>
+                <button
+                  title="Chỉnh sửa bản nháp"
+                  onClick={() => handlers.onOpenReview(a, reviewId)}
+                  className="px-3 py-1 rounded-md bg-indigo-600 text-white text-sm hover:opacity-90"
+                >
+                  Chỉnh sửa
+                </button>
 
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => handlers.onWithdrawReview(a)}
-              disabled={!canWithdraw}
-              title={
-                canWithdraw
-                  ? "Rút lại đánh giá"
-                  : "Chỉ rút khi đang/đã đánh giá"
-              }
-            >
-              Rút đánh giá
-            </Button>
+                <button
+                  title={
+                    canWithdrawByAssignment
+                      ? "Rút lại đánh giá"
+                      : "Không thể rút ở trạng thái này"
+                  }
+                  onClick={() => handlers.onWithdrawReview(a)}
+                  disabled={!canWithdrawByAssignment}
+                  className={`px-2 py-1 rounded-md text-sm ${
+                    canWithdrawByAssignment
+                      ? "bg-red-600 text-white"
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  Rút
+                </button>
+              </>
+            ) : reviewStatus === "Submitted" ? (
+              <>
+                <button
+                  title="Xem chi tiết đánh giá (đã gửi)"
+                  onClick={() => handlers.onOpenReview(a, reviewId)}
+                  className="px-3 py-1 rounded-md border text-sm hover:bg-slate-50"
+                >
+                  Xem
+                </button>
+
+                <button
+                  title="Rút lại đánh giá"
+                  onClick={() => handlers.onWithdrawReview(a)}
+                  className="px-2 py-1 rounded-md bg-red-600 text-white text-sm"
+                >
+                  Rút
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  title={
+                    canEvaluateByAssignment
+                      ? "Mở trang đánh giá"
+                      : "Không thể đánh giá với trạng thái hiện tại"
+                  }
+                  onClick={() => handlers.onOpenReview(a)}
+                  disabled={!canEvaluateByAssignment}
+                  className={`px-3 py-1 rounded-md text-sm ${
+                    canEvaluateByAssignment
+                      ? "bg-indigo-600 text-white"
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  Đánh giá
+                </button>
+              </>
+            )}
           </div>
         );
       },
