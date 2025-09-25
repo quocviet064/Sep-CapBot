@@ -1,223 +1,354 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+// src/pages/reviewers/evaluate-topics/review/index.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/globals/atoms/button";
 import { Textarea } from "@/components/globals/atoms/textarea";
-import { Input } from "@/components/globals/atoms/input";
 import LoadingPage from "@/pages/loading-page";
 import { useActiveEvaluationCriteria } from "@/hooks/useEvaluationCriteria";
-import { useCreateReview, useSubmitReview } from "@/hooks/useReview"; // ⬅️ thêm useSubmitReview
-import type { IdLike, CreateReviewDTO } from "@/services/reviewService";
+import { useCreateReview, useUpdateReview, useSubmitReview, useReviewDetail } from "@/hooks/useReview";
+import { Eye } from "lucide-react";
+import type { IdLike } from "@/services/reviewService";
+
+/**
+ * Enhanced UI review editor:
+ * - Header with breadcrumb-like info
+ * - Summary bar shows computed overall score & status
+ * - Choice cards visually styled
+ * - Recommendation as pill buttons
+ * - Submit disabled until saved (if you want strict flow)
+ */
+
+const CHOICES = [
+  { key: "excellent", label: "Excellent", sub: "8 - 10", value: 90 },
+  { key: "good", label: "Good", sub: "6 - 8", value: 70 },
+  { key: "acceptable", label: "Acceptable", sub: "4 - 6", value: 50 },
+  { key: "fail", label: "Fail", sub: "0 - 4", value: 20 },
+] as const;
+
+const RECOMMENDATIONS = [
+  { key: "Approve", label: "Approve" },
+  { key: "Revise", label: "Revise" },
+  { key: "Reject", label: "Reject" },
+];
 
 type RowScore = {
   criteriaId: number;
+  choice: "" | "excellent" | "good" | "acceptable" | "fail";
   score: number | "";
-  comment?: string;
+  comment?: string | null;
 };
 
-export default function ReviewerEvaluateTopicPage() {
-  const [sp] = useSearchParams();
-  const assignmentIdParam = sp.get("assignmentId") ?? "";
-  const assignmentIdNum = Number(assignmentIdParam);
-  const validAssignment =
-    assignmentIdParam && Number.isFinite(assignmentIdNum) && assignmentIdNum > 0;
+function clsx(...xs: any[]) {
+  return xs.filter(Boolean).join(" ");
+}
 
-  // Bắt thời điểm vào trang để auto tính thời gian thực hiện
-  const startedAtRef = useRef<number>(Date.now());
-  const { data: criteria, isLoading, error } = useActiveEvaluationCriteria(true);
-  const [overallComment, setOverallComment] = useState("");
-  const [scores, setScores] = useState<RowScore[]>([]);
+export default function ReviewerReviewEditor() {
+  const [searchParams] = useSearchParams();
+  const assignmentIdParam = searchParams.get("assignmentId");
+  const reviewIdParam = searchParams.get("reviewId");
+  const assignmentId: number | null = useMemo(() => (assignmentIdParam ? Number(assignmentIdParam) : null), [assignmentIdParam]);
+  const incomingReviewId: number | null = useMemo(() => (reviewIdParam ? Number(reviewIdParam) : null), [reviewIdParam]);
 
-  useEffect(() => {
-    if (criteria?.length) {
-      setScores(criteria.map(c => ({ criteriaId: c.id, score: "", comment: "" })));
-    } else {
-      setScores([]);
-    }
-  }, [criteria]);
+  const { data: criteriaList, isLoading: criteriaLoading } = useActiveEvaluationCriteria();
 
-  const totalMax = useMemo(
-    () => (criteria ?? []).reduce((s, c) => s + (c.maxScore ?? 0), 0),
-    [criteria]
-  );
-  const totalScore = useMemo(
-    () => scores.reduce((s, r) => s + (typeof r.score === "number" ? r.score : 0), 0),
-    [scores]
-  );
+  const [rows, setRows] = useState<RowScore[]>([]);
+  const [overallComment, setOverallComment] = useState<string>("");
+  const [recommendation, setRecommendation] = useState<string | undefined>(undefined);
 
-  const setScore = (criteriaId: number, raw: string) => {
-    const n = raw === "" ? "" : Number(raw);
-    setScores(prev => prev.map(r => (r.criteriaId === criteriaId ? { ...r, score: n } : r)));
-  };
-  const setComment = (criteriaId: number, comment: string) => {
-    setScores(prev => prev.map(r => (r.criteriaId === criteriaId ? { ...r, comment } : r)));
-  };
+  // track whether last save created/updated a draft (used to enable submit if desired)
+  const [isSavedDraft, setIsSavedDraft] = useState<boolean>(!!incomingReviewId || false);
 
+  // local reviewId state (draft created or loaded)
+  const [reviewId, setReviewId] = useState<IdLike | null>(incomingReviewId);
+
+  // hooks
   const createMut = useCreateReview();
-  const submitMut = useSubmitReview(); 
+  const updateMut = useUpdateReview();
+  const submitMut = useSubmitReview();
+  const reviewDetailQuery = useReviewDetail(reviewId ?? undefined);
 
-  const canSubmit =
-    validAssignment &&
-    !isLoading &&
-    (criteria?.length ?? 0) > 0 &&
-    scores.every(s => s.score !== "");
+  // initialize rows when criteriaList available
+  useEffect(() => {
+    if (!criteriaList) return;
+    setRows(
+      (criteriaList || []).map((c: any) => ({
+        criteriaId: c.id,
+        choice: "" as RowScore["choice"],
+        score: "" as number | "",
+        comment: "",
+      }))
+    );
+  }, [criteriaList]);
 
-  const onSubmit = () => {
-    if (!validAssignment || !criteria) return;
+  // if reviewId present, load review and populate form
+  useEffect(() => {
+    if (!reviewDetailQuery?.data) return;
+    const rv = reviewDetailQuery.data;
+    setReviewId(rv.id ?? reviewId);
+    setOverallComment(rv.overallComment ?? "");
+    setRecommendation((rv as any).recommendation ?? undefined);
 
-    // Validate theo max
-    const bad = scores.find(s => {
-      const c = criteria.find(x => x.id === s.criteriaId);
-      const max = c?.maxScore ?? 0;
-      const val = typeof s.score === "number" ? s.score : -1;
-      return val < 0 || val > max;
-    });
-    if (bad) {
-      alert("Có tiêu chí có điểm không hợp lệ (nhỏ hơn 0 hoặc vượt quá tối đa).");
+    if (Array.isArray(rv.criteriaScores)) {
+      setRows((prev) => {
+        const base = prev.length
+          ? prev
+          : (criteriaList || []).map((c: any) => ({ criteriaId: c.id, choice: "" as any, score: "" as any, comment: "" }));
+        const mapped = base.map((r) => {
+          const cs = (rv.criteriaScores || []).find((s: any) => Number(s.criteriaId) === Number(r.criteriaId));
+          if (!cs) return r;
+          const scoreVal = Number(cs.score ?? cs.Score ?? 0);
+          let choiceKey: RowScore["choice"] = "";
+          if (scoreVal >= 80) choiceKey = "excellent";
+          else if (scoreVal >= 60) choiceKey = "good";
+          else if (scoreVal >= 40) choiceKey = "acceptable";
+          else choiceKey = "fail";
+          return { ...r, choice: choiceKey, score: scoreVal, comment: cs.comment ?? null };
+        });
+        return mapped;
+      });
+    }
+    setIsSavedDraft(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewDetailQuery?.data, criteriaList]);
+
+  const choiceToScore = (choice: RowScore["choice"]) => {
+    if (!choice) return "";
+    const found = CHOICES.find((c) => c.key === choice);
+    return found ? found.value : "";
+  };
+
+  const setChoice = (criteriaId: number, choice: RowScore["choice"]) => {
+    const repValue = choiceToScore(choice);
+    setRows((prev) => prev.map((r) => (r.criteriaId === criteriaId ? { ...r, choice, score: repValue } : r)));
+    setIsSavedDraft(false);
+  };
+
+  const setComment = (criteriaId: number, comment: string) => {
+    setRows((prev) => prev.map((r) => (r.criteriaId === criteriaId ? { ...r, comment } : r)));
+    setIsSavedDraft(false);
+  };
+
+  const validate = (): string | null => {
+    if (!assignmentId) return "Thiếu assignmentId";
+    const hasChoice = rows.some((r) => r.choice && r.choice !== "");
+    if (!hasChoice) return "Bạn cần chọn mức ít nhất một tiêu chí";
+    return null;
+  };
+
+  const buildCreatePayload = (): any => ({
+    assignmentId: assignmentId as IdLike,
+    overallComment: overallComment || undefined,
+    recommendation: recommendation || undefined,
+    criteriaScores: rows
+      .filter((r) => r.choice && r.choice !== "")
+      .map((r) => ({ criteriaId: r.criteriaId, score: typeof r.score === "number" ? r.score : undefined, comment: r.comment ?? undefined })),
+  });
+
+  // Save draft: create or update
+  const handleSaveDraft = async () => {
+    const v = validate();
+    if (v) {
+      alert(v);
       return;
     }
-
-    // Tính thời gian thực hiện từ lúc mở trang đến lúc bấm lưu
-    const elapsedMinutes = Math.max(
-      1,
-      Math.round((Date.now() - startedAtRef.current) / 60000)
-    );
-
-    const payload = {
-      assignmentId: assignmentIdNum as IdLike,
-      overallComment: overallComment.trim() || undefined,
-      criteriaScores: scores.map(s => ({
-        criteriaId: s.criteriaId,
-        score: Number(s.score),
-        comment: s.comment?.trim() || undefined,
-      })),
-      timeSpentMinutes: elapsedMinutes,
-    } as unknown as CreateReviewDTO;
-
-    createMut.mutate(payload, {
-      onSuccess: (rv) => {
-        submitMut.mutate(rv.id);
-      },
-    });
+    try {
+      if (reviewId) {
+        const payload = {
+          id: reviewId,
+          assignmentId: assignmentId as IdLike,
+          criteriaScores: rows
+            .filter((r) => r.choice && r.choice !== "")
+            .map((r) => ({ criteriaId: r.criteriaId, score: typeof r.score === "number" ? r.score : undefined, comment: r.comment ?? undefined })),
+          overallComment: overallComment || undefined,
+          recommendation: recommendation || undefined,
+        };
+        const updated = await updateMut.mutateAsync(payload);
+        setReviewId((updated as any)?.id ?? reviewId);
+        setIsSavedDraft(true);
+        alert("Đã cập nhật bản nháp");
+        return updated;
+      } else {
+        const payload = buildCreatePayload();
+        const created = await createMut.mutateAsync(payload);
+        setReviewId((created as any)?.id ?? null);
+        setIsSavedDraft(true);
+        alert("Đã lưu nháp (tạo mới)");
+        return created;
+      }
+    } catch (e: any) {
+      alert(e?.message || "Lưu thất bại");
+      throw e;
+    }
   };
 
-  if (!validAssignment) {
-    return (
-      <div className="p-6 text-red-600">
-        Thiếu hoặc sai <b>assignmentId</b> trên URL. Ví dụ:
-        <code className="ml-2 rounded bg-muted px-2 py-1">?assignmentId=5</code>
-      </div>
-    );
-  }
+  const handleSubmit = async () => {
+    if (!assignmentId) {
+      alert("Thiếu assignmentId");
+      return;
+    }
+    try {
+      // optional: enforce save-first (enableSubmitWhenSaved = true)
+      const enableSubmitWhenSaved = true;
+      if (enableSubmitWhenSaved && !isSavedDraft) {
+        alert("Vui lòng lưu nháp trước khi gửi đánh giá");
+        return;
+      }
 
-  if (isLoading) return <LoadingPage />;
+      let idToSubmit = reviewId;
+      if (!idToSubmit) {
+        const created = await createMut.mutateAsync(buildCreatePayload());
+        idToSubmit = (created as any)?.id ?? null;
+        setReviewId(idToSubmit);
+      }
+      if (!idToSubmit) {
+        alert("Không có reviewId để submit");
+        return;
+      }
+      await submitMut.mutateAsync(idToSubmit);
+      alert("Submit thành công");
+    } catch (e: any) {
+      alert(e?.message || "Submit thất bại");
+      throw e;
+    }
+  };
+
+  // compute a preview overall score (average of selected choices)
+  const computedOverall = useMemo(() => {
+    const chosen = rows.filter((r) => typeof r.score === "number" && r.score !== "");
+    if (!chosen.length) return null;
+    // average of numeric scores (0-100 scaled)
+    const sum = chosen.reduce((s, c) => s + Number(c.score || 0), 0);
+    const avg = Math.round((sum / chosen.length) * 100) / 100;
+    // map to 0-10 scale for display (since backend uses overallScore maybe 0-10)
+    const scale10 = Math.round((avg / 10) * 10) / 10;
+    return { raw: avg, scaled10: scale10 };
+  }, [rows]);
+
+  if (!assignmentId) {
+    return <div className="p-6 text-red-600">Thiếu assignmentId trong URL</div>;
+  }
+  if (criteriaLoading) return <LoadingPage />;
 
   return (
-    <div className="grid gap-6 p-6 md:grid-cols-[1fr,1.2fr]">
-      {/* BÊN TRÁI: Thông tin submission */}
-      <div className="space-y-4">
-        <div className="flex items-baseline justify-between">
-          <h1 className="text-xl font-semibold">Đánh giá Submission #{assignmentIdNum}</h1>
-          <div className="text-sm text-gray-500">
-            Tổng điểm: <b>{totalScore}</b> / {totalMax}
+    <div className="p-6 max-w-[1200px] mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Đánh giá assignment #{assignmentId}</h1>
+          <p className="text-sm text-muted-foreground">
+            {reviewId ? `Chỉnh sửa bản nháp (reviewId: ${String(reviewId)})` : "Chưa lưu nháp — bắt đầu đánh giá"}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* overall preview */}
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Overall preview</div>
+            <div className="flex items-baseline gap-3">
+              <div className="text-2xl font-bold">
+                {computedOverall ? `${computedOverall.scaled10}/10` : "--/10"}
+              </div>
+              <div className="text-sm text-muted-foreground">{computedOverall ? `${computedOverall.raw}/100` : ""}</div>
+            </div>
+            <div className="w-36 h-2 bg-slate-100 rounded mt-2 overflow-hidden">
+              <div
+                style={{ width: `${computedOverall ? Math.min(100, computedOverall.raw) : 0}%` }}
+                className="h-full bg-gradient-to-r from-emerald-400 to-lime-500"
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="rounded-md border p-4">
-          <div className="text-sm text-gray-600 mb-2">Thông tin đề tài</div>
-          <div className="space-y-1 text-sm">
-            <div><b>Tiêu đề:</b> (nạp từ API submission/topic detail)</div>
-            <div><b>Giảng viên:</b> …</div>
-            <div><b>File nộp:</b> …</div>
-            <div><b>Ghi chú:</b> …</div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSaveDraft}>Lưu nháp</Button>
+            <Button size="sm" variant="primary" onClick={handleSubmit} disabled={!!(!isSavedDraft)} title={isSavedDraft ? "Gửi đánh giá" : "Hãy lưu nháp trước khi gửi"}>
+              Gửi đánh giá
+            </Button>
           </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm">Nhận xét tổng quát</label>
-          <Textarea
-            value={overallComment}
-            onChange={(e) => setOverallComment(e.target.value)}
-            placeholder="Nhận xét tổng thể…"
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            onClick={onSubmit}
-            disabled={!canSubmit || createMut.isPending || submitMut.isPending}
-            title={!canSubmit ? "Điền đầy đủ điểm cho các tiêu chí" : undefined}
-          >
-            {createMut.isPending || submitMut.isPending ? "Đang gửi..." : "Lưu & Submit"}
-          </Button>
         </div>
       </div>
 
-      {/* BÊN PHẢI: Tiêu chí đánh giá */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-medium">Tiêu chí đánh giá</h2>
+      {/* overall comment + recommendation */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2 rounded border p-4 bg-white shadow-sm">
+          <label className="block text-sm font-medium mb-2">Nhận xét tổng quát</label>
+          <Textarea value={overallComment} onChange={(e) => { setOverallComment(e.target.value); setIsSavedDraft(false); }} placeholder="Nhận xét chung..." rows={4} />
+        </div>
 
-        {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            Không tải được tiêu chí: {error.message}
+        <div className="rounded border p-4 bg-white shadow-sm">
+          <div className="text-sm font-medium mb-2">Recommendation</div>
+          <div className="flex flex-col gap-2">
+            {RECOMMENDATIONS.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                className={clsx(
+                  "py-2 px-3 rounded text-sm border",
+                  recommendation === r.key ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-700 hover:bg-slate-50"
+                )}
+                onClick={() => { setRecommendation(r.key); setIsSavedDraft(false); }}
+              >
+                {r.label}
+              </button>
+            ))}
           </div>
-        )}
+          <div className="mt-4 text-xs text-muted-foreground">
+            Chọn recommendation tổng quát cho reviewer.
+          </div>
+        </div>
+      </div>
 
-        {!error && (criteria?.length ?? 0) === 0 && (
-          <div className="rounded border bg-muted p-3 text-sm">
-            Không có tiêu chí đánh giá đang hoạt động.
-          </div>
-        )}
+      {/* Criteria list */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Tiêu chí đánh giá</h2>
 
-        {(criteria?.length ?? 0) > 0 && (
-          <div className="rounded-md border overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-muted">
-                <tr>
-                  <th className="p-2 text-left">Tiêu chí</th>
-                  <th className="p-2 text-left">Mô tả</th>
-                  <th className="p-2 text-right">Tối đa</th>
-                  <th className="p-2 text-right">Điểm</th>
-                  <th className="p-2 text-left">Nhận xét</th>
-                </tr>
-              </thead>
-              <tbody>
-                {criteria!.map((c) => {
-                  const row = scores.find(r => r.criteriaId === c.id);
-                  const max = c.maxScore ?? 0;
-                  return (
-                    <tr key={c.id} className="border-t">
-                      <td className="p-2 align-top">
-                        <div className="font-medium">{c.name}</div>
-                      </td>
-                      <td className="p-2 align-top text-gray-600">
-                        {c.description ?? "--"}
-                      </td>
-                      <td className="p-2 align-top text-right">{max}</td>
-                      <td className="p-2 align-top">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={max}
-                          step="0.5"
-                          className="w-28 text-right"
-                          value={row?.score ?? ""}
-                          onChange={(e) => setScore(c.id, e.target.value)}
-                        />
-                      </td>
-                      <td className="p-2 align-top">
-                        <Textarea
-                          placeholder="Nhận xét…"
-                          value={row?.comment ?? ""}
-                          onChange={(e) => setComment(c.id, e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="grid gap-4">
+          {rows.map((r) => {
+            const meta = (criteriaList || []).find((c: any) => c.id === r.criteriaId) ?? {};
+            return (
+              <div key={r.criteriaId} className="bg-white border rounded-lg p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-medium text-md">{meta.name ?? `Tiêu chí ${r.criteriaId}`}</div>
+                    <div className="text-sm text-muted-foreground mt-1">{meta.description ?? ""}</div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground">Chọn mức</div>
+                    <div className="text-lg font-semibold">{r.choice ? CHOICES.find(c => c.key === r.choice)!.label : "--"}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{r.choice ? `${r.score}` : ""}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+                  {/* choice cards */}
+                  {CHOICES.map((c) => {
+                    const sel = r.choice === c.key;
+                    return (
+                      <label
+                        key={c.key}
+                        className={clsx(
+                          "cursor-pointer rounded-lg p-3 border flex flex-col items-start gap-1",
+                          sel ? "bg-indigo-50 border-indigo-300 shadow-sm" : "hover:shadow-sm bg-white"
+                        )}
+                        onClick={() => setChoice(r.criteriaId, c.key)}
+                      >
+                        <div className="text-sm font-semibold">{c.label}</div>
+                        <div className="text-xs text-muted-foreground">{c.sub}</div>
+                        <div className="mt-2 text-sm font-medium">{c.value}</div>
+                        <input type="radio" name={`choice-${r.criteriaId}`} value={c.key} checked={sel} readOnly className="hidden" />
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-sm font-medium mb-1">Ghi chú (từng tiêu chí)</label>
+                  <Textarea value={r.comment ?? ""} onChange={(e) => setComment(r.criteriaId, e.target.value)} placeholder="Ghi chú..." rows={2} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

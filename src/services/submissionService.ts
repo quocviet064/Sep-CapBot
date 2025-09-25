@@ -58,6 +58,7 @@ export interface SubmissionDTO {
   id: IdLike;
   topicId?: IdLike;
   topicVersionId?: IdLike;
+  topicTitle?: string;
   phaseId?: IdLike;
   documentUrl?: string | null;
   additionalNotes?: string | null;
@@ -68,6 +69,10 @@ export interface SubmissionDTO {
   submittedByName?: string;
   submissionRound?: number;
   submittedAt?: string;
+
+  aiCheckStatus?: number | string | null;
+  aiCheckScore?: number | null;
+  aiCheckDetails?: string | Record<string, unknown> | null;
 }
 
 export type SubmissionListItem = SubmissionDTO;

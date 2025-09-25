@@ -243,3 +243,16 @@ export const startReview = async (assignmentId: IdLike): Promise<void> => {
     throw new Error(msg);
   }
 };
+
+// GET /api/reviews/statistics
+export const getReviewStatistics = async (): Promise<ReviewListResponse> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<ReviewListResponse>>("/reviews/statistics");
+    if (!res.data.success) throw new Error(res.data.message || "Không lấy được thống kê reviews");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không lấy được thống kê reviews");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};

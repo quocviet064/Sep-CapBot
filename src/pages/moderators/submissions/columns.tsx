@@ -25,12 +25,12 @@ export function createSubmissionColumns(
       cell: ({ row }) => <span className="font-mono">#{row.original.id}</span>,
     },
     {
-      accessorKey: "title",
-      meta: { title: "Tiêu đề" },
+      accessorKey: "topicTitle",
+      meta: { title: "Đề tài" },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Tiêu đề" />
+        <DataTableColumnHeader column={column} title="Đề tài" />
       ),
-      cell: ({ row }) => row.original.title ?? "—",
+      cell: ({ row }) => row.original.topicTitle || "—",
     },
     {
       accessorKey: "submittedByName",

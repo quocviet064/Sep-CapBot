@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+// src/components/moderator/submissions/ReviewerPickerDialog.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,341 +13,184 @@ import { Input } from "@/components/globals/atoms/input";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import {
   useAvailableReviewers,
-  useAutoAssignReviewers,
   useBulkAssignReviewers,
-  useRecommendedReviewers,
 } from "@/hooks/useReviewerAssignment";
 import { toast } from "sonner";
+import type { IdLike } from "@/services/reviewerAssignmentService";
 
 type RowVM = {
   id: number | string;
-  userName: string;
+  userName?: string;
+  email?: string;
   currentAssignments: number;
-  matchScore?: number;
-  reasons?: string[];
 };
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  submissionId?: string | number;
+  submissionId?: IdLike;
   onAssignedSuccess?: () => void;
 }
 
+/**
+ * ReviewerPickerDialog (global-deadline variant)
+ * - No tabs (we only use available reviewers).
+ * - Single global deadline input that applies to all selected reviewers.
+ */
 export default function ReviewerPickerDialog({
   isOpen,
   onClose,
   submissionId,
   onAssignedSuccess,
 }: Props) {
-  const [tab, setTab] = useState<"all" | "recommended">("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [assignmentType, setAssignmentType] = useState<number>(1);
-
-  const [expandAuto, setExpandAuto] = useState<boolean>(false);
-  const [autoMaxWorkload, setAutoMaxWorkload] = useState<number | undefined>(undefined);
-  const [prioritizeHighPerformance, setPrioritizeHighPerformance] = useState<boolean>(true);
-  const [skillTagsInput, setSkillTagsInput] = useState<string>("");
-
-  const [minSkillScore, setMinSkillScore] = useState<number | undefined>(2.0);
-  const [recMaxWorkload, setRecMaxWorkload] = useState<number | undefined>(undefined);
-
   const [inlineError, setInlineError] = useState<string>("");
 
-  /** Reset state mỗi lần đóng/mở */
+  // global deadline (yyyy-mm-dd)
+  const [globalDeadline, setGlobalDeadline] = useState<string>("");
+
   useEffect(() => {
     if (!isOpen) {
-      setTab("all");
       setSearch("");
       setSelected([]);
       setAssignmentType(1);
-      setExpandAuto(false);
-      setAutoMaxWorkload(undefined);
-      setPrioritizeHighPerformance(true);
-      setSkillTagsInput("");
-      setMinSkillScore(2.0);
-      setRecMaxWorkload(undefined);
       setInlineError("");
+      setGlobalDeadline("");
     }
   }, [isOpen]);
 
-  const recommended = useRecommendedReviewers(submissionId, {
-    minSkillScore,
-    maxWorkload: recMaxWorkload,
-  });
-
-  const available = useAvailableReviewers(submissionId);
-  const autoMut = useAutoAssignReviewers();
+  const availableQ = useAvailableReviewers(submissionId);
   const bulkMut = useBulkAssignReviewers();
 
-  const recNormalized: RowVM[] = (recommended.data ?? []).map((r) => ({
-    id: r.reviewerId,
-    userName: r.reviewerName ?? `#${r.reviewerId}`,
-    currentAssignments: r.currentActiveAssignments ?? 0,
-    matchScore: Number(r.overallScore ?? r.skillMatchScore ?? 0),
-    reasons: r.ineligibilityReasons,
-  }));
-
-  const allNormalized: RowVM[] = (available.data ?? []).map((r) => ({
+  const allNormalized: RowVM[] = (availableQ.data ?? []).map((r: any) => ({
     id: r.id,
-    userName: r.userName ?? `#${r.id}`,
+    userName: r.userName ?? r.email ?? `#${r.id}`,
+    email: r.email,
     currentAssignments: r.currentAssignments ?? 0,
   }));
 
-  const activeListRaw: RowVM[] = tab === "recommended" ? recNormalized : allNormalized;
-  const isListLoading = tab === "recommended" ? recommended.isLoading : available.isLoading;
+  const isListLoading = availableQ.isLoading;
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return activeListRaw;
+    if (!search.trim()) return allNormalized;
     const q = search.toLowerCase();
-    return activeListRaw.filter(
-      (x) => x.userName.toLowerCase().includes(q) || String(x.id).includes(q)
+    return allNormalized.filter(
+      (x) =>
+        String(x.id).toLowerCase().includes(q) ||
+        (x.userName ?? "").toLowerCase().includes(q) ||
+        (x.email ?? "").toLowerCase().includes(q)
     );
-  }, [activeListRaw, search]);
+  }, [allNormalized, search]);
 
   const toggle = (id: string | number, checked: boolean) => {
     setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
   };
 
   const canConfirm = selected.length > 0 && !isListLoading;
-  const recommendedDisabled = !submissionId;
-  const autoDisabled = !submissionId || autoMut.isPending;
 
-  // Auto-assign
-  const doAutoAssign = () => {
-    if (!submissionId) return;
-    const tags = skillTagsInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    autoMut.mutate(
-      {
-        submissionId,
-        maxWorkload: autoMaxWorkload,
-        prioritizeHighPerformance,
-        topicSkillTags: tags.length ? tags : undefined,
-      },
-      {
-        onSuccess: () => {
-          onAssignedSuccess?.();
-          onClose();
-        },
-        onError: (e) => {
-          const msg = e instanceof Error ? e.message : "Auto assign thất bại";
-          setInlineError(msg);
-          toast.error(msg);
-        },
-      }
-    );
+  const toIso = (dateStr?: string) => {
+    if (!dateStr) return undefined;
+    try {
+      // dateStr from <input type="date"> is yyyy-mm-dd (local); convert to ISO (UTC midnight)
+      const d = new Date(dateStr);
+      return d.toISOString();
+    } catch {
+      return undefined;
+    }
   };
 
-  // Bulk-assign ngay trong dialog
+  // Bulk-assign
   const doBulkAssign = () => {
     setInlineError("");
     if (!submissionId) {
-      const msg = "Thiếu submissionId.";
-      setInlineError(msg);
-      toast.info(msg);
+      toast.info("Thiếu submissionId");
       return;
     }
     if (!selected.length) {
-      const msg = "Chọn ít nhất 1 reviewer";
-      setInlineError(msg);
-      toast.info(msg);
+      toast.info("Chọn ít nhất 1 reviewer");
       return;
     }
+
+    const isoDeadline = toIso(globalDeadline);
 
     const payload = {
       assignments: selected.map((rid) => ({
         submissionId,
         reviewerId: rid,
         assignmentType,
+        deadline: isoDeadline,
       })),
     };
 
-    bulkMut.mutate(payload, {
+    bulkMut.mutate(payload as any, {
       onSuccess: (resp) => {
-        if (resp?.success) {
+        if ((resp as any)?.success) {
+          toast.success("Phân công thành công");
           onAssignedSuccess?.();
           onClose();
         } else {
-          const msg =
-            resp?.message ||
-            "Bulk assign thất bại";
-          setInlineError(String(msg));
-          toast.error(String(msg)); 
+          toast.error((resp as any)?.message || "Bulk assign thất bại");
         }
       },
       onError: (e) => {
-        const msg = e instanceof Error ? e.message : "Bulk assign thất bại";
-        setInlineError(msg);
-        toast.error(msg); 
+        toast.error(e instanceof Error ? e.message : "Bulk assign thất bại");
       },
     });
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[98vw] max-w-[1400px] max-h-[90vh] p-0 overflow-hidden">
-        {/* Header */}
+      <DialogContent className="w-[95vw] max-w-[1200px] max-h-[90vh] p-0 overflow-hidden">
         <div className="sticky top-0 z-10 border-b bg-white px-6 py-4">
           <DialogHeader>
             <DialogTitle>Chọn reviewer</DialogTitle>
             <DialogDescription>
               {submissionId
-                ? `Tick reviewer để phân công cho Submission #${submissionId}, hoặc dùng Auto assign.`
+                ? `Tick reviewer để phân công cho Submission #${submissionId}.`
                 : "Vui lòng mở dialog theo 1 submission để dùng tính năng này."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        {/* Body */}
         <div className="flex-1 space-y-4 overflow-auto px-6 pb-6 pt-4">
-          {/* Banner lỗi inline */}
           {inlineError && (
             <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {inlineError}
             </div>
           )}
 
-          {/* Auto assign */}
-          <div className="rounded-md border p-4">
-            <div className="flex items-center justify-between">
-              <div className="font-medium">Tự động phân công</div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setExpandAuto((v) => !v)}
-                aria-expanded={expandAuto}
-              >
-                {expandAuto ? "Ẩn" : "Tùy chọn"}
-              </Button>
-            </div>
-
-            {expandAuto && (
-              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="space-y-1">
-                  <label className="text-sm">Giới hạn workload</label>
-                  <Input
-                    type="number"
-                    placeholder="Ví dụ: 3"
-                    value={autoMaxWorkload ?? ""}
-                    onChange={(e) =>
-                      setAutoMaxWorkload(e.target.value === "" ? undefined : Number(e.target.value))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 pt-6">
-                  <Checkbox
-                    checked={prioritizeHighPerformance}
-                    onCheckedChange={(v) => setPrioritizeHighPerformance(!!v)}
-                    aria-label="Ưu tiên reviewer hiệu suất cao"
-                  />
-                  <span className="text-sm">Ưu tiên reviewer hiệu suất cao</span>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-sm">Kỹ năng/Tags (phân cách bằng ,)</label>
-                  <Input
-                    placeholder="nodejs, react, ml"
-                    value={skillTagsInput}
-                    onChange={(e) => setSkillTagsInput(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="mt-3">
-              <Button
-                onClick={doAutoAssign}
-                disabled={autoDisabled}
-                title={!submissionId ? "Auto assign chỉ hỗ trợ 1 submission" : undefined}
-              >
-                {autoMut.isPending ? "Đang auto assign..." : "Auto assign"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Tabs + controls */}
+          {/* Controls: search, assignmentType, global deadline */}
           <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Tìm reviewer theo tên / email / id..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-[360px]"
+            />
+
             <div className="flex items-center gap-2">
-              <Button
-                variant={tab === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTab("all")}
-                aria-pressed={tab === "all"}
+              <label className="text-sm">Loại phân công</label>
+              <select
+                className="rounded border px-2 py-1 text-sm"
+                value={assignmentType}
+                onChange={(e) => setAssignmentType(Number(e.target.value))}
               >
-                Tất cả
-              </Button>
-              <Button
-                variant={tab === "recommended" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTab("recommended")}
-                disabled={!submissionId}
-                title={!submissionId ? "Cần mở theo 1 submission" : undefined}
-                aria-pressed={tab === "recommended"}
-              >
-                Recommended
-              </Button>
+                <option value={1}>Primary</option>
+                <option value={2}>Secondary</option>
+                <option value={3}>Additional</option>
+              </select>
             </div>
 
-            {tab === "recommended" && (
-              <div className="ml-0 grid grid-cols-1 items-center gap-3 md:ml-4 md:grid-cols-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm">Min skill (0–5)</label>
-                  <Input
-                    className="w-28"
-                    type="number"
-                    min={0}
-                    max={5}
-                    step={0.1}
-                    value={minSkillScore ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value === "" ? undefined : Number(e.target.value);
-                      setMinSkillScore(v);
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="text-sm">Max workload</label>
-                  <Input
-                    className="w-28"
-                    type="number"
-                    min={0}
-                    value={recMaxWorkload ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value === "" ? undefined : Number(e.target.value);
-                      setRecMaxWorkload(v);
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Search + assignment type */}
-            <div className="ml-auto flex flex-wrap items-center gap-3">
-              <Input
-                placeholder="Tìm theo tên hoặc ID reviewer"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-[360px]"
+            <div className="ml-auto flex items-center gap-2">
+              <label className="text-sm">Deadline (áp dụng cho tất cả)</label>
+              <input
+                type="date"
+                value={globalDeadline}
+                onChange={(e) => setGlobalDeadline(e.target.value)}
+                className="border rounded px-2 py-1 text-sm"
               />
-              <div className="flex items-center gap-2">
-                <label className="text-sm">Loại phân công</label>
-                <select
-                  className="rounded border px-2 py-1 text-sm"
-                  value={assignmentType}
-                  onChange={(e) => setAssignmentType(Number(e.target.value))}
-                >
-                  <option value={1}>Primary</option>
-                  <option value={2}>Secondary</option>
-                  <option value={3}>Additional</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -363,8 +207,8 @@ export default function ReviewerPickerDialog({
                     <th className="w-10 p-2" />
                     <th className="p-2 text-left">ID</th>
                     <th className="p-2 text-left">Tên reviewer</th>
+                    <th className="p-2 text-left">Email</th>
                     <th className="p-2 text-left">Đang review</th>
-                    {tab === "recommended" && <th className="p-2 text-left">Match</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -376,27 +220,12 @@ export default function ReviewerPickerDialog({
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(v) => toggle(r.id, !!v)}
-                            aria-label="Chọn reviewer"
                           />
                         </td>
                         <td className="p-2">{String(r.id)}</td>
-                        <td className="p-2">
-                          <div className="flex flex-col">
-                            <span>{r.userName}</span>
-                            {tab === "recommended" && r.reasons?.length ? (
-                              <span className="text-xs text-gray-500" title={r.reasons.join(" • ")}>
-                                {r.reasons.slice(0, 2).join(" • ")}
-                                {r.reasons.length > 2 ? "…" : ""}
-                              </span>
-                            ) : null}
-                          </div>
-                        </td>
+                        <td className="p-2">{r.userName ?? "—"}</td>
+                        <td className="p-2">{r.email ?? "—"}</td>
                         <td className="p-2">{r.currentAssignments}</td>
-                        {tab === "recommended" && (
-                          <td className="p-2">
-                            {typeof r.matchScore === "number" ? r.matchScore.toFixed(2) : "-"}
-                          </td>
-                        )}
                       </tr>
                     );
                   })}
@@ -406,10 +235,9 @@ export default function ReviewerPickerDialog({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 z-10 border-t bg-white px-6 py-4">
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={onClose} disabled={bulkMut.isPending || autoMut.isPending}>
+            <Button variant="outline" onClick={onClose} disabled={bulkMut.isPending}>
               Hủy
             </Button>
             <Button onClick={doBulkAssign} disabled={!canConfirm || bulkMut.isPending}>

@@ -182,36 +182,18 @@ function App() {
           />
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-          <Route
-            path="/reviewers/assigned-topics/list"
-            element={<ReviewerAssignedList />}
+          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
+          <Route path="/reviewers/assigned-topics/detail/:submissionId" element={<ReviewerAssignedDetail />} />
+          <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
+          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
+          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
+          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
           />
 
-          <Route
-            path="/reviewers/evaluation-stats"
-            element={<ReviewerStats />}
-          />
-          <Route
-            path="/reviewers/evaluate-topics/:assignmentId"
-            element={<ReviewerReview />}
-          />
-
-          <Route
-            path="/moderators/dashboard"
-            element={<ModeratorDashboard />}
-          />
-          <Route
-            path="/moderators/submissions"
-            element={<SubmissionsListPage />}
-          />
-          <Route
-            path="/moderators/submissions/:submissionId"
-            element={<SubmissionDetailPage />}
-          />
-          <Route
-            path="/moderators/feedback-evaluation"
-            element={<ModeratorFeedbackEval />}
-          />
+          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
+          <Route path="/moderators/submissions" element={<SubmissionsListPage />} />
+          <Route path="/moderators/submissions/:submissionId" element={<SubmissionDetailPage />} />
+          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
           <Route
             path="/moderators/category-manager/category-page"
