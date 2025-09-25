@@ -2,14 +2,12 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoadingPage from "./pages/loading-page";
 
-import TopicApprovalDetailPage from "./pages/moderators/topic-approval/TopicApprovalDetailPage";
-import ReviewerAssignmentPage from "./pages/moderators/reviewer-assignment/ReviewerAssignmentPage";
-import TopicDuplicateCheckerPage from "./pages/supervisors/ai-check";
-import CheckAIFormatTemplatePage from "./pages/supervisors/topic-management/format-check";
-import AllSubmittedTopicsPage from "./pages/supervisors/topic-management/AllSubmittedTopicsPage";
 import CreateProfilePage from "./pages/profile/CreateProfilePage";
 import MyProfilePage from "./pages/profile/MyProfilePage";
 import EditProfilePage from "./pages/profile/EditProfilePage";
+import AllSubmittedTopicPage from "./pages/supervisors/all-submitted-topics/AllSubmittedTopicsPage";
+import SubmittedTopicDetailPage from "./pages/supervisors/all-submitted-topics/SubmittedTopicDetailPage";
+import EvaluationCriteriaDetailPage from "./pages/admins/evaluation-criteria/EvaluationCriteriaDetailPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -62,28 +60,40 @@ const AdminCategoryPage = lazy(
   () => import("./pages/admins/category-topic/CategoryPage"),
 );
 const AdminEvaluationCriteriaPage = lazy(
-  () => import("./pages/admins/evaluation-criteria/EvaluationCriteriaPage"),
+  () =>
+    import("./pages/admins/evaluation-criteria/AdminEvaluationCriteriaPage"),
 );
 const AccountProvisionPage = lazy(
-  () => import("./pages/admins/auth-management/account-provision"),
+  () => import("./pages/admins/auth-management/AccountProvisionPage"),
 );
 
-// Reviewer 
 const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
-const ReviewerAssignedList = lazy(() => import("./pages/reviewers/assigned-topics/list"));
-const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
-const ReviewerFeedbackHistory = lazy(() => import("./pages/reviewers/feedback-history"));
-const ReviewerTopicArchive = lazy(() => import("./pages/reviewers/topic-archive"));
+const ReviewerAssignedList = lazy(
+  () => import("./pages/reviewers/assigned-topics/list"),
+);
+
 const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
-const ReviewerReview = lazy(() => import("./pages/reviewers/evaluate-topics/review"));
+const ReviewerReview = lazy(
+  () => import("./pages/reviewers/evaluate-topics/review"),
+);
 
 const ModeratorDashboard = lazy(() => import("./pages/moderators/dashboard"));
-const SubmissionsListPage = lazy(() => import("./pages/moderators/submissions"));
-const SubmissionDetailPage = lazy(() => import("./pages/moderators/submissions/SubmissionDetailPage"));
-const ModeratorFeedbackEval = lazy(() => import("./pages/moderators/feedback-evaluation"));
+const SubmissionsListPage = lazy(
+  () => import("./pages/moderators/submissions"),
+);
+const SubmissionDetailPage = lazy(
+  () => import("./pages/moderators/submissions/SubmissionDetailPage"),
+);
+const ModeratorFeedbackEval = lazy(
+  () => import("./pages/moderators/feedback-evaluation"),
+);
 const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
-const ModeratorCategoryPage = lazy(() => import("./pages/moderators/category-manager/category-page"));
-const ModeratorSemesterPhase = lazy(() => import("./pages/moderators/semester-phase"));
+const ModeratorCategoryPage = lazy(
+  () => import("./pages/moderators/category-manager/category-page"),
+);
+const ModeratorSemesterPhase = lazy(
+  () => import("./pages/moderators/semester-phase"),
+);
 
 const NotFoundPage = lazy(() => import("./pages/not-found-page"));
 
@@ -110,6 +120,14 @@ function App() {
           <Route
             path="/supervisors/topics/myTopic-page"
             element={<AllMyTopics />}
+          />
+          <Route
+            path="/supervisors/all-submitted-topics/AllSubmittedTopicsPage"
+            element={<AllSubmittedTopicPage />}
+          />
+          <Route
+            path="/submitted/topics/:id"
+            element={<SubmittedTopicDetailPage />}
           />
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"
@@ -155,6 +173,10 @@ function App() {
             element={<AdminEvaluationCriteriaPage />}
           />
           <Route
+            path="/admin/evaluation/criteria/:id"
+            element={<EvaluationCriteriaDetailPage />}
+          />
+          <Route
             path="/admins/auth-management/account-provision"
             element={<AccountProvisionPage />}
           />
@@ -173,8 +195,14 @@ function App() {
           <Route path="/moderators/submissions/:submissionId" element={<SubmissionDetailPage />} />
           <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
-          <Route path="/moderators/category-manager/category-page" element={<ModeratorCategoryPage />} />
-          <Route path="/moderators/semester-phase" element={<ModeratorSemesterPhase />} />
+          <Route
+            path="/moderators/category-manager/category-page"
+            element={<ModeratorCategoryPage />}
+          />
+          <Route
+            path="/moderators/semester-phase"
+            element={<ModeratorSemesterPhase />}
+          />
 
           <Route path="/profile/MyProfilePage" element={<MyProfilePage />} />
           <Route

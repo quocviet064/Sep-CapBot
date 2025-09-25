@@ -110,18 +110,7 @@ export const createColumns = (
       <DataTableColumnHeader column={column} title="SV tối đa" />
     ),
   },
-  {
-    accessorKey: "currentStatus",
-    meta: { title: "Trạng thái" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trạng thái" center />
-    ),
-    cell: ({ row }) => (
-      <div className="flex justify-center pr-4">
-        <Badge>{row.original.currentStatus || "-"}</Badge>
-      </div>
-    ),
-  },
+
   {
     accessorKey: "currentVersionNumber",
     meta: { title: "Version" },

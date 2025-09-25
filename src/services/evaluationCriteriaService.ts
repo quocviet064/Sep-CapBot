@@ -1,16 +1,6 @@
 import capBotAPI from "@/lib/CapBotApi";
 import axios, { AxiosError } from "axios";
 
-export type IdLike = number | string;
-
-export type ApiResponse<T> = {
-  statusCode: number | string;
-  success: boolean;
-  data: T;
-  errors: unknown;
-  message: string | null;
-};
-
 type ErrorPayload = { message?: string | null } | string | null | undefined;
 
 const getAxiosMessage = (e: unknown, fallback: string) => {
@@ -27,118 +17,154 @@ const getAxiosMessage = (e: unknown, fallback: string) => {
   return fallback;
 };
 
+export interface ApiEnvelope<T> {
+  statusCode: string | number;
+  success: boolean;
+  data: T;
+  errors: unknown;
+  message: string | null;
+}
+
 export interface EvaluationCriteriaDTO {
-  id: IdLike;
+  id: number;
   name: string;
-  description?: string | null;
+  description: string | null;
   maxScore: number;
   weight: number;
-  createdAt?: string | null;
-  lastModifiedAt?: string | null;
-  updatedAt?: string | null;
+  createdAt: string;
+  lastModifiedAt: string | null;
+  createdBy: string | null;
+  lastModifiedBy: string | null;
+  isActive: boolean;
+  semesterId?: number;
+}
+type ApiResponse<T> = {
+  statusCode: string | number;
+  success: boolean;
+  data: T;
+  errors: unknown;
+  message: string | null;
+};
+
+export type GetCriteriaQuery = {
+  PageNumber?: number;
+  PageSize?: number;
+  Keyword?: string;
+  TotalRecord?: number;
+};
+
+export interface CriteriaListDTO<TItem> {
+  paging: {
+    pageNumber: number;
+    pageSize: number;
+    keyword: string | null;
+    totalRecord: number;
+  };
+  listObjects: TItem[];
+}
+
+export type CriteriaPagedResponse = CriteriaListDTO<EvaluationCriteriaDTO> & {
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
+
+export interface CreateCriteriaPayload {
+  name: string;
+  description?: string;
+  maxScore: number;
+  weight: number;
+  semesterId: number;
+}
+
+export interface UpdateCriteriaPayload {
+  id: number;
+  name?: string;
+  description?: string;
+  maxScore?: number;
+  weight?: number;
   isActive?: boolean;
+  semesterId: number;
 }
 
-export interface CreateEvaluationCriteriaDTO {
-  name: string;
-  description?: string | null;
-  maxScore: number;
-  weight: number;
+export async function fetchCriteria(
+  args: GetCriteriaQuery,
+): Promise<CriteriaPagedResponse> {
+  const { PageNumber = 1, PageSize = 10, Keyword, TotalRecord } = args ?? {};
+  try {
+    const params: Record<string, unknown> = {
+      PageNumber,
+      PageSize,
+      Keyword,
+      TotalRecord,
+    };
+    const res = await capBotAPI.get<
+      ApiEnvelope<CriteriaListDTO<EvaluationCriteriaDTO>>
+    >("/evaluation-criteria", { params });
+    if (!res.data?.success)
+      throw new Error(res.data?.message || "Không lấy được danh sách tiêu chí");
+    const data = res.data.data;
+    const total = data.paging.totalRecord ?? 0;
+    const totalPages =
+      PageSize > 0 ? Math.max(1, Math.ceil(total / PageSize)) : 1;
+    const hasPreviousPage = PageNumber > 1;
+    const hasNextPage = PageNumber < totalPages;
+    return { ...data, totalPages, hasPreviousPage, hasNextPage };
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Không lấy được danh sách tiêu chí"));
+  }
 }
 
-export interface UpdateEvaluationCriteriaDTO {
-  id: IdLike;
-  name: string;
-  description?: string | null;
-  maxScore: number;
-  weight: number;
-}
-
-export async function createEvaluationCriteria(
-  payload: CreateEvaluationCriteriaDTO,
+export async function createCriteria(
+  payload: CreateCriteriaPayload,
 ): Promise<EvaluationCriteriaDTO> {
   try {
-    const res = await capBotAPI.post<ApiResponse<EvaluationCriteriaDTO>>(
+    const res = await capBotAPI.post<ApiEnvelope<EvaluationCriteriaDTO>>(
       "/evaluation-criteria",
       payload,
+      {
+        headers: {
+          "Content-Type":
+            "application/json;odata.metadata=minimal;odata.streaming=true",
+        },
+      },
     );
-    if (!res.data?.success) {
-      throw new Error(res.data?.message || "Tạo tiêu chí đánh giá thất bại");
-    }
+    if (!res.data?.success)
+      throw new Error(res.data?.message || "Tạo tiêu chí thất bại");
     return res.data.data;
-  } catch (e: unknown) {
-    throw new Error(getAxiosMessage(e, "Không thể tạo tiêu chí đánh giá"));
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Tạo tiêu chí thất bại"));
   }
 }
 
-export async function updateEvaluationCriteria(
-  payload: UpdateEvaluationCriteriaDTO,
+export async function updateCriteria(
+  payload: UpdateCriteriaPayload,
 ): Promise<EvaluationCriteriaDTO> {
   try {
-    const res = await capBotAPI.put<ApiResponse<EvaluationCriteriaDTO>>(
+    const res = await capBotAPI.put<ApiEnvelope<EvaluationCriteriaDTO>>(
       "/evaluation-criteria",
       payload,
+      {
+        headers: {
+          "Content-Type":
+            "application/json;odata.metadata=minimal;odata.streaming=true",
+        },
+      },
     );
-    if (!res.data?.success) {
-      throw new Error(
-        res.data?.message || "Cập nhật tiêu chí đánh giá thất bại",
-      );
-    }
+    if (!res.data?.success)
+      throw new Error(res.data?.message || "Cập nhật tiêu chí thất bại");
     return res.data.data;
-  } catch (e: unknown) {
-    throw new Error(getAxiosMessage(e, "Không thể cập nhật tiêu chí đánh giá"));
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Cập nhật tiêu chí thất bại"));
   }
 }
-
-export async function deleteEvaluationCriteria(id: IdLike): Promise<void> {
-  try {
-    const res = await capBotAPI.delete<ApiResponse<null>>(
-      `/evaluation-criteria/${id}`,
-    );
-    if (!res.data?.success) {
-      throw new Error(res.data?.message || "Xóa tiêu chí đánh giá thất bại");
-    }
-  } catch (e: unknown) {
-    throw new Error(getAxiosMessage(e, "Không thể xóa tiêu chí đánh giá"));
-  }
-}
-
-export async function getActiveEvaluationCriteria(): Promise<
-  EvaluationCriteriaDTO[]
-> {
-  try {
-    const res = await capBotAPI.get<ApiResponse<EvaluationCriteriaDTO[]>>(
-      "/evaluation-criteria/active",
-    );
-    if (!res.data?.success) {
-      throw new Error(
-        res.data?.message || "Lấy danh sách tiêu chí (active) thất bại",
-      );
-    }
-    return res.data.data || [];
-  } catch (e: unknown) {
-    throw new Error(
-      getAxiosMessage(e, "Không thể tải danh sách tiêu chí (active)"),
-    );
-  }
-}
-
-export async function getEvaluationCriteriaById(
-  id: IdLike,
+export async function getCriteriaDetail(
+  id: number,
 ): Promise<EvaluationCriteriaDTO> {
-  try {
-    const res = await capBotAPI.get<ApiResponse<EvaluationCriteriaDTO>>(
-      `/evaluation-criteria/${id}`,
-    );
-    if (!res.data?.success) {
-      throw new Error(
-        res.data?.message || "Lấy chi tiết tiêu chí đánh giá thất bại",
-      );
-    }
-    return res.data.data;
-  } catch (e: unknown) {
-    throw new Error(
-      getAxiosMessage(e, "Không thể tải chi tiết tiêu chí đánh giá"),
-    );
-  }
+  const res = await capBotAPI.get<ApiResponse<EvaluationCriteriaDTO>>(
+    `/evaluation-criteria/${id}`,
+  );
+  if (!res.data?.success || !res.data?.data)
+    throw new Error(res.data?.message || "Không lấy được chi tiết tiêu chí");
+  return res.data.data;
 }
