@@ -6,7 +6,6 @@ import { Textarea } from "@/components/globals/atoms/textarea";
 import LoadingPage from "@/pages/loading-page";
 import { useActiveEvaluationCriteria } from "@/hooks/useEvaluationCriteria";
 import { useCreateReview, useUpdateReview, useSubmitReview, useReviewDetail } from "@/hooks/useReview";
-import { Eye } from "lucide-react";
 import type { IdLike } from "@/services/reviewService";
 
 /**

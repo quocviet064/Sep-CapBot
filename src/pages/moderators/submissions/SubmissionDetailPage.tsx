@@ -1,3 +1,4 @@
+// src/pages/moderators/submissions/SubmissionDetailPage.tsx
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ import ReviewerSuggestionDialog from "./ReviewerSuggestionDialog";
 import AICheckSection from "./components/AICheckSection";
 import ReviewsModal from "./components/ReviewsModal";
 import SidebarActions from "./components/SidebarActions";
+import FinalReviewDialog from "./components/FinalReviewDialog";
 
 export default function SubmissionDetailPage() {
   const navigate = useNavigate();
@@ -29,6 +31,7 @@ export default function SubmissionDetailPage() {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
 
   const { data: submissionDetail } = useSubmissionDetail(submissionId);
   const bulkAssign = useBulkAssignReviewers();
@@ -74,6 +77,9 @@ export default function SubmissionDetailPage() {
   const closeAssignments = () => setIsAssignmentsOpen(false);
   const openSuggestions = () => setIsSuggestionOpen(true);
   const closeSuggestions = () => setIsSuggestionOpen(false);
+
+  const openFinalReview = () => setIsFinalReviewOpen(true);
+  const closeFinalReview = () => setIsFinalReviewOpen(false);
 
   const handleConfirmAssign = async (selectedReviewerIds: (number | string)[]) => {
     if (!submissionId) return;
@@ -137,6 +143,7 @@ export default function SubmissionDetailPage() {
                 onOpenPicker={openPicker}
                 onOpenSuggestions={openSuggestions}
                 onOpenAssignments={openAssignments}
+                onOpenFinalReview={openFinalReview} // thêm prop mở FinalReview dialog
                 submissionId={submissionId}
               />
             </aside>
@@ -181,6 +188,19 @@ export default function SubmissionDetailPage() {
           await refetchSummary();
         }}
       />
+
+      {/* Final Review dialog (Modal riêng cho Moderator quyết định) */}
+      {isFinalReviewOpen && submissionId && (
+        <FinalReviewDialog
+          isOpen={isFinalReviewOpen}
+          onClose={closeFinalReview}
+          submissionId={Number(submissionId)}
+          onSuccess={async () => {
+            // refresh lại summary khi moderator vừa lưu quyết định
+            await refetchSummary();
+          }}
+        />
+      )}
     </div>
   );
 }

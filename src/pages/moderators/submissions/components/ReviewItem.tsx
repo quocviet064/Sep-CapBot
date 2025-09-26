@@ -173,10 +173,6 @@ export default function ReviewItem({ review, recommendationText }: { review: Rev
             <div className="ml-auto text-sm text-slate-600">{review.overallScore != null ? `${fmtNumber(review.overallScore, 2)}` : "—"}</div>
           </div>
 
-          <div className="text-xs text-slate-500 mt-1">
-            Recommendation: <span className="font-medium">{String(recommendationText ?? review.recommendation ?? review.Recommendation ?? "—")}</span>
-          </div>
-
           {review.comment && <div className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{review.comment}</div>}
         </div>
 
