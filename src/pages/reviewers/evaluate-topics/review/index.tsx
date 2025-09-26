@@ -1,10 +1,9 @@
-// src/pages/reviewers/evaluate-topics/review/index.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/globals/atoms/button";
 import { Textarea } from "@/components/globals/atoms/textarea";
 import LoadingPage from "@/pages/loading-page";
-import { useActiveEvaluationCriteria } from "@/hooks/useEvaluationCriteria";
+import { useCurrentSemesterCriteria } from "@/hooks/useEvaluationCriteria";
 import { useCreateReview, useUpdateReview, useSubmitReview, useReviewDetail } from "@/hooks/useReview";
 import type { IdLike } from "@/services/reviewService";
 
@@ -48,7 +47,8 @@ export default function ReviewerReviewEditor() {
   const assignmentId: number | null = useMemo(() => (assignmentIdParam ? Number(assignmentIdParam) : null), [assignmentIdParam]);
   const incomingReviewId: number | null = useMemo(() => (reviewIdParam ? Number(reviewIdParam) : null), [reviewIdParam]);
 
-  const { data: criteriaList, isLoading: criteriaLoading } = useActiveEvaluationCriteria();
+  // dùng hook lấy tiêu chí active/current semester
+  const { data: criteriaList, isLoading: criteriaLoading } = useCurrentSemesterCriteria();
 
   const [rows, setRows] = useState<RowScore[]>([]);
   const [overallComment, setOverallComment] = useState<string>("");

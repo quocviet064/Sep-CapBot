@@ -1,4 +1,3 @@
-// src/pages/reviewers/assigned-topics/columns.tsx
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
@@ -9,30 +8,27 @@ import type {
   IdLike,
 } from "@/services/reviewerAssignmentService";
 
+const normalize = (v?: unknown) => String(v ?? "").trim();
+const toLower = (v?: unknown) => normalize(v).toLowerCase();
+
 const statusLabel = (s?: unknown) => {
-  const k = typeof s === "string" ? s : String(s ?? "");
-  switch (k) {
-    case "Assigned":
-      return "Đã phân công";
-    case "InProgress":
-      return "Đang đánh giá";
-    case "Completed":
-      return "Hoàn thành";
-    case "Overdue":
-      return "Quá hạn";
-    default:
-      return "--";
-  }
+  const k = toLower(s);
+  if (!k) return "--";
+  if (k.includes("assigned")) return "Đã phân công";
+  if (k.includes("inprogress") || k.includes("in_progress") || k.includes("in progress")) return "Đang đánh giá";
+  if (k.includes("completed")) return "Hoàn thành";
+  if (k.includes("overdue")) return "Quá hạn";
+  return "--";
 };
 
 const typeLabel = (t?: unknown) => {
-  const k = typeof t === "string" ? t : String(t ?? "");
+  const k = toLower(t);
   switch (k) {
-    case "Primary":
+    case "primary":
       return "Primary";
-    case "Secondary":
+    case "secondary":
       return "Secondary";
-    case "Additional":
+    case "additional":
       return "Additional";
     default:
       return "--";
@@ -116,7 +112,7 @@ export function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Loại" />
       ),
-      cell: ({ row }) => typeLabel(row.original.assignmentType),
+      cell: ({ row }) => typeLabel(row.original.assignmentType ?? (row.original as any).type),
     },
     {
       accessorKey: "status",
@@ -124,7 +120,15 @@ export function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Trạng thái" />
       ),
-      cell: ({ row }) => statusLabel(row.original.status),
+      cell: ({ row }) => {
+        // tolerate different field names for status
+        const s =
+          row.original.status ??
+          (row.original as any).assignmentStatus ??
+          (row.original as any).statusName ??
+          "";
+        return statusLabel(s);
+      },
     },
     {
       accessorKey: "assignedAt",
@@ -145,12 +149,16 @@ export function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Deadline" />
       ),
-      cell: ({ row }) =>
-        row.original.deadline ? (
-          <DataTableDate date={row.original.deadline} />
-        ) : (
-          "--"
-        ),
+      cell: ({ row }) => {
+        // tolerate various deadline field names
+        const d =
+          row.original.deadline ??
+          (row.original as any).submissionDeadline ??
+          (row.original as any).dueDate ??
+          (row.original as any).submissionDueDate ??
+          null;
+        return d ? <DataTableDate date={d} /> : "--";
+      },
     },
     {
       id: "actions",
@@ -163,8 +171,28 @@ export function createColumns(
         // enriched review fields
         const reviewStatus = (a.reviewStatus ?? a.review?.status) as string | null;
         const reviewId = a.reviewId ?? a.review?.id ?? null;
-        const statusKey = String(a.status || "");
-        const canEvaluateByAssignment = statusKey === "Assigned";
+
+        // status detection (tolerant)
+        const statusKey =
+          a.status ??
+          a.assignmentStatus ??
+          a.statusName ??
+          ""; // may be empty
+        const statusKeyNorm = toLower(statusKey);
+
+        // deadline detection
+        const maybeDeadline =
+          a.deadline ?? a.submissionDeadline ?? a.dueDate ?? a.submissionDueDate ?? null;
+        const deadlineDate = maybeDeadline ? new Date(maybeDeadline) : null;
+        const now = new Date();
+
+        const hasAssignedStatus = statusKeyNorm.includes("assigned");
+        const hasReview = !!reviewStatus;
+        const deadlineInFuture = deadlineDate ? deadlineDate.getTime() >= now.getTime() : false;
+
+        const canEvaluateByAssignment =
+          hasAssignedStatus || (!hasReview && (deadlineInFuture || !statusKeyNorm));
+
         const canWithdrawByAssignment = handlers.canWithdrawFromStatus(statusKey);
 
         return (
