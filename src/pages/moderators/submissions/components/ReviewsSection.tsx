@@ -1,4 +1,3 @@
-// src/pages/moderators/submissions/components/ReviewsSection.tsx
 import ReviewItem from "./ReviewItem";
 import type { SubmissionReviewSummaryDTO } from "@/services/submissionReviewService";
 

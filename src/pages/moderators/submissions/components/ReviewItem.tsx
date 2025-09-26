@@ -1,4 +1,3 @@
-// src/pages/moderators/submissions/components/ReviewItem.tsx
 import { useState } from "react";
 import capBotAPI from "@/lib/CapBotApi";
 import { toast } from "sonner";
@@ -14,9 +13,29 @@ function fmtNumber(n?: number, digits = 2) {
   return Number(n).toFixed(digits);
 }
 
-/** trả về badge màu theo recommendation */
-function RecommendationBadge({ recommendation }: { recommendation?: string | null }) {
-  const rec = (recommendation ?? "").toString().trim().toLowerCase();
+function recTextFromAny(val: unknown): string | null {
+  if (val == null) return null;
+  if (typeof val === "string") return val;
+  if (typeof val === "number") {
+    if (val === 1) return "Approve";
+    if (val === 2) return "Minor";
+    if (val === 3) return "Major";
+    if (val === 4) return "Reject";
+    return String(val);
+  }
+  try {
+    const o: any = val as any;
+    const maybe = o.name ?? o.value ?? o.label ?? o.type ?? null;
+    if (typeof maybe === "string") return maybe;
+    if (typeof maybe === "number") return recTextFromAny(maybe);
+  } catch {}
+  return null;
+}
+
+/** Badge hiển thị recommendation — nhận text (ưu tiên)*/
+function RecommendationBadge({ recommendation, recommendationText }: { recommendation?: any; recommendationText?: string | null }) {
+  const txt = recommendationText ?? recTextFromAny(recommendation) ?? "";
+  const rec = txt.toString().trim().toLowerCase();
 
   if (!rec) {
     return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">—</span>;
@@ -34,12 +53,10 @@ function RecommendationBadge({ recommendation }: { recommendation?: string | nul
   if (rec.includes("reject") || rec.includes("decline") || rec.includes("từ chối")) {
     return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-rose-100 text-rose-700">Reject</span>;
   }
-
-  // fallback
-  return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">{recommendation}</span>;
+  return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">{String(txt)}</span>;
 }
 
-export default function ReviewItem({ review }: { review: ReviewSummary }) {
+export default function ReviewItem({ review, recommendationText }: { review: ReviewSummary; recommendationText?: string | null }) {
   const [expanded, setExpanded] = useState(false);
   const [scoresPayload, setScoresPayload] = useState<any | null>(null);
   const [loadingScores, setLoadingScores] = useState(false);
@@ -148,16 +165,16 @@ export default function ReviewItem({ review }: { review: ReviewSummary }) {
             <div className="text-sm font-semibold">{review.reviewerName ?? `Reviewer ${review.reviewerId ?? "-"}`}</div>
             <div className="text-xs text-slate-400">#{review.reviewerId ?? "-"}</div>
 
-            {/* recommendation badge ngay cạnh tên reviewer */}
+            {/* recommendation badge: ưu tiên recommendationText */}
             <div className="ml-2">
-              <RecommendationBadge recommendation={review.recommendation ?? review.Recommendation ?? review.recommend ?? null} />
+              <RecommendationBadge recommendation={review.recommendation ?? review.Recommendation ?? null} recommendationText={recommendationText ?? (review.recommendationText ?? null)} />
             </div>
 
             <div className="ml-auto text-sm text-slate-600">{review.overallScore != null ? `${fmtNumber(review.overallScore, 2)}` : "—"}</div>
           </div>
 
           <div className="text-xs text-slate-500 mt-1">
-            Recommendation: <span className="font-medium">{String(review.recommendation ?? review.Recommendation ?? "—")}</span>
+            Recommendation: <span className="font-medium">{String(recommendationText ?? review.recommendation ?? review.Recommendation ?? "—")}</span>
           </div>
 
           {review.comment && <div className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{review.comment}</div>}

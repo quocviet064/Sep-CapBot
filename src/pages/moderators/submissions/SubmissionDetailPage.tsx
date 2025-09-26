@@ -1,4 +1,3 @@
-// src/pages/moderators/submissions/SubmissionDetailPage.tsx
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -123,7 +122,6 @@ export default function SubmissionDetailPage() {
               </div>
 
               <AICheckSection submissionDetail={submissionDetail} />
-              {/* Đã xoá ReviewsSummaryCard ở đây */}
             </div>
 
             {/* Right */}

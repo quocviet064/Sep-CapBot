@@ -1,6 +1,3 @@
-// src/pages/moderators/submissions/components/SidebarActions.tsx
-import React from "react";
-
 type Assignment = any;
 
 type Props = {
