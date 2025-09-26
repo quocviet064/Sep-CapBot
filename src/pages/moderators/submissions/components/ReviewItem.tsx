@@ -3,16 +3,45 @@ import { useState } from "react";
 import capBotAPI from "@/lib/CapBotApi";
 import { toast } from "sonner";
 
-type ReviewSummary = any; // giữ loose typing để tương thích với nhiều shape
+type ReviewSummary = any;
 
 function clamp(n?: number, min = 0, max = 100) {
   if (typeof n !== "number" || !isFinite(n)) return 0;
   return Math.max(min, Math.min(max, n));
 }
+function fmtNumber(n?: number, digits = 2) {
+  if (n == null || Number.isNaN(n)) return "—";
+  return Number(n).toFixed(digits);
+}
+
+/** trả về badge màu theo recommendation */
+function RecommendationBadge({ recommendation }: { recommendation?: string | null }) {
+  const rec = (recommendation ?? "").toString().trim().toLowerCase();
+
+  if (!rec) {
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">—</span>;
+  }
+
+  if (rec.includes("approve") || rec.includes("accept") || rec.includes("chấp nhận") || rec.includes("đồng ý")) {
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-emerald-100 text-emerald-700">Approve</span>;
+  }
+  if (rec.includes("minor")) {
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700">Minor</span>;
+  }
+  if (rec.includes("major")) {
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700">Major</span>;
+  }
+  if (rec.includes("reject") || rec.includes("decline") || rec.includes("từ chối")) {
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-rose-100 text-rose-700">Reject</span>;
+  }
+
+  // fallback
+  return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800">{recommendation}</span>;
+}
 
 export default function ReviewItem({ review }: { review: ReviewSummary }) {
   const [expanded, setExpanded] = useState(false);
-  const [scores, setScores] = useState<any | null>(null);
+  const [scoresPayload, setScoresPayload] = useState<any | null>(null);
   const [loadingScores, setLoadingScores] = useState(false);
   const [errorScores, setErrorScores] = useState<string | null>(null);
 
@@ -25,12 +54,18 @@ export default function ReviewItem({ review }: { review: ReviewSummary }) {
     setErrorScores(null);
     try {
       const res = await capBotAPI.get<any>(`/reviews/${encodeURIComponent(ridStr)}/scores`);
-      const payload = res?.data?.data ?? res?.data ?? null;
-      if (!payload) {
-        setErrorScores("Không có dữ liệu chi tiết");
-        setScores(null);
+      const payloadWrapper = res?.data;
+      let payloadData: any = null;
+
+      if (payloadWrapper == null) payloadData = null;
+      else if (payloadWrapper.data !== undefined) payloadData = payloadWrapper.data;
+      else payloadData = payloadWrapper;
+
+      if (!payloadData) {
+        setErrorScores("Không có dữ liệu điểm chi tiết");
+        setScoresPayload(null);
       } else {
-        setScores(payload);
+        setScoresPayload(payloadData);
       }
     } catch (err: any) {
       const msg = (err?.response?.data?.message as string) ?? err?.message ?? "Lỗi khi tải chi tiết điểm";
@@ -44,78 +79,88 @@ export default function ReviewItem({ review }: { review: ReviewSummary }) {
   const onToggle = async () => {
     const willExpand = !expanded;
     setExpanded(willExpand);
-    if (willExpand && !scores && reviewId != null) {
+    if (willExpand && !scoresPayload && reviewId != null) {
       await fetchScores(reviewId);
     }
   };
 
-  const renderScoreDetails = (scoresAny: any) => {
-    if (!scoresAny) return <div className="text-sm text-slate-500">Không có chi tiết điểm.</div>;
-    if (Array.isArray(scoresAny)) {
-      return (
-        <div className="space-y-2">
-          {scoresAny.map((c: any, i: number) => (
-            <div key={i} className="border rounded p-2">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{c.criterionName ?? c.name ?? c.title ?? `Criterion ${i + 1}`}</div>
-                <div className="text-sm text-slate-600">{c.score ?? c.points ?? "-"}</div>
-              </div>
-              {c.comment && <div className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{c.comment}</div>}
-            </div>
-          ))}
+  const renderScoreDetails = (payload: any) => {
+    if (!payload) return <div className="text-sm text-slate-500">Không có chi tiết điểm.</div>;
+
+    const overall = payload.overallScore ?? payload.overall_score ?? null;
+    const criteria = payload.criteriaScores ?? payload.criteria_scores ?? payload.criteria ?? [];
+
+    return (
+      <div className="space-y-3">
+        <div className="rounded border p-3 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Overall score</div>
+            <div className="text-sm font-semibold">{overall != null ? `${fmtNumber(overall, 2)}` : "—"}</div>
+          </div>
         </div>
-      );
-    }
-    if (typeof scoresAny === "object") {
-      if (Array.isArray(scoresAny.criteria)) return renderScoreDetails(scoresAny.criteria);
-      const keys = Object.keys(scoresAny);
-      return (
-        <div className="space-y-2">
-          {keys.map((k) => (
-            <div key={k} className="border rounded p-2">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{k}</div>
-                <div className="text-sm text-slate-600">{String((scoresAny as any)[k])}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return <div className="text-sm text-slate-500">Không có dữ liệu điểm theo định dạng mong đợi.</div>;
+
+        {Array.isArray(criteria) && criteria.length > 0 ? (
+          <div className="space-y-2">
+            {criteria.map((c: any, i: number) => {
+              const name = c.criteriaName ?? c.criteria_name ?? c.name ?? `Tiêu chí ${i + 1}`;
+              const score = c.score ?? c.Score ?? null;
+              const maxScore = c.maxScore ?? c.max_score ?? null;
+              const weight = c.weight ?? c.Weight ?? null;
+              const comment = c.comment ?? c.Comment ?? null;
+              const pct = maxScore ? clamp((Number(score ?? 0) / Number(maxScore)) * 100, 0, 100) : clamp(Number(score ?? 0), 0, 100);
+
+              return (
+                <div key={String(c.criteriaId ?? c.criteria_id ?? i)} className="border rounded p-3 bg-white">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{name}</div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Score: <span className="font-semibold">{score != null ? `${fmtNumber(score, 2)}` : "—"}</span>
+                        {maxScore != null && <span> / {fmtNumber(maxScore, 0)}</span>}
+                        {weight != null && <span> • Weight: {fmtNumber(weight, 2)}</span>}
+                      </div>
+                    </div>
+                    <div className="w-36 hidden sm:block">
+                      <div className="w-full bg-slate-200 h-2 rounded overflow-hidden">
+                        <div style={{ width: `${pct}%` }} className={`h-2 ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-rose-500"}`} />
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 text-right">{Math.round(pct)}%</div>
+                    </div>
+                  </div>
+
+                  {comment && <div className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">Comment: {comment}</div>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500">Không có tiêu chí chi tiết.</div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="border rounded p-3">
+    <div className="border rounded p-3 bg-slate-50">
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <div className="text-sm font-semibold">{review.reviewerName ?? `Reviewer ${review.reviewerId ?? "-"}`}</div>
             <div className="text-xs text-slate-400">#{review.reviewerId ?? "-"}</div>
-            <div className="ml-auto text-sm text-slate-600">{review.overallScore != null ? `${review.overallScore}%` : "—"}</div>
+
+            {/* recommendation badge ngay cạnh tên reviewer */}
+            <div className="ml-2">
+              <RecommendationBadge recommendation={review.recommendation ?? review.Recommendation ?? review.recommend ?? null} />
+            </div>
+
+            <div className="ml-auto text-sm text-slate-600">{review.overallScore != null ? `${fmtNumber(review.overallScore, 2)}` : "—"}</div>
           </div>
 
           <div className="text-xs text-slate-500 mt-1">
-            Recommendation: <span className="font-medium">{String(review.recommendation ?? "—")}</span>
+            Recommendation: <span className="font-medium">{String(review.recommendation ?? review.Recommendation ?? "—")}</span>
           </div>
 
           {review.comment && <div className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{review.comment}</div>}
-
-          {Array.isArray(review.criteria) && review.criteria.length > 0 && (
-            <div className="mt-2">
-              <div className="text-sm font-medium mb-1">Detailed criteria (summary)</div>
-              <div className="space-y-2">
-                {review.criteria.map((c: any, i: number) => (
-                  <div key={i} className="border rounded p-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">{c.name ?? c.Name ?? `Criterion ${i + 1}`}</div>
-                      <div className="text-sm text-slate-500">{c.score ?? c.Score ?? "—"}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="ml-3 flex flex-col gap-2 items-end">
@@ -126,15 +171,15 @@ export default function ReviewItem({ review }: { review: ReviewSummary }) {
       </div>
 
       {expanded && (
-        <div className="mt-3 bg-slate-50 p-3 rounded">
+        <div className="mt-3 p-3 rounded bg-white border">
           {loadingScores ? (
             <div className="text-sm text-slate-500">Đang tải chi tiết điểm...</div>
           ) : errorScores ? (
             <div className="text-sm text-rose-600">Lỗi: {errorScores}</div>
-          ) : scores ? (
+          ) : scoresPayload ? (
             <>
               <div className="text-sm font-semibold mb-2">Chi tiết điểm</div>
-              {renderScoreDetails(scores)}
+              {renderScoreDetails(scoresPayload)}
             </>
           ) : (
             <div className="text-sm text-slate-500">Không có dữ liệu chi tiết điểm.</div>

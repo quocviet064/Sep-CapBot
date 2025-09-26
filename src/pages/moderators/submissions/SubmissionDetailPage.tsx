@@ -1,7 +1,8 @@
 // src/pages/moderators/submissions/SubmissionDetailPage.tsx
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+
 import { getSubmissionReviewSummary, type SubmissionReviewSummaryDTO } from "@/services/submissionReviewService";
 import { useSubmissionDetail } from "@/hooks/useSubmission";
 import type { SubmissionListItem } from "@/services/submissionService";
@@ -16,7 +17,7 @@ import SubmissionAssignmentsDialog from "./SubmissionAssignmentsDialog";
 import ReviewerSuggestionDialog from "./ReviewerSuggestionDialog";
 
 import AICheckSection from "./components/AICheckSection";
-import ReviewsSection from "./components/ReviewsSection";
+import ReviewsModal from "./components/ReviewsModal";
 import SidebarActions from "./components/SidebarActions";
 
 export default function SubmissionDetailPage() {
@@ -25,7 +26,7 @@ export default function SubmissionDetailPage() {
   const { state } = useLocation();
   const initialRow = (state?.row as SubmissionListItem | undefined) ?? undefined;
 
-  const [showReviews, setShowReviews] = useState<boolean>(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
@@ -36,7 +37,7 @@ export default function SubmissionDetailPage() {
   const { data: assignments, isLoading: loadingAssignments } = useAssignmentsBySubmission(submissionId);
   const { data: availableReviewers } = useAvailableReviewers(isPickerOpen ? submissionId : undefined);
 
-  // lazy load reviews summary
+  // lazy load reviews summary (chỉ fetch khi mở modal)
   const {
     data: summary,
     isLoading: loadingSummary,
@@ -59,10 +60,13 @@ export default function SubmissionDetailPage() {
     submittedAt: initialRow?.submittedAt ?? (submissionDetail as any)?.submittedAt ?? "-",
   };
 
-  const toggleShowReviews = async () => {
-    const next = !showReviews;
-    setShowReviews(next);
-    if (next) await refetchSummary();
+  const openReviews = async () => {
+    setShowReviewsModal(true);
+    await refetchSummary();
+  };
+
+  const closeReviews = () => {
+    setShowReviewsModal(false);
   };
 
   const openPicker = () => setIsPickerOpen(true);
@@ -76,7 +80,7 @@ export default function SubmissionDetailPage() {
     if (!submissionId) return;
     try {
       await bulkAssign.mutateAsync({ submissionId, reviewerIds: selectedReviewerIds } as any);
-      if (showReviews) refetchSummary();
+      if (showReviewsModal) await refetchSummary();
       closePicker();
     } catch {
       closePicker();
@@ -100,7 +104,9 @@ export default function SubmissionDetailPage() {
           <div className="flex items-start gap-4">
             <div className="min-w-0">
               <h2 className="text-xl font-semibold">{header.title}</h2>
-              <div className="text-sm text-slate-500">#{header.code} • {header.submittedByName}</div>
+              <div className="text-sm text-slate-500">
+                #{header.code} • {header.submittedByName}
+              </div>
             </div>
             <div className="ml-auto" />
           </div>
@@ -117,14 +123,7 @@ export default function SubmissionDetailPage() {
               </div>
 
               <AICheckSection submissionDetail={submissionDetail} />
-
-              {/* ReviewsSection component */}
-              <ReviewsSection
-                showReviews={showReviews}
-                loadingSummary={loadingSummary}
-                summary={summary}
-                onToggleShowReviews={toggleShowReviews}
-              />
+              {/* Đã xoá ReviewsSummaryCard ở đây */}
             </div>
 
             {/* Right */}
@@ -132,8 +131,11 @@ export default function SubmissionDetailPage() {
               <SidebarActions
                 assignments={assignments}
                 loadingAssignments={loadingAssignments}
-                showReviews={showReviews}
-                toggleShowReviews={toggleShowReviews}
+                showReviews={!!showReviewsModal}
+                toggleShowReviews={() => {
+                  if (!showReviewsModal) openReviews();
+                  else closeReviews();
+                }}
                 onOpenPicker={openPicker}
                 onOpenSuggestions={openSuggestions}
                 onOpenAssignments={openAssignments}
@@ -170,6 +172,17 @@ export default function SubmissionDetailPage() {
           onClose={closeAssignments}
         />
       )}
+
+      {/* Reviews modal */}
+      <ReviewsModal
+        open={showReviewsModal}
+        onClose={closeReviews}
+        summary={summary}
+        loading={loadingSummary}
+        onOpenRefetch={async () => {
+          await refetchSummary();
+        }}
+      />
     </div>
   );
 }
