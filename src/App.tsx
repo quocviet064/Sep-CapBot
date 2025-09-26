@@ -71,7 +71,7 @@ const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
 const ReviewerAssignedList = lazy(
   () => import("./pages/reviewers/assigned-topics/list"),
 );
-
+const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
 const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
 const ReviewerReview = lazy(
   () => import("./pages/reviewers/evaluate-topics/review"),
@@ -184,8 +184,8 @@ function App() {
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
           <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
           <Route path="/reviewers/assigned-topics/detail/:submissionId" element={<ReviewerAssignedDetail />} />
-          <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
-          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
+          {/* <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
+          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} /> */}
           <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
           <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
           />
