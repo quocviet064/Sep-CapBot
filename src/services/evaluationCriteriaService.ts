@@ -168,3 +168,16 @@ export async function getCriteriaDetail(
     throw new Error(res.data?.message || "Không lấy được chi tiết tiêu chí");
   return res.data.data;
 }
+
+export async function getCriteriaForCurrentSemester(): Promise<EvaluationCriteriaDTO[]> {
+  try {
+    const res = await capBotAPI.get<ApiEnvelope<EvaluationCriteriaDTO[]>>(
+      "/evaluation-criteria/current-semester",
+    );
+    if (!res.data?.success)
+      throw new Error(res.data?.message || "Không lấy được tiêu chí của học kỳ hiện tại");
+    return res.data.data ?? [];
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Không lấy được tiêu chí của học kỳ hiện tại"));
+  }
+}

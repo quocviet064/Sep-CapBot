@@ -1,4 +1,3 @@
-// src/components/moderator/submissions/ReviewerSuggestionDialog.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,16 +17,11 @@ type Props = {
   onClose: () => void;
 };
 
-/**
- * ReviewerSuggestionDialog with single global deadline
- * - global deadline input in header applies to assign actions (single/all).
- */
 export default function ReviewerSuggestionDialog({ submissionId, open, onClose }: Props) {
   const qc = useQueryClient();
 
   const [autoAssignOnServer, setAutoAssignOnServer] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  // single global deadline applied when assigning
   const [globalDeadline, setGlobalDeadline] = useState<string>("");
 
   const suggestMut = useMutation({
@@ -78,13 +72,19 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
   const toIso = (dateStr?: string) => {
     if (!dateStr) return undefined;
     try {
-      return new Date(dateStr).toISOString();
+      const d = new Date(dateStr);
+      // keep date-only -> set time to 23:59:59 to be safe
+      return d.toISOString();
     } catch {
       return undefined;
     }
   };
 
   const onAssign = (rev: ReviewerSuggestionDTO) => {
+    if (!globalDeadline) {
+      toast.error("Vui lòng chọn deadline trước khi phân công.");
+      return;
+    }
     if (!rev.isEligible) {
       toast.error("Reviewer không hợp lệ — không thể assign trực tiếp. Kiểm tra ineligibility reasons.");
       return;
@@ -101,6 +101,10 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
   };
 
   const onAssignAllEligible = () => {
+    if (!globalDeadline) {
+      toast.error("Vui lòng chọn deadline trước khi phân công.");
+      return;
+    }
     const eligible = suggestions.filter((s) => s.isEligible);
     if (eligible.length === 0) {
       toast.error("Không có reviewer hợp lệ để phân công.");
@@ -117,8 +121,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     });
   };
 
-  const toggleExpand = (key: string) =>
-    setExpanded((p) => ({ ...p, [key]: !p[key] }));
+  const toggleExpand = (key: string) => setExpanded((p) => ({ ...p, [key]: !p[key] }));
 
   const copyAiExplanation = async () => {
     if (!aiExplanation) return;
@@ -192,13 +195,13 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
               <span>Auto-create assignments on server</span>
             </label>
 
-            <label className="text-sm">Deadline (áp dụng khi assign)</label>
+            <label className="text-sm">Deadline (áp dụng khi assign) *</label>
             <input
               type="date"
               value={globalDeadline}
               onChange={(e) => setGlobalDeadline(e.target.value)}
               className="border rounded px-2 py-1 text-sm"
-              title="Deadline áp dụng cho hành động Assign / Assign all"
+              title="Deadline áp dụng cho hành động Assign / Assign all (bắt buộc)"
             />
 
             <button
@@ -222,7 +225,8 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
             <button
               className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
               onClick={onAssignAllEligible}
-              disabled={assignMut.isLoading || !(suggestions && suggestions.some((s) => s.isEligible))}
+              disabled={assignMut.isLoading || !(suggestions && suggestions.some((s) => s.isEligible)) || !globalDeadline}
+              title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : undefined}
             >
               Phân công tất cả hợp lệ
             </button>
@@ -247,10 +251,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                   <pre className="text-sm whitespace-pre-wrap">{aiExplanation}</pre>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button
-                    onClick={copyAiExplanation}
-                    className="px-2 py-1 rounded border text-sm"
-                  >
+                  <button onClick={copyAiExplanation} className="px-2 py-1 rounded border text-sm">
                     Copy
                   </button>
                 </div>
@@ -299,9 +300,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         {" • "}Active: <span className="font-semibold">{s.currentActiveAssignments ?? 0}</span>
                       </div>
                       {s.isEligible === false && (
-                        <div className="mt-1 text-sm text-rose-600">
-                          Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}
-                        </div>
+                        <div className="mt-1 text-sm text-rose-600">Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}</div>
                       )}
                     </div>
 
@@ -312,17 +311,14 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         <button
                           onClick={() => onAssign(s)}
                           className={`px-3 py-1 rounded text-sm ${s.isEligible ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 cursor-not-allowed"}`}
-                          disabled={!s.isEligible || assignMut.isLoading}
-                          title={!s.isEligible ? "Reviewer không hợp lệ" : "Assign reviewer"}
+                          disabled={!s.isEligible || assignMut.isLoading || !globalDeadline}
+                          title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : !s.isEligible ? "Reviewer không hợp lệ" : "Assign reviewer"}
                         >
                           Assign
                         </button>
                       </div>
 
-                      <button
-                        onClick={() => toggleExpand(key)}
-                        className="text-xs text-slate-500 underline"
-                      >
+                      <button onClick={() => toggleExpand(key)} className="text-xs text-slate-500 underline">
                         {expanded[key] ? "Hide details" : "Show details"}
                       </button>
                     </div>
@@ -332,9 +328,26 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                     <div className="mt-3">
                       {renderFieldScores(s)}
                       {renderTopTokens(s)}
-                      <div className="mt-2 text-xs text-slate-600">
-                        <div className="font-medium mb-1">Raw suggestion</div>
-                        <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(s, null, 2)}</pre>
+
+                      {s.reviewerSkills && (
+                        <div className="mt-2">
+                          <div className="font-medium">Reviewer skills</div>
+                          <ul className="list-disc ml-5">
+                            {Object.entries(s.reviewerSkills).map(([skill, level]) => (
+                              <li key={skill}>
+                                {skill}: <span className="font-semibold">{String(level)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 text-sm">
+                        <div>Completed: <span className="font-semibold">{s.completedAssignments ?? 0}</span></div>
+                        <div>Avg score: <span className="font-semibold">{s.averageScoreGiven ?? "-"}</span></div>
+                        <div>On-time rate: <span className="font-semibold">{s.onTimeRate ?? "-"}</span></div>
+                        <div>Quality rating: <span className="font-semibold">{s.qualityRating ?? "-"}</span></div>
+                        <div>Performance: <span className="font-semibold">{s.performanceScore ?? "-"}</span></div>
                       </div>
                     </div>
                   )}

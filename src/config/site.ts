@@ -143,7 +143,6 @@ export const siteModerator = [
     icon: FolderKanban,
   },
   { title: "Submissions", url: "/moderators/submissions", icon: FileText },
-  { title: "Thống kê & báo cáo", url: "/moderators/reports", icon: BarChart3 },
 ];
 
 export const siteReviewer = [

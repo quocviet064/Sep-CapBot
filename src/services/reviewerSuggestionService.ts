@@ -32,7 +32,9 @@ export interface ReviewerSuggestionDTO {
   reviewerName?: string;
   skillMatchScore: number;
   matchedSkills: string[];
-  reviewerSkills: Record<string, string>; 
+  reviewerSkills: Record<string, string>;
+  skillMatchFieldScores?: Record<string, number>;
+  skillMatchTopTokens?: Record<string, string[]>;
   detailScores?: Record<string, number>;
   currentActiveAssignments: number;
   completedAssignments: number;
@@ -47,9 +49,9 @@ export interface ReviewerSuggestionDTO {
 }
 
 export interface ReviewerSuggestionOutputDTO {
-  suggestions: ReviewerSuggestionDTO[]; 
+  suggestions: ReviewerSuggestionDTO[];
   aiExplanation?: string | null;
-  assignmentResults?: any[]; 
+  assignmentResults?: any[];
   assignmentErrors?: string[] | null;
   skipMessages?: string[] | null;
 }
@@ -87,7 +89,6 @@ const getAxiosMessage = (e: unknown, fallback: string) => {
   return fallback;
 };
 
-/** Normalize possible PascalCase -> camelCase or array wrapper shapes */
 const normalizeSuggestions = (raw: any): ReviewerSuggestionDTO[] => {
   if (!raw) return [];
   const suggestions = raw.Suggestions ?? raw.suggestions ?? raw.SuggestionsList ?? raw.suggestionsList ?? raw;
@@ -98,6 +99,8 @@ const normalizeSuggestions = (raw: any): ReviewerSuggestionDTO[] => {
       skillMatchScore: Number(s.SkillMatchScore ?? s.skillMatchScore ?? 0),
       matchedSkills: s.MatchedSkills ?? s.matchedSkills ?? s.matched_skills ?? [],
       reviewerSkills: s.ReviewerSkills ?? s.reviewerSkills ?? s.reviewer_skills ?? {},
+      skillMatchFieldScores: s.SkillMatchFieldScores ?? s.skillMatchFieldScores ?? s.skill_match_field_scores ?? undefined,
+      skillMatchTopTokens: s.SkillMatchTopTokens ?? s.skillMatchTopTokens ?? s.skill_match_top_tokens ?? undefined,
       detailScores: s.DetailScores ?? s.detailScores ?? s.detail_scores ?? undefined,
       currentActiveAssignments: Number(s.CurrentActiveAssignments ?? s.currentActiveAssignments ?? 0),
       completedAssignments: Number(s.CompletedAssignments ?? s.completedAssignments ?? 0),
@@ -108,7 +111,7 @@ const normalizeSuggestions = (raw: any): ReviewerSuggestionDTO[] => {
       performanceScore: Number(s.PerformanceScore ?? s.performanceScore ?? 0),
       overallScore: Number(s.OverallScore ?? s.overallScore ?? 0),
       isEligible: Boolean(s.IsEligible ?? s.isEligible ?? true),
-      ineligibilityReasons: s.IneligibilityReasons ?? s.ineligibilityReasons ?? [],
+      ineligibilityReasons: s.IneligibilityReasons ?? s.ineligibilityReasons ?? s.ineligibility_reasons ?? [],
     }));
   }
   return [];

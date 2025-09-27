@@ -52,6 +52,47 @@ export type SubmissionReviewSummaryDTO = {
   } | null;
 };
 
+// helper: map bất kỳ value nào về ReviewerRecommendation
+const mapRecommendation = (val: unknown): ReviewerRecommendation | undefined => {
+  if (val == null) return undefined;
+
+  if (typeof val === "number" && Number.isFinite(val)) {
+    const n = Number(val);
+    if (n >= 1 && n <= 4) return n as ReviewerRecommendation;
+  }
+  if (typeof val === "string") {
+    const v = val.trim().toLowerCase();
+    if (v === "approve" || v === "accepted" || v === "accept") return 1;
+    if (v === "minor" || v.includes("minor")) return 2;
+    if (v === "major" || v.includes("major")) return 3;
+    if (v === "reject" || v === "rejected" || v === "decline") return 4;
+
+    // tiếng Việt
+    if (v.includes("chấp nhận") || v.includes("đồng ý")) return 1;
+    if (v.includes("nhỏ")) return 2;
+    if (v.includes("lớn")) return 3;
+    if (v.includes("từ chối")) return 4;
+
+    const asNum = Number(v);
+    if (Number.isFinite(asNum) && asNum >= 1 && asNum <= 4) {
+      return asNum as ReviewerRecommendation;
+    }
+  }
+
+  if (typeof val === "object") {
+    try {
+      const o: any = val as any;
+      const candidates = [o.value, o.name, o.id, o.label, o.type];
+      for (const c of candidates) {
+        const mapped = mapRecommendation(c);
+        if (mapped) return mapped;
+      }
+    } catch {}
+  }
+
+  return undefined;
+};
+
 /** GET /api/submission-reviews/{submissionId}/summary */
 export const getSubmissionReviewSummary = async (
   submissionId: IdLike
@@ -68,10 +109,9 @@ export const getSubmissionReviewSummary = async (
     const rawReviews = raw.reviews ?? raw.Reviews ?? [];
     const reviews = Array.isArray(rawReviews)
       ? rawReviews.map((r: any) => {
-          const recommendationRaw = r.recommendation ?? r.Recommendation;
-          const recommendation = Number.isFinite(Number(recommendationRaw))
-            ? (Number(recommendationRaw) as ReviewerRecommendation)
-            : undefined;
+          const recommendationRaw =
+            r.recommendation ?? r.Recommendation ?? r.recommend ?? r.Recommend;
+          const recommendation = mapRecommendation(recommendationRaw);
 
           return {
             reviewId: r.reviewId ?? r.ReviewId ?? r.id,
@@ -84,7 +124,7 @@ export const getSubmissionReviewSummary = async (
               undefined,
             overallScore:
               r.overallScore ?? r.OverallScore ?? r.overall_score ?? null,
-            recommendation: recommendation as ReviewerRecommendation | undefined,
+            recommendation,
             submittedAt: r.submittedAt ?? r.SubmittedAt ?? null,
           };
         })
@@ -120,11 +160,11 @@ export const getSubmissionReviewSummary = async (
 
     const finalDecision = hasFinal
       ? {
-          finalRecommendation: Number.isFinite(
-            Number(raw.finalRecommendation ?? raw.FinalRecommendation ?? raw.finalRecommendationValue)
-          )
-            ? (Number(raw.finalRecommendation ?? raw.FinalRecommendation ?? raw.finalRecommendationValue) as ReviewerRecommendation)
-            : undefined,
+          finalRecommendation: mapRecommendation(
+            raw.finalRecommendation ??
+              raw.FinalRecommendation ??
+              raw.finalRecommendationValue
+          ),
           finalScore: raw.finalScore ?? raw.FinalScore ?? null,
           moderatorNotes: raw.moderatorNotes ?? raw.ModeratorNotes ?? null,
           revisionDeadline: raw.revisionDeadline ?? raw.RevisionDeadline ?? null,
@@ -151,7 +191,6 @@ export const getSubmissionReviewSummary = async (
   }
 };
 
-
 /** POST /api/submission-reviews/moderator-final-review */
 export const moderatorFinalReview = async (payload: {
   submissionId: IdLike;
@@ -165,7 +204,8 @@ export const moderatorFinalReview = async (payload: {
       `/submission-reviews/moderator-final-review`,
       payload
     );
-    if (!res.data.success) throw new Error(res.data.message || "Không lưu được quyết định");
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không lưu được quyết định");
     toast.success("Đã lưu quyết định của Moderator");
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lưu được quyết định");
