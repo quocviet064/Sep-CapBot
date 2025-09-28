@@ -447,7 +447,7 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
               Lựa chọn phiên bản chủ đề để nộp
             </span>
           </div>
-          <Button
+          {/* <Button
             onClick={() => {
               const seed = {
                 eN_Title: data.eN_Title ?? "",
@@ -472,7 +472,7 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
             className="inline-flex items-center gap-2"
           >
             + Tạo phiên bản mới
-          </Button>
+          </Button> */}
         </div>
 
         <VersionTabs
@@ -978,7 +978,7 @@ export default function MyTopicDetailPage() {
   return (
     <TopicDetailPage
       data={data}
-      onBack={() => navigate(-1)}
+      onBack={() => navigate("/supervisors/topics/myTopic-page")}
       onUpdate={(u) => setData(u)}
     />
   );

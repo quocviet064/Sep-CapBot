@@ -75,7 +75,7 @@ export interface TopicVersionHistoryItem {
   versionNumber: number;
   title: string;
   documentUrl: string;
-  status: string;
+  status: string | number;
   submittedAt: string | null;
   submittedByUserName: string | null;
   createdAt: string;
@@ -93,22 +93,13 @@ export interface TopicVersionHistoryResponse {
 export const createTopicVersion = async (
   payload: CreateTopicVersionPayload,
 ): Promise<TopicVersionDetail> => {
-  try {
-    const response = await capBotAPI.post<ApiResponse<TopicVersionDetail>>(
-      "/topic-version/create",
-      payload,
-    );
-    const { success, data, message } = response.data;
-    if (!success) throw new Error(message || "Tạo phiên bản chủ đề thất bại");
-    toast.success("🎉 Tạo phiên bản chủ đề thành công!");
-    return data;
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? error.response?.data?.message || "Tạo phiên bản chủ đề thất bại"
-      : "Lỗi không xác định";
-    toast.error(msg);
-    throw new Error(msg);
-  }
+  const response = await capBotAPI.post<ApiResponse<TopicVersionDetail>>(
+    "/topic-version/create",
+    payload,
+  );
+  const { success, data, message } = response.data;
+  if (!success) throw new Error(message || "Tạo phiên bản chủ đề thất bại");
+  return data;
 };
 
 export const updateTopicVersion = async (
@@ -195,4 +186,37 @@ export const deleteTopicVersion = async (versionId: number): Promise<void> => {
     toast.error(msg);
     throw new Error(msg);
   }
+};
+
+export const isApprovedVersionStatus = (s: unknown) => {
+  if (s === 5) return true;
+  const v = (s ?? "").toString().toLowerCase();
+  return v === "approved";
+};
+
+export const fetchAllTopicVersionsFlat = async (
+  topicId: number,
+  keyword?: string,
+): Promise<TopicVersionHistoryItem[]> => {
+  const pageSize = 100;
+  let pageNumber = 1;
+  let hasNext = true;
+  const all: TopicVersionHistoryItem[] = [];
+
+  while (hasNext) {
+    const res = await fetchTopicVersionHistory(
+      topicId,
+      pageNumber,
+      pageSize,
+      keyword,
+    );
+    if (Array.isArray(res?.listObjects) && res.listObjects.length) {
+      all.push(...res.listObjects);
+    }
+    hasNext = Boolean(res?.hasNextPage);
+    pageNumber += 1;
+    if (!res?.totalPages && !hasNext) break;
+  }
+
+  return all;
 };

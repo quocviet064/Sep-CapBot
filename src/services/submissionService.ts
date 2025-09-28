@@ -106,6 +106,9 @@ export type GetSubmissionsQueryDTO = {
   TotalRecord?: number;
 };
 
+// ======================
+// LIST & DETAIL (GIỮ NGUYÊN)
+// ======================
 export const fetchSubmissions = async (
   TopicVersionId?: number,
   PhaseId?: number,
@@ -246,4 +249,61 @@ export const getSubmissionDetail = async (
     toast.error(msg);
     throw new Error(msg);
   }
+};
+
+// ======================
+// NEW: CREATE / SUBMIT
+// ======================
+export type CreateSubmissionRequest = {
+  topicId: number;
+  phaseId: number;
+  documentUrl?: string | null;
+  additionalNotes?: string | null;
+};
+
+export const createSubmission = async (
+  payload: CreateSubmissionRequest,
+): Promise<SubmissionDTO> => {
+  try {
+    const res = await capBotAPI.post<ApiResponse<SubmissionDTO>>(
+      `/submission/create`,
+      payload,
+    );
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || "Tạo submission thất bại");
+    }
+    const created = res.data.data;
+    if (!created?.id) {
+      throw new Error("Không lấy được ID submission sau khi tạo");
+    }
+    return created;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể tạo submission");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export const submitSubmission = async (id: IdLike): Promise<void> => {
+  try {
+    const res = await capBotAPI.post<ApiResponse<unknown>>(
+      `/submission/submit`,
+      { id },
+    );
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || "Submit submission thất bại");
+    }
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể submit submission");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export const createThenSubmitSubmission = async (
+  payload: CreateSubmissionRequest,
+): Promise<SubmissionDTO> => {
+  const created = await createSubmission(payload);
+  await submitSubmission(created.id);
+  return created;
 };

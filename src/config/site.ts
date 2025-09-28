@@ -20,8 +20,8 @@ export const siteSupervisor = [
     isActive: false,
     items: [
       {
-        title: "Tất cả đề tài",
-        url: "/supervisors/topics/topic-page",
+        title: "Hệ thống kho đề tài",
+        url: "/supervisors/topics/all-topics-list",
       },
       {
         title: "Tất cả đề tài của tôi",
@@ -39,7 +39,7 @@ export const siteSupervisor = [
     icon: Bot,
   },
   {
-    title: "Tạo và Nộp đề tài",
+    title: "Nộp đề tài",
     url: "/supervisors/submission-topic/semesters/semesters-page",
     icon: Bot,
   },

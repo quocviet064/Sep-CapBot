@@ -8,6 +8,11 @@ import EditProfilePage from "./pages/profile/EditProfilePage";
 import AllSubmittedTopicPage from "./pages/supervisors/all-submitted-topics/AllSubmittedTopicsPage";
 import SubmittedTopicDetailPage from "./pages/supervisors/all-submitted-topics/SubmittedTopicDetailPage";
 import EvaluationCriteriaDetailPage from "./pages/admins/evaluation-criteria/EvaluationCriteriaDetailPage";
+import TopicDuplicateCheckerPage from "./pages/supervisors/ai-check";
+import AllUnsubmittedTopicPage from "./pages/supervisors/all-unsubmitted-topics/AllUnsubmittedTopicPage";
+import UnsubmittedTopicDetailPage from "./pages/supervisors/all-unsubmitted-topics/UnsubmittedTopicDetailPage";
+import TopicsListPage from "./pages/supervisors/all-topics-list/TopicsListPage";
+import TopicListDetailPage from "./pages/supervisors/all-topics-list/TopicListDetailPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -118,6 +123,14 @@ function App() {
             element={<AllTopics />}
           />
           <Route
+            path="/supervisors/topics/all-topics-list"
+            element={<TopicsListPage />}
+          />
+          <Route
+            path="/supervisors/topics/all-topics-list/topics/:id"
+            element={<TopicListDetailPage />}
+          />
+          <Route
             path="/supervisors/topics/myTopic-page"
             element={<AllMyTopics />}
           />
@@ -128,6 +141,14 @@ function App() {
           <Route
             path="/submitted/topics/:id"
             element={<SubmittedTopicDetailPage />}
+          />
+          <Route
+            path="/supervisors/all-unsubmitted-topics/AllUnSubmittedTopicsPage"
+            element={<AllUnsubmittedTopicPage />}
+          />
+          <Route
+            path="/unsubmitted/topics/:id"
+            element={<UnsubmittedTopicDetailPage />}
           />
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"
@@ -182,18 +203,36 @@ function App() {
           />
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
-          <Route path="/reviewers/assigned-topics/detail/:submissionId" element={<ReviewerAssignedDetail />} />
-          <Route path="/reviewers/feedback-history" element={<ReviewerFeedbackHistory />} />
-          <Route path="/reviewers/topic-archive" element={<ReviewerTopicArchive />} />
-          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
-          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
+          <Route
+            path="/reviewers/assigned-topics/list"
+            element={<ReviewerAssignedList />}
           />
 
-          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
-          <Route path="/moderators/submissions" element={<SubmissionsListPage />} />
-          <Route path="/moderators/submissions/:submissionId" element={<SubmissionDetailPage />} />
-          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
+          <Route
+            path="/reviewers/evaluation-stats"
+            element={<ReviewerStats />}
+          />
+          <Route
+            path="/reviewers/evaluate-topics/:assignmentId"
+            element={<ReviewerReview />}
+          />
+
+          <Route
+            path="/moderators/dashboard"
+            element={<ModeratorDashboard />}
+          />
+          <Route
+            path="/moderators/submissions"
+            element={<SubmissionsListPage />}
+          />
+          <Route
+            path="/moderators/submissions/:submissionId"
+            element={<SubmissionDetailPage />}
+          />
+          <Route
+            path="/moderators/feedback-evaluation"
+            element={<ModeratorFeedbackEval />}
+          />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
           <Route
             path="/moderators/category-manager/category-page"
@@ -202,6 +241,10 @@ function App() {
           <Route
             path="/moderators/semester-phase"
             element={<ModeratorSemesterPhase />}
+          />
+          <Route
+            path="/moderators/ai"
+            element={<TopicDuplicateCheckerPage />}
           />
 
           <Route path="/profile/MyProfilePage" element={<MyProfilePage />} />

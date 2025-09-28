@@ -503,7 +503,7 @@ export default function TopicDuplicateCheckerPage() {
               >
                 Làm mới
               </Button>
-              <Button
+              {/* <Button
                 onClick={onCheck}
                 disabled={isChecking}
                 className="min-w-36"
@@ -519,7 +519,7 @@ export default function TopicDuplicateCheckerPage() {
                     Kiểm tra trùng lặp
                   </span>
                 )}
-              </Button>
+              </Button> */}
             </div>
           </SectionCard>
 
@@ -670,6 +670,26 @@ export default function TopicDuplicateCheckerPage() {
               <Sparkles className="h-3.5 w-3.5" />
               Gợi ý được sinh tự động dựa trên xu hướng đề tài gần đây.
             </div>
+            <div className="mt-3 flex items-center gap-2 text-xs text-neutral-500">
+              Bạn có muốn sử dụng gợi ý này.
+            </div>
+            <Button
+              onClick={onCheck}
+              disabled={isChecking}
+              className="min-w-36"
+            >
+              {isChecking ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Đang kiểm tra…
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Xác nhận
+                </span>
+              )}
+            </Button>
           </SectionCard>
         </div>
       </div>

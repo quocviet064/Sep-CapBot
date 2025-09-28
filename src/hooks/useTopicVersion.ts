@@ -9,6 +9,9 @@ import {
   UpdateTopicVersionPayload,
   TopicVersionDetail,
   TopicVersionHistoryResponse,
+  fetchAllTopicVersionsFlat,
+  isApprovedVersionStatus,
+  TopicVersionHistoryItem,
 } from "@/services/topicVersionService";
 
 export const useCreateTopicVersion = () => {
@@ -18,6 +21,9 @@ export const useCreateTopicVersion = () => {
     mutationFn: createTopicVersion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topic-version-history"] });
+      queryClient.invalidateQueries({
+        queryKey: ["topic-version-history-approved"],
+      });
     },
   });
 };
@@ -29,6 +35,9 @@ export const useUpdateTopicVersion = () => {
     mutationFn: updateTopicVersion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topic-version-history"] });
+      queryClient.invalidateQueries({
+        queryKey: ["topic-version-history-approved"],
+      });
       queryClient.invalidateQueries({ queryKey: ["topic-version-detail"] });
     },
   });
@@ -65,6 +74,24 @@ export const useDeleteTopicVersion = () => {
     mutationFn: deleteTopicVersion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topic-version-history"] });
+      queryClient.invalidateQueries({
+        queryKey: ["topic-version-history-approved"],
+      });
+    },
+  });
+};
+
+export const useApprovedTopicVersions = (
+  topicId?: number,
+  keyword?: string,
+) => {
+  return useQuery<TopicVersionHistoryItem[], Error>({
+    queryKey: ["topic-version-history-approved", topicId, keyword],
+    enabled: !!topicId,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const all = await fetchAllTopicVersionsFlat(Number(topicId), keyword);
+      return all.filter((v) => isApprovedVersionStatus(v.status));
     },
   });
 };
