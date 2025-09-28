@@ -1,5 +1,4 @@
-// src/components/moderator/submissions/ReviewerPickerDialog.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,11 +31,6 @@ interface Props {
   onAssignedSuccess?: () => void;
 }
 
-/**
- * ReviewerPickerDialog (global-deadline variant)
- * - No tabs (we only use available reviewers).
- * - Single global deadline input that applies to all selected reviewers.
- */
 export default function ReviewerPickerDialog({
   isOpen,
   onClose,
@@ -46,9 +40,6 @@ export default function ReviewerPickerDialog({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [assignmentType, setAssignmentType] = useState<number>(1);
-  const [inlineError, setInlineError] = useState<string>("");
-
-  // global deadline (yyyy-mm-dd)
   const [globalDeadline, setGlobalDeadline] = useState<string>("");
 
   useEffect(() => {
@@ -56,7 +47,6 @@ export default function ReviewerPickerDialog({
       setSearch("");
       setSelected([]);
       setAssignmentType(1);
-      setInlineError("");
       setGlobalDeadline("");
     }
   }, [isOpen]);
@@ -93,7 +83,6 @@ export default function ReviewerPickerDialog({
   const toIso = (dateStr?: string) => {
     if (!dateStr) return undefined;
     try {
-      // dateStr from <input type="date"> is yyyy-mm-dd (local); convert to ISO (UTC midnight)
       const d = new Date(dateStr);
       return d.toISOString();
     } catch {
@@ -103,18 +92,20 @@ export default function ReviewerPickerDialog({
 
   // Bulk-assign
   const doBulkAssign = () => {
-    setInlineError("");
     if (!submissionId) {
-      toast.info("Thiếu submissionId");
+      toast.error("Thiếu submissionId");
       return;
     }
     if (!selected.length) {
-      toast.info("Chọn ít nhất 1 reviewer");
+      toast.error("Chọn ít nhất 1 reviewer");
+      return;
+    }
+    if (!globalDeadline) {
+      toast.error("Vui lòng chọn deadline trước khi phân công");
       return;
     }
 
     const isoDeadline = toIso(globalDeadline);
-
     const payload = {
       assignments: selected.map((rid) => ({
         submissionId,
@@ -142,7 +133,8 @@ export default function ReviewerPickerDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-[1200px] max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="w-[95vw] max-w-[1000px] max-h-[90vh] p-0 overflow-hidden">
+        {/* Header */}
         <div className="sticky top-0 z-10 border-b bg-white px-6 py-4">
           <DialogHeader>
             <DialogTitle>Chọn reviewer</DialogTitle>
@@ -154,69 +146,68 @@ export default function ReviewerPickerDialog({
           </DialogHeader>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-auto px-6 pb-6 pt-4">
-          {inlineError && (
-            <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {inlineError}
-            </div>
-          )}
+        {/* Controls */}
+        <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b bg-slate-50">
+          <Input
+            placeholder="Tìm reviewer theo tên / email / id..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-[300px]"
+          />
 
-          {/* Controls: search, assignmentType, global deadline */}
-          <div className="flex flex-wrap items-center gap-3">
-            <Input
-              placeholder="Tìm reviewer theo tên / email / id..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-[360px]"
-            />
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Loại phân công</label>
-              <select
-                className="rounded border px-2 py-1 text-sm"
-                value={assignmentType}
-                onChange={(e) => setAssignmentType(Number(e.target.value))}
-              >
-                <option value={1}>Primary</option>
-                <option value={2}>Secondary</option>
-                <option value={3}>Additional</option>
-              </select>
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-              <label className="text-sm">Deadline (áp dụng cho tất cả)</label>
-              <input
-                type="date"
-                value={globalDeadline}
-                onChange={(e) => setGlobalDeadline(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm">Loại phân công:</label>
+            <select
+              className="rounded border px-2 py-1 text-sm"
+              value={assignmentType}
+              onChange={(e) => setAssignmentType(Number(e.target.value))}
+            >
+              <option value={1}>Primary</option>
+              <option value={2}>Secondary</option>
+              <option value={3}>Additional</option>
+            </select>
           </div>
 
-          {/* List */}
+          <div className="ml-auto flex items-center gap-2">
+            <label className="text-sm">Deadline:</label>
+            <input
+              type="date"
+              value={globalDeadline}
+              onChange={(e) => setGlobalDeadline(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Reviewer list */}
+        <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
           <div className="h-[60vh] overflow-auto rounded-md border">
             {isListLoading ? (
               <div className="p-4 text-sm text-gray-500">Đang tải reviewer...</div>
             ) : filtered.length === 0 ? (
               <div className="p-4 text-sm text-gray-500">Không có reviewer phù hợp</div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-muted">
+              <table className="w-full text-sm border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-100">
                   <tr>
-                    <th className="w-10 p-2" />
+                    <th className="w-10 p-2"></th>
                     <th className="p-2 text-left">ID</th>
                     <th className="p-2 text-left">Tên reviewer</th>
                     <th className="p-2 text-left">Email</th>
-                    <th className="p-2 text-left">Đang review</th>
+                    <th className="p-2 text-center">Đang review</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((r) => {
                     const checked = selected.includes(r.id);
                     return (
-                      <tr key={String(r.id)} className="border-t">
-                        <td className="p-2">
+                      <tr
+                        key={String(r.id)}
+                        className={`border-t hover:bg-slate-50 ${
+                          checked ? "bg-blue-50" : ""
+                        }`}
+                      >
+                        <td className="p-2 text-center">
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(v) => toggle(r.id, !!v)}
@@ -225,7 +216,7 @@ export default function ReviewerPickerDialog({
                         <td className="p-2">{String(r.id)}</td>
                         <td className="p-2">{r.userName ?? "—"}</td>
                         <td className="p-2">{r.email ?? "—"}</td>
-                        <td className="p-2">{r.currentAssignments}</td>
+                        <td className="p-2 text-center">{r.currentAssignments}</td>
                       </tr>
                     );
                   })}
@@ -235,13 +226,16 @@ export default function ReviewerPickerDialog({
           </div>
         </div>
 
+        {/* Footer */}
         <div className="sticky bottom-0 z-10 border-t bg-white px-6 py-4">
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={onClose} disabled={bulkMut.isPending}>
               Hủy
             </Button>
             <Button onClick={doBulkAssign} disabled={!canConfirm || bulkMut.isPending}>
-              {bulkMut.isPending ? "Đang phân công..." : `Xác nhận (${selected.length})`}
+              {bulkMut.isPending
+                ? "Đang phân công..."
+                : `Xác nhận (${selected.length})`}
             </Button>
           </DialogFooter>
         </div>

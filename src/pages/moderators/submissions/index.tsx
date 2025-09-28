@@ -1,4 +1,3 @@
-// src/pages/moderators/submissions/SubmissionsListPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SubmissionTable from "./SubmissionTable";

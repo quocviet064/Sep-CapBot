@@ -3,6 +3,7 @@ import {
   fetchCriteria,
   createCriteria,
   updateCriteria,
+  getCriteriaForCurrentSemester,
   type GetCriteriaQuery,
   type CriteriaPagedResponse,
   type EvaluationCriteriaDTO,
@@ -61,3 +62,12 @@ export const useCriteriaDetail = (id?: number | string) =>
     enabled: id !== undefined && id !== null && String(id).length > 0,
     staleTime: 1000 * 60 * 5,
   });
+
+export function useCurrentSemesterCriteria() {
+  return useQuery<EvaluationCriteriaDTO[], Error>({
+    queryKey: ["criteria-current-semester"],
+    queryFn: () => getCriteriaForCurrentSemester(),
+    placeholderData: (prev) => prev,
+    staleTime: 1000 * 60 * 5,
+  });
+}

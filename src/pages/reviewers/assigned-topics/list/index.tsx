@@ -64,12 +64,12 @@ export default function ReviewerAssignedList() {
       const found = reviewByAssignment.get(aid);
       const reviewSummary = found
         ? {
-          id: found.id ?? found.Id,
-          status: found.status,
-          assignmentId: found.assignmentId,
-          submittedAt: found.submittedAt,
-          createdDate: found.createdDate,
-        }
+            id: found.id ?? found.Id,
+            status: found.status,
+            assignmentId: found.assignmentId,
+            submittedAt: found.submittedAt,
+            createdDate: found.createdDate,
+          }
         : null;
       return {
         ...a,
@@ -104,6 +104,10 @@ export default function ReviewerAssignedList() {
         }
 
         try {
+          // debug logs to inspect why opening is blocked
+          // eslint-disable-next-line no-console
+          console.debug("OPEN_REVIEW row:", row);
+
           if (directReviewId != null) {
             navigate(
               `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(
@@ -114,9 +118,12 @@ export default function ReviewerAssignedList() {
           }
 
           const found = reviewByAssignment.get(assignmentId);
+          // eslint-disable-next-line no-console
+          console.debug("reviewByAssignment found:", found);
 
           if (found) {
-            if (found.status === "Draft") {
+            // If Draft: open it
+            if (String(found.status || "").toLowerCase() === "draft") {
               const rid = found.id ?? found.Id;
               navigate(
                 `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(String(rid))}`
@@ -124,7 +131,8 @@ export default function ReviewerAssignedList() {
               return;
             }
 
-            if (found.status === "Submitted") {
+            // If Submitted: ask to withdraw first
+            if (String(found.status || "").toLowerCase() === "submitted") {
               const rid = found.id ?? found.Id;
               const conf = window.confirm("Bản đánh giá này đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
               if (!conf) return;
@@ -140,11 +148,14 @@ export default function ReviewerAssignedList() {
               });
               return;
             }
+
+            // If other statuses (e.g., InProgress/Completed), we'll still continue to check
           }
 
+          // If no found draft/submitted, call API to list reviews to double-check
           const list = await getReviewsByAssignment(assignmentId);
           if (Array.isArray(list) && list.length > 0) {
-            const draft = list.find((r) => r.status === "Draft");
+            const draft = list.find((r) => String(r.status || "").toLowerCase() === "draft");
             if (draft) {
               const rid = draft.id ?? draft.Id;
               navigate(
@@ -152,7 +163,7 @@ export default function ReviewerAssignedList() {
               );
               return;
             }
-            const submitted = list.find((r) => r.status === "Submitted");
+            const submitted = list.find((r) => String(r.status || "").toLowerCase() === "submitted");
             if (submitted) {
               const rid = submitted.id ?? submitted.Id;
               const conf2 = window.confirm("Bản đánh giá đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
@@ -170,8 +181,41 @@ export default function ReviewerAssignedList() {
             }
           }
 
-          const statusKey = String(row.status || "");
-          if (statusKey === STATUS.ASSIGNED) {
+          // Determine if we should allow starting a review:
+          const statusKey = String(row.status || "").trim();
+          const now = new Date();
+
+          const isStatus = (val?: unknown, expect?: string) =>
+            String(val ?? "").toLowerCase() === String(expect ?? "").toLowerCase();
+
+          let allowStart = false;
+
+          // Allow if backend status is Assigned
+          if (isStatus(statusKey, STATUS.ASSIGNED)) {
+            allowStart = true;
+          } else {
+            // If there is a deadline field and it's still in the future, allow start even if status isn't "Assigned".
+            const maybeDeadline =
+              (row as any).submissionDeadline ??
+              (row as any).deadline ??
+              (row as any).dueDate ??
+              (row as any).submissionDueDate ??
+              null;
+
+            if (maybeDeadline) {
+              const dd = new Date(maybeDeadline);
+              if (!isNaN(dd.getTime()) && dd >= now) {
+                allowStart = true;
+              }
+            }
+
+            // If no existing review found at all, allow start as fallback
+            if (!allowStart && !found) {
+              allowStart = true;
+            }
+          }
+
+          if (allowStart) {
             startReviewMut.mutate(assignmentId, {
               onSuccess: () => {
                 navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
