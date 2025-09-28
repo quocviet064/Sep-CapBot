@@ -1,83 +1,123 @@
 import { usePhaseTypes } from "@/hooks/usePhaseType";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GraduationCap } from "lucide-react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { GraduationCap, ArrowLeft } from "lucide-react";
 import LoadingPage from "@/pages/loading-page";
+import { motion } from "framer-motion";
+import PhaseTypeCard from "./phase-type-card";
+
+type PhaseTypeItem = {
+  id: number;
+  name: string;
+  description?: string | null;
+};
 
 function PhaseTypesPage() {
   const [searchParams] = useSearchParams();
   const semesterId = searchParams.get("semesterId");
-  const semesterName = searchParams.get("semesterName");
+  const semesterName = searchParams.get("semesterName") || "";
   const { data, isLoading, error } = usePhaseTypes(1, 10);
   const navigate = useNavigate();
 
   if (isLoading) return <LoadingPage />;
-  if (error) return <p className="text-red-500">Lỗi: {error.message}</p>;
+  if (error)
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="rounded-2xl border border-red-200/60 bg-red-50/70 px-6 py-4 text-red-700 shadow-sm">
+          Lỗi: {error.message}
+        </div>
+      </div>
+    );
 
-  const list = data?.listObjects || [];
+  const list: PhaseTypeItem[] = (data?.listObjects as PhaseTypeItem[]) ?? [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b pb-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-bold">
-            <GraduationCap className="text-primary h-6 w-6" />
-            Chọn loại giai đoạn -
-            <span className="ml-1 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 px-2 py-0.5 text-white shadow-sm">
+    <div className="relative space-y-6">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(60%_40%_at_50%_-10%,rgba(15,23,42,0.14),transparent_60%),radial-gradient(40%_30%_at_90%_10%,rgba(99,102,241,0.12),transparent_60%),radial-gradient(30%_25%_at_10%_20%,rgba(14,165,233,0.12),transparent_60%)]" />
+        <div className="absolute inset-0 [background-size:25px_25px] opacity-[0.06] [background:linear-gradient(0deg,transparent_24px,rgba(2,6,23,0.08)_25px),linear-gradient(90deg,transparent_24px,rgba(2,6,23,0.08)_25px)]" />
+      </div>
+
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="space-y-1">
+          <h2 className="flex items-center gap-3 text-3xl font-black tracking-tight">
+            <span className="inline-grid place-items-center rounded-xl bg-gradient-to-tr from-slate-900 to-slate-700 p-2 text-white shadow-sm ring-1 ring-white/10">
+              <GraduationCap className="h-6 w-6" />
+            </span>
+            <span className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-500 bg-clip-text text-transparent">
+              Chọn loại giai đoạn
+            </span>
+            <span className="ml-2 rounded-lg bg-gradient-to-r from-indigo-600 to-sky-500 px-2 py-0.5 text-sm font-semibold text-white shadow-sm">
               {semesterName}
             </span>
           </h2>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             Các loại giai đoạn đang hoạt động trong hệ thống
           </p>
         </div>
         <Link
           to="/supervisors/submission-topic/semesters/semesters-page"
-          className="text-blue-500 hover:underline"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur hover:bg-white"
         >
-          ← Quay lại danh sách học kỳ
+          <ArrowLeft className="h-4 w-4" />
+          Quay lại danh sách học kỳ
         </Link>
       </div>
 
-      <div className="min-h-[600px] rounded-2xl border bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-2xl font-bold text-gray-700">
-          Danh sách loại giai đoạn
-        </h3>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 140, damping: 18 }}
+        className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-[0_10px_40px_-20px_rgba(2,6,23,0.25)] backdrop-blur"
+      >
+        <div className="pointer-events-none absolute -top-14 -right-14 h-56 w-56 rounded-full bg-gradient-to-br from-indigo-300/25 to-sky-300/25 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-gradient-to-tr from-slate-300/20 to-indigo-300/20 blur-2xl" />
+
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-slate-900">
+              Danh sách loại giai đoạn
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Lựa chọn một loại giai đoạn bên dưới để tiếp tục
+            </p>
+          </div>
+        </div>
 
         {list.length === 0 ? (
-          <div className="py-12 text-center text-gray-500">
-            Không có loại giai đoạn nào trong học kỳ này
+          <div className="grid min-h-[420px] place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70">
+            <div className="text-center">
+              <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-slate-200" />
+              <p className="text-base font-medium text-slate-700">
+                Không có loại giai đoạn nào
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Vui lòng kiểm tra lại cấu hình
+              </p>
+            </div>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {list.map((type) => (
-              <div
-                key={type.id}
+          <motion.div
+            layout
+            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          >
+            {list.map((t: PhaseTypeItem) => (
+              <PhaseTypeCard
+                key={t.id}
+                id={t.id}
+                name={t.name}
+                description={t.description}
                 onClick={() =>
                   navigate(
                     `/semesters/${semesterId}/phases?phaseTypeName=${encodeURIComponent(
-                      type.name,
-                    )}&semesterName=${encodeURIComponent(semesterName || "")}`,
+                      t.name,
+                    )}&semesterName=${encodeURIComponent(semesterName)}`,
                   )
                 }
-                className="cursor-pointer overflow-hidden rounded-xl border bg-white shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-              >
-                <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-green-500 p-3">
-                  <GraduationCap className="h-5 w-5 text-white" />
-                  <p className="text-sm font-semibold text-white">
-                    {type.name}
-                  </p>
-                </div>
-                <div className="space-y-2 p-4">
-                  <p className="text-xs text-gray-500">Mô tả</p>
-                  <p className="text-sm text-gray-600">
-                    {type.description || "Không có mô tả"}
-                  </p>
-                </div>
-              </div>
+              />
             ))}
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

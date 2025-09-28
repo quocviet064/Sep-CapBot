@@ -288,7 +288,6 @@ export default function TopicVersionDetailPage() {
 
   const progress = Math.round((completeCount / REQUIRED_FIELDS.length) * 100);
 
-  // THAY toàn bộ validate() hiện tại
   const validate = () => {
     const e: Record<string, string> = {};
 
@@ -459,7 +458,7 @@ export default function TopicVersionDetailPage() {
               </div>
             </div>
             <Button
-              onClick={() => navigate(`/topics/my/${topicId}`)}
+              onClick={() => navigate(`/unsubmitted/topics/${topicId}`)}
               className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
             >
               <ArrowLeft className="h-5 w-5" />

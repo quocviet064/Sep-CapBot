@@ -1,3 +1,4 @@
+// src/pages/topics/topic-version/TopicVersionCreatePage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -371,9 +372,17 @@ export default function TopicVersionCreatePage() {
         categoryId: initialSeed.categoryId,
         semesterId: initialSeed.semesterId,
       };
-      await createVersion(payload as any);
-      toast.success(" Tạo phiên bản thành công!", { id: toastId });
-      navigate(`/topics/my/${tid}`);
+
+      const created = await createVersion(payload as any);
+      toast.success("Tạo phiên bản thành công!", { id: toastId });
+
+      navigate(`/topics/${tid}/versions/${created.id}`, {
+        state: {
+          categoryName: initialSeed.categoryName,
+          semesterName: initialSeed.semesterName,
+        },
+        replace: true,
+      });
     } catch (err: unknown) {
       toast.error(getErrorMessage(err), { id: toastId });
     }

@@ -47,7 +47,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const name = myProfile?.fullName || fallbackName;
     const email = user?.email || "—";
 
-    // Chuẩn hoá avatar: hỗ trợ path tương đối và thay host 7190 -> host API hiện tại
     const rawAvatar = myProfile?.avatar || "";
     const normalized = rawAvatar ? normalizeAssetUrl(rawAvatar) : "";
     const avatar =

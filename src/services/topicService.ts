@@ -19,6 +19,55 @@ interface PagingData {
   totalRecord: number;
 }
 
+export type SubmissionStatus =
+  | "Pending"
+  | "UnderReview"
+  | "Duplicate"
+  | "RevisionRequired"
+  | "EscalatedToModerator"
+  | "Approved"
+  | "Rejected";
+
+export interface SubmissionDTO {
+  id: number;
+  topicId: number;
+  topicVersionId: number | null;
+  phaseId: number;
+  submittedBy: number;
+  submissionRound: number;
+  documentUrl: string | null;
+  additionalNotes: string | null;
+  aiCheckStatus: string | null;
+  aiCheckScore: number | null;
+  aiCheckDetails: string | null;
+  status: SubmissionStatus;
+  submittedAt: string;
+}
+
+export interface TopicVersionDTO {
+  id: number;
+  versionNumber: number;
+  status: string | number;
+  submittedAt: string | null;
+  submittedByUserName: string | null;
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string | null;
+  lastModifiedBy: string | null;
+  fileId?: number | null;
+  documentUrl?: string | null;
+  title?: string;
+  eN_Title?: string;
+  vN_title?: string;
+  description?: string;
+  objectives?: string;
+  methodology?: string;
+  expectedOutcomes?: string;
+  requirements?: string;
+  topicId?: number;
+  submissions?: SubmissionDTO[];
+}
+
 export interface TopicListItem {
   id: number;
   eN_Title: string;
@@ -32,14 +81,14 @@ export interface TopicListItem {
   categoryName: string;
   semesterName: string;
   maxStudents: number;
-  latestSubmissionStatus: number;
+  latestSubmissionStatus: SubmissionStatus | null;
   isApproved: boolean;
   isLegacy: boolean;
   hasSubmitted: boolean;
   currentStatus: string;
   currentVersionNumber: number;
   createdAt: string;
-  latestSubmittedAt: string;
+  latestSubmittedAt: string | null;
 }
 
 export interface RawTopicResponse {
@@ -89,28 +138,11 @@ export interface TopicDetailResponse {
   documentUrl: string | null;
   currentStatus: string;
   totalVersions: number;
-  currentVersion: null | {
-    id: number;
-    versionNumber: number;
-    status: string | number;
-    submittedAt: string | null;
-    submittedByUserName: string | null;
-    createdAt: string;
-    createdBy: string;
-    lastModifiedAt: string | null;
-    lastModifiedBy: string | null;
-    fileId?: number | null;
-    documentUrl?: string | null;
-    title?: string;
-    eN_Title?: string;
-    vN_title?: string;
-    description?: string;
-    objectives?: string;
-    methodology?: string;
-    expectedOutcomes?: string;
-    requirements?: string;
-    topicId?: number;
-  };
+  totalSubmissions?: number;
+  latestSubmissionStatus?: SubmissionStatus | null;
+  latestSubmittedAt?: string | null;
+  submissions?: SubmissionDTO[];
+  currentVersion: TopicVersionDTO | null;
   createdAt: string;
   createdBy: string;
   lastModifiedAt: string | null;
@@ -215,7 +247,6 @@ export const updateTopic = async (
     );
     const { success, message, data } = response.data;
     if (!success) throw new Error(message || "Cập nhật đề tài thất bại");
-
     return data;
   } catch (error) {
     const msg = axios.isAxiosError(error)
