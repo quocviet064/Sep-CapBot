@@ -1,32 +1,74 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SubmissionTable from "./SubmissionTable";
-import { useSubmissions } from "@/hooks/useSubmission";
-import type { SubmissionListItem } from "@/services/submissionService";
+import { useQueryClient } from "@tanstack/react-query";
+import TopicSubmittedTable from "./TopicSubmittedTable";
+import { useTopics } from "@/hooks/useTopic";
+import type { TopicListItem } from "@/services/topicService";
+import { getTopicDetail, type TopicDetailResponse } from "@/services/topicService";
+import { toast } from "sonner";
 
-export default function SubmissionsListPage() {
+export default function SubmittedTopicsPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [search, setSearch] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string | "">("");
+  const [statusFilter, setStatusFilter] = useState<string | "">("");
+
+  // loadingTopicId: id của topic đang fetch detail -> dùng để disable nút View tương ứng
+  const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, isLoading, refetch, isFetching } = useSubmissions({
-    PageNumber: page,
-    PageSize: pageSize,
-    Keyword: debouncedSearch || undefined,
-  });
-
-  const rows = useMemo<SubmissionListItem[]>(
-    () => (Array.isArray(data?.listObjects) ? data!.listObjects : []),
-    [data]
+  const { data, isLoading, refetch, isFetching } = useTopics(
+    undefined,
+    undefined,
+    page,
+    pageSize,
+    debouncedSearch || undefined,
+    undefined,
   );
+
+  const topics = Array.isArray(data?.listObjects) ? data!.listObjects : [];
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of topics) {
+      if (t.categoryName) set.add(t.categoryName);
+    }
+    return Array.from(set).sort();
+  }, [topics]);
+
+  const statuses = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of topics) {
+      if (t.latestSubmissionStatus) set.add(t.latestSubmissionStatus);
+    }
+    return Array.from(set).sort();
+  }, [topics]);
+
+  const filtered = useMemo<TopicListItem[]>(() => {
+    return topics
+      .filter((t) => !!t.hasSubmitted)
+      .filter((t) => (categoryFilter ? t.categoryName === categoryFilter : true))
+      .filter((t) => (statusFilter ? (t.latestSubmissionStatus ?? "") === statusFilter : true))
+      .filter((t) => {
+        if (!debouncedSearch) return true;
+        const kw = debouncedSearch.toLowerCase();
+        return (
+          (t.abbreviation ?? "").toLowerCase().includes(kw) ||
+          (t.eN_Title ?? "").toLowerCase().includes(kw) ||
+          (t.vN_title ?? "").toLowerCase().includes(kw) ||
+          (t.supervisorName ?? "").toLowerCase().includes(kw)
+        );
+      });
+  }, [topics, debouncedSearch, categoryFilter, statusFilter]);
 
   const totalPages = Math.max(1, data?.totalPages ?? 1);
   const totalRecords = data?.paging?.totalRecord ?? null;
@@ -39,16 +81,45 @@ export default function SubmissionsListPage() {
     }
   };
 
-  const handleView = (row: SubmissionListItem) => {
-    navigate(`/moderators/submissions/${row.id}`, { state: { row } });
+  // NEW: when user clicks View on a topic -> fetch topic detail via react-query and navigate to latest submission if exists
+  const handleViewSubmission = async (topic: TopicListItem) => {
+    setLoadingTopicId(topic.id);
+    try {
+      // TanStack Query v4 fetchQuery syntax (object) with typing
+      const detail = await qc.fetchQuery<TopicDetailResponse>({
+        queryKey: ["topicDetail", topic.id],
+        queryFn: () => getTopicDetail(topic.id),
+      });
+
+      // ensure cache has this data (fetchQuery already sets it)
+      qc.setQueryData<TopicDetailResponse>(["topicDetail", topic.id], detail);
+
+      const subs = Array.isArray(detail?.submissions) ? detail.submissions.slice() : [];
+      if (subs.length > 0) {
+        // pick latest by submittedAt (fall back to array order)
+        subs.sort((a, b) => {
+          const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+          const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+          return tb - ta;
+        });
+        const latest = subs[0];
+        navigate(`/moderators/submissions/${latest.id}`, { state: { topicId: topic.id, topicDetail: detail } });
+      } else {
+        // fallback to topic detail page
+        navigate(`/topics/${topic.id}`, { state: { topicDetail: detail } });
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Không thể lấy chi tiết đề tài");
+    } finally {
+      setLoadingTopicId(null);
+    }
   };
 
   return (
-    // NOTE: use w-full so it fills the content column. If you want to center with bigger max width, change to 'max-w-[1100px] w-full mx-auto'
     <div className="w-full px-4 py-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-4">
         <div>
-          <h1 className="text-lg font-semibold">Submissions</h1>
+          <h1 className="text-lg font-semibold">Topics đã nộp</h1>
           <div className="text-sm text-slate-500" id="totalInfo">
             {isFetching
               ? "Đang tải…"
@@ -69,20 +140,51 @@ export default function SubmissionsListPage() {
         </div>
       </div>
 
-      {/* card: make it full-width within content and allow horizontal scroll if table too wide */}
       <div className="bg-white border border-slate-200 rounded-md mt-4 p-4 w-full overflow-x-auto">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
           <input
             id="search"
             type="search"
-            placeholder="Tìm theo mã / người nộp / vòng nộp..."
+            placeholder="Tìm theo mã / tiêu đề / GVHD..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               if (page !== 1) setPage(1);
             }}
-            className="px-3 py-2 rounded-md border border-slate-200 min-w-[260px] text-sm"
+            className="px-3 py-2 rounded-md border border-slate-200 min-w-[220px] text-sm"
           />
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value ?? "");
+              setPage(1);
+            }}
+            className="px-3 py-2 rounded-md border border-slate-200 text-sm"
+          >
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value ?? "");
+              setPage(1);
+            }}
+            className="px-3 py-2 rounded-md border border-slate-200 text-sm"
+          >
+            <option value="">All statuses</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
 
           <select
             id="pageSize"
@@ -104,15 +206,15 @@ export default function SubmissionsListPage() {
           </div>
         </div>
 
-        {/* SubmissionTable nằm trong vùng cho phép mở rộng */}
-        <SubmissionTable
-          rows={rows}
+        <TopicSubmittedTable
+          rows={filtered}
           page={page}
           setPage={setPage}
           pageSize={pageSize}
           setPageSize={setPageSize}
           totalPages={totalPages}
-          onViewDetail={handleView}
+          onViewSubmission={handleViewSubmission}
+          loadingTopicId={loadingTopicId}
         />
 
         <div className="flex items-center gap-3 mt-3">

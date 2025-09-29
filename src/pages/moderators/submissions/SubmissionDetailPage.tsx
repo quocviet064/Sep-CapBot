@@ -1,11 +1,17 @@
-// src/pages/moderators/submissions/SubmissionDetailPage.tsx
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { getSubmissionReviewSummary, type SubmissionReviewSummaryDTO } from "@/services/submissionReviewService";
+import { toast } from "sonner";
+
 import { useSubmissionDetail } from "@/hooks/useSubmission";
+import { useTopicDetail } from "@/hooks/useTopic";
+import { useSubmissionReviewSummary } from "@/hooks/useSubmissionReview";
+
 import type { SubmissionListItem } from "@/services/submissionService";
+import type { TopicDetailResponse, SubmissionDTO } from "@/services/topicService";
+import type { SubmissionReviewSummaryDTO } from "@/services/submissionReviewService";
+
 import {
   useBulkAssignReviewers,
   useAvailableReviewers,
@@ -20,12 +26,39 @@ import AICheckSection from "./components/AICheckSection";
 import ReviewsModal from "./components/ReviewsModal";
 import SidebarActions from "./components/SidebarActions";
 import FinalReviewDialog from "./components/FinalReviewDialog";
+import SubmissionsListTable from "./SubmissionsListTable";
+
+/* --- helper: map status to css classes (tailwind-like) --- */
+function statusColorClass(status?: string) {
+  if (!status) return "bg-slate-100 text-slate-700";
+  const s = status.toLowerCase();
+  if (s.includes("under") || s.includes("pending")) return "bg-yellow-100 text-yellow-800";
+  if (s.includes("approved")) return "bg-green-100 text-green-800";
+  if (s.includes("rejected")) return "bg-red-100 text-red-800";
+  if (s.includes("duplicate")) return "bg-purple-100 text-purple-800";
+  if (s.includes("revision") || s.includes("revisionrequired")) return "bg-orange-100 text-orange-800";
+  if (s.includes("escalated")) return "bg-rose-100 text-rose-800";
+  return "bg-slate-100 text-slate-700";
+}
+
+/* --- Route state typing --- */
+type RouteState = {
+  topicId?: number;
+  row?: SubmissionListItem;
+  topicDetail?: TopicDetailResponse;
+} | undefined;
 
 export default function SubmissionDetailPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { submissionId } = useParams<{ submissionId: string }>();
   const { state } = useLocation();
-  const initialRow = (state?.row as SubmissionListItem | undefined) ?? undefined;
+
+  // typed state
+  const typedState = state as RouteState;
+  const initialRow = (typedState?.row as SubmissionListItem | undefined) ?? undefined;
+
+  const sid: number | undefined = submissionId ? Number(submissionId) : undefined;
 
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -33,62 +66,156 @@ export default function SubmissionDetailPage() {
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
 
-  const { data: submissionDetail } = useSubmissionDetail(submissionId);
-  const bulkAssign = useBulkAssignReviewers();
+  // ---- submission short detail (use number id) ----
+  // Note: ensure your hook supports number | undefined; if not, change to sid?.toString()
+  const { data: submissionDetailShort } = useSubmissionDetail(sid);
 
-  const { data: assignments, isLoading: loadingAssignments } = useAssignmentsBySubmission(submissionId);
-  const { data: availableReviewers } = useAvailableReviewers(isPickerOpen ? submissionId : undefined);
+  // topicId from state or submission short (typed)
+  const topicIdFromState = typedState?.topicId ?? (submissionDetailShort as any)?.topicId ?? undefined;
+  const topicId: number | undefined = topicIdFromState ? Number(topicIdFromState) : undefined;
 
-  // lazy load reviews summary (chỉ fetch khi mở modal)
+  // full topic detail via hook
+  const { data: topicDetailResponse, refetch: refetchTopicDetail } = useTopicDetail(topicId);
+  const topicDetail = topicDetailResponse as TopicDetailResponse | undefined;
+
+  // use existing summary hook (already in your hooks)
   const {
     data: summary,
     isLoading: loadingSummary,
     refetch: refetchSummary,
-  } = useQuery<SubmissionReviewSummaryDTO, Error>({
-    queryKey: ["submission-review-summary", submissionId ?? null],
-    queryFn: async () => {
-      const res = await getSubmissionReviewSummary(submissionId!);
-      return res;
-    },
-    enabled: false,
-  });
+  } = useSubmissionReviewSummary(sid);
 
+  // choose selected submission
+  const selectedSubmission = useMemo<SubmissionDTO | undefined>(() => {
+    if (!topicDetail) return (initialRow ?? (submissionDetailShort as any)) as SubmissionDTO | undefined;
+    const subs = topicDetail.submissions ?? [];
+    if (sid) {
+      const found = subs.find((s) => s.id === sid);
+      if (found) return found;
+    }
+    const sorted = subs.slice().sort((a, b) => {
+      const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+      const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+      return tb - ta;
+    });
+    return sorted[0] ?? ((initialRow ?? (submissionDetailShort as any)) as SubmissionDTO | undefined);
+  }, [topicDetail, sid, initialRow, submissionDetailShort]);
+
+  // seed cache for submission-detail so useSubmissionDetail reads immediate
+  useEffect(() => {
+    const id = selectedSubmission?.id;
+    if (!id) return;
+    // only seed if no cached data to avoid overwriting a fresher cache
+    const existing = qc.getQueryData(["submission-detail", id]);
+    if (!existing) {
+      qc.setQueryData(["submission-detail", id], selectedSubmission);
+    }
+  }, [qc, selectedSubmission]);
+
+  // reviewer/assignment hooks
+  const { data: assignments, isLoading: loadingAssignments } = useAssignmentsBySubmission(sid);
+  const { data: availableReviewers, isLoading: loadingAvailable } = useAvailableReviewers(isPickerOpen ? sid : undefined);
+  const bulkAssign = useBulkAssignReviewers();
+
+  // header
   const header = {
-    id: submissionId,
-    code: String(initialRow?.id ?? submissionId),
-    title: initialRow?.topicTitle ?? (submissionDetail as any)?.topicTitle ?? `Submission #${submissionId}`,
-    submittedByName: initialRow?.submittedByName ?? (submissionDetail as any)?.submittedByName ?? "-",
-    round: initialRow?.submissionRound ?? (submissionDetail as any)?.submissionRound ?? "-",
-    submittedAt: initialRow?.submittedAt ?? (submissionDetail as any)?.submittedAt ?? "-",
+    id: sid,
+    code: String(initialRow?.id ?? submissionId ?? ""),
+    title: initialRow?.topicTitle ?? topicDetail?.eN_Title ?? topicDetail?.vN_title ?? `Submission #${submissionId ?? "-"}`,
+    submittedByName: (selectedSubmission as any)?.submittedByName ?? "-",
+    round: (selectedSubmission as any)?.submissionRound ?? "-",
+    submittedAt: (selectedSubmission as any)?.submittedAt ?? "-",
   };
 
+  // open/close reviews (uses summary hook already)
   const openReviews = async () => {
     setShowReviewsModal(true);
-    await refetchSummary();
+    try {
+      await refetchSummary?.();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Không thể tải review summary");
+    }
   };
+  const closeReviews = () => setShowReviewsModal(false);
 
-  const closeReviews = () => {
-    setShowReviewsModal(false);
+  const openPicker = () => {
+    if (!sid) {
+      toast.error("Submission ID không hợp lệ");
+      return;
+    }
+    setIsPickerOpen(true);
   };
-
-  const openPicker = () => setIsPickerOpen(true);
   const closePicker = () => setIsPickerOpen(false);
-  const openAssignments = () => setIsAssignmentsOpen(true);
+
+  const openAssignments = () => {
+    if (!sid) {
+      toast.error("Submission ID không hợp lệ");
+      return;
+    }
+    setIsAssignmentsOpen(true);
+  };
   const closeAssignments = () => setIsAssignmentsOpen(false);
-  const openSuggestions = () => setIsSuggestionOpen(true);
+
+  const openSuggestions = () => {
+    if (!sid) {
+      toast.error("Submission ID không hợp lệ");
+      return;
+    }
+    setIsSuggestionOpen(true);
+  };
   const closeSuggestions = () => setIsSuggestionOpen(false);
 
-  const openFinalReview = () => setIsFinalReviewOpen(true);
+  const openFinalReview = () => {
+    if (!sid) {
+      toast.error("Submission ID không hợp lệ");
+      return;
+    }
+    setIsFinalReviewOpen(true);
+  };
   const closeFinalReview = () => setIsFinalReviewOpen(false);
 
+  // handle assign
   const handleConfirmAssign = async (selectedReviewerIds: (number | string)[]) => {
-    if (!submissionId) return;
+    if (!sid) {
+      toast.error("Submission ID không hợp lệ");
+      return;
+    }
+    const reviewerIds = selectedReviewerIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n));
     try {
-      await bulkAssign.mutateAsync({ submissionId, reviewerIds: selectedReviewerIds } as any);
-      if (showReviewsModal) await refetchSummary();
+      await bulkAssign.mutateAsync({ submissionId: sid, reviewerIds } as any);
+
+      // invalidate only relevant keys (ensure hooks use same key structure)
+      if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
+      qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+      qc.invalidateQueries({ queryKey: ["assignments", sid] });
+      qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+
+      toast.success("Phân công reviewer thành công");
+      if (showReviewsModal) {
+        try {
+          await refetchSummary?.();
+        } catch {
+          /* ignore */
+        }
+      }
       closePicker();
-    } catch {
-      closePicker();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Phân công reviewer thất bại");
+    }
+  };
+
+  // navigate to a submission within same topic (seed cache first)
+  const goToSubmission = (id: number) => {
+    const s = (topicDetail?.submissions ?? []).find((x) => x.id === id);
+    if (s) qc.setQueryData(["submission-detail", id], s);
+    navigate(`/moderators/submissions/${id}`, { state: { topicId, topicDetail } });
+  };
+
+  const refreshTopicDetail = async () => {
+    try {
+      if (topicId) await refetchTopicDetail?.();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Không thể tải lại thông tin đề tài");
     }
   };
 
@@ -119,15 +246,97 @@ export default function SubmissionDetailPage() {
           <div className="mt-6 grid gap-6 md:grid-cols-3">
             {/* Left */}
             <div className="md:col-span-2 space-y-4 min-w-0">
-              <div className="bg-white border rounded-md p-4 w-full overflow-x-auto">
-                <div className="text-sm font-semibold mb-2">Topic</div>
-                <div className="text-base">{(submissionDetail as any)?.topicTitle ?? "—"}</div>
-                <div className="mt-3 text-sm text-slate-500">
-                  {(submissionDetail as any)?.additionalNotes ?? "No notes."}
+              {/* Topic info card */}
+              <div className="bg-white border rounded-md p-4 w-full">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Topic</div>
+                    <div className="text-base font-medium mt-1">{topicDetail?.eN_Title ?? topicDetail?.vN_title ?? "—"}</div>
+                    <div className="text-xs text-slate-500 mt-1">{topicDetail?.description ?? "—"}</div>
+                  </div>
+
+                  <div className="text-sm text-right">
+                    <div className="mb-1">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass(topicDetail?.latestSubmissionStatus ?? "")}`}>
+                        {topicDetail?.latestSubmissionStatus ?? "—"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">Max students: {topicDetail?.maxStudents ?? "—"}</div>
+                    <div className="text-xs text-slate-500">Has submitted: {topicDetail?.hasSubmitted ? "Yes" : "No"}</div>
+                    <div className="text-xs text-slate-500 mt-2">Created: {topicDetail?.createdAt ? new Date(topicDetail.createdAt).toLocaleString() : "—"}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-700">
+                  <div>
+                    <div className="text-xs text-slate-500">Category</div>
+                    <div className="font-medium">{topicDetail?.categoryName ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">Semester</div>
+                    <div className="font-medium">{topicDetail?.semesterName ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">Supervisor</div>
+                    <div className="font-medium">{topicDetail?.supervisorName ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">Document</div>
+                    <div>
+                      {topicDetail?.documentUrl ? (
+                        <a href={topicDetail.documentUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">
+                          Open document
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <AICheckSection submissionDetail={submissionDetail} />
+              {/* Selected submission */}
+              <div className="bg-white border rounded-md p-4 w-full">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold">Selected Submission</div>
+                  <div className="text-xs text-slate-500">Round: {selectedSubmission?.submissionRound ?? "—"}</div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="text-sm font-medium">{selectedSubmission?.submittedByName ?? selectedSubmission?.submittedBy ?? "—"}</div>
+                  <div className="text-sm text-slate-600 mt-2">
+                    Status:{" "}
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass(selectedSubmission?.status ?? "")}`}>
+                      {selectedSubmission?.status ?? "—"}
+                    </span>
+                    {" • "}
+                    Submitted at: {selectedSubmission?.submittedAt ? new Date(selectedSubmission.submittedAt).toLocaleString() : "—"}
+                  </div>
+
+                  <div className="mt-3 text-sm text-slate-700">
+                    <div className="font-medium">Additional notes</div>
+                    <div className="text-sm text-slate-600 mt-1">{selectedSubmission?.additionalNotes ?? "—"}</div>
+                  </div>
+
+                  {selectedSubmission?.documentUrl && (
+                    <div className="mt-3">
+                      <a href={selectedSubmission.documentUrl} rel="noreferrer" target="_blank" className="text-sm text-blue-600 underline">
+                        View submission document
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <AICheckSection submissionDetail={selectedSubmission} />
+
+              {/* Extracted table component */}
+              <div className="bg-white border rounded-md p-4 w-full">
+                <SubmissionsListTable
+                  submissions={topicDetail?.submissions ?? []}
+                  onView={goToSubmission}
+                />
+              </div>
             </div>
 
             {/* Right */}
@@ -143,8 +352,9 @@ export default function SubmissionDetailPage() {
                 onOpenPicker={openPicker}
                 onOpenSuggestions={openSuggestions}
                 onOpenAssignments={openAssignments}
-                onOpenFinalReview={openFinalReview} // thêm prop mở FinalReview dialog
-                submissionId={submissionId}
+                onOpenFinalReview={openFinalReview}
+                submissionId={sid}
+                onRefreshTopicDetail={refreshTopicDetail}
               />
             </aside>
           </div>
@@ -152,52 +362,59 @@ export default function SubmissionDetailPage() {
       </div>
 
       {/* dialogs */}
-      {isPickerOpen && submissionId && (
+      {isPickerOpen && sid && (
         <ReviewerPickerDialog
           isOpen={isPickerOpen}
-          submissionId={submissionId}
+          submissionId={sid}
           availableReviewers={availableReviewers ?? []}
           onClose={closePicker}
           onConfirm={(ids) => handleConfirmAssign(ids)}
+          loading={bulkAssign.isLoading || loadingAvailable}
         />
       )}
 
-      {isSuggestionOpen && submissionId && (
+      {isSuggestionOpen && sid && (
         <ReviewerSuggestionDialog
-          submissionId={Number(submissionId)}
+          submissionId={sid}
           open={isSuggestionOpen}
           onClose={closeSuggestions}
         />
       )}
 
-      {isAssignmentsOpen && submissionId && (
+      {isAssignmentsOpen && sid && (
         <SubmissionAssignmentsDialog
           isOpen={isAssignmentsOpen}
-          submissionId={submissionId}
+          submissionId={sid}
           onClose={closeAssignments}
         />
       )}
 
-      {/* Reviews modal */}
       <ReviewsModal
         open={showReviewsModal}
         onClose={closeReviews}
-        summary={summary}
+        summary={summary as SubmissionReviewSummaryDTO | undefined}
         loading={loadingSummary}
         onOpenRefetch={async () => {
-          await refetchSummary();
+          try {
+            await refetchSummary?.();
+          } catch (err: any) {
+            toast.error(err?.message ?? "Không thể tải lại summary");
+          }
         }}
       />
 
-      {/* Final Review dialog (Modal riêng cho Moderator quyết định) */}
-      {isFinalReviewOpen && submissionId && (
+      {isFinalReviewOpen && sid && (
         <FinalReviewDialog
           isOpen={isFinalReviewOpen}
           onClose={closeFinalReview}
-          submissionId={Number(submissionId)}
+          submissionId={sid}
           onSuccess={async () => {
-            // refresh lại summary khi moderator vừa lưu quyết định
-            await refetchSummary();
+            try {
+              if (topicId) await refetchTopicDetail?.();
+              await refetchSummary?.();
+            } catch {
+              // ignore
+            }
           }}
         />
       )}

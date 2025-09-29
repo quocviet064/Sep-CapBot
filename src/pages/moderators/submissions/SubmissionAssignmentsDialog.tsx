@@ -17,6 +17,7 @@ import type {
 import { createAssignmentColumns } from "./assignment-columns";
 import { useMemo } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const ASSIGNMENT_VISIBILITY = {
   assignedBy: false,
@@ -39,18 +40,44 @@ export default function SubmissionAssignmentsDialog({
   onClose,
   submissionId,
 }: Props) {
+  const qc = useQueryClient();
   const { data, isLoading, error } = useAssignmentsBySubmission(submissionId);
   const delMut = useCancelAssignment();
 
   const handlers = useMemo(
     () => ({
       onCancel: (assignmentId: IdLike) => {
+        // Confirm before delete
+        const ok = window.confirm("Bạn có chắc muốn huỷ phân công này không? Hành động này không thể hoàn tác.");
+        if (!ok) return;
+
         delMut.mutate(assignmentId, {
-          onSuccess: () => toast.success("Đã huỷ phân công"),
+          onSuccess: () => {
+            toast.success("Đã huỷ phân công");
+            // invalidate related queries so UI updates
+            try {
+              // try to normalize submissionId to number if possible
+              const sidNum = submissionId ? Number(submissionId as any) : NaN;
+              if (!Number.isNaN(sidNum)) {
+                qc.invalidateQueries({ queryKey: ["assignments", sidNum] });
+                qc.invalidateQueries({ queryKey: ["submission-detail", sidNum] });
+                qc.invalidateQueries({ queryKey: ["submission-review-summary", sidNum] });
+              }
+              // also invalidate generic assignments list
+              qc.invalidateQueries({ queryKey: ["assignments"] });
+            } catch (e) {
+              // ignore invalidation errors but log if needed
+              // console.warn("Invalidate after cancel assignment failed", e);
+            }
+          },
+          onError: (err: any) => {
+            const msg = err?.response?.data?.message ?? err?.message ?? "Không thể huỷ phân công";
+            toast.error(msg);
+          },
         });
       },
     }),
-    [delMut]
+    [delMut, qc, submissionId]
   );
 
   const columns = useMemo(() => createAssignmentColumns(handlers), [handlers]);

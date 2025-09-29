@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import capBotAPI from "@/lib/CapBotApi";
 import { toast } from "sonner";
 
@@ -33,7 +33,13 @@ function recTextFromAny(val: unknown): string | null {
 }
 
 /** Badge hiển thị recommendation — nhận text (ưu tiên)*/
-function RecommendationBadge({ recommendation, recommendationText }: { recommendation?: any; recommendationText?: string | null }) {
+function RecommendationBadge({
+  recommendation,
+  recommendationText,
+}: {
+  recommendation?: any;
+  recommendationText?: string | null;
+}) {
   const txt = recommendationText ?? recTextFromAny(recommendation) ?? "";
   const rec = txt.toString().trim().toLowerCase();
 
@@ -62,7 +68,16 @@ export default function ReviewItem({ review, recommendationText }: { review: Rev
   const [loadingScores, setLoadingScores] = useState(false);
   const [errorScores, setErrorScores] = useState<string | null>(null);
 
-  const reviewId = review.reviewId ?? review.id ?? review.review?.id;
+  // to avoid state update after unmount
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const reviewId = review?.reviewId ?? review?.id ?? review?.review?.id ?? null;
 
   const fetchScores = async (rid: string | number) => {
     const ridStr = String(rid);
@@ -79,17 +94,23 @@ export default function ReviewItem({ review, recommendationText }: { review: Rev
       else payloadData = payloadWrapper;
 
       if (!payloadData) {
-        setErrorScores("Không có dữ liệu điểm chi tiết");
-        setScoresPayload(null);
+        if (mountedRef.current) {
+          setErrorScores("Không có dữ liệu điểm chi tiết");
+          setScoresPayload(null);
+        }
       } else {
-        setScoresPayload(payloadData);
+        if (mountedRef.current) {
+          setScoresPayload(payloadData);
+        }
       }
     } catch (err: any) {
       const msg = (err?.response?.data?.message as string) ?? err?.message ?? "Lỗi khi tải chi tiết điểm";
-      setErrorScores(msg);
+      if (mountedRef.current) {
+        setErrorScores(msg);
+      }
       toast.error(msg);
     } finally {
-      setLoadingScores(false);
+      if (mountedRef.current) setLoadingScores(false);
     }
   };
 
@@ -120,14 +141,16 @@ export default function ReviewItem({ review, recommendationText }: { review: Rev
           <div className="space-y-2">
             {criteria.map((c: any, i: number) => {
               const name = c.criteriaName ?? c.criteria_name ?? c.name ?? `Tiêu chí ${i + 1}`;
-              const score = c.score ?? c.Score ?? null;
-              const maxScore = c.maxScore ?? c.max_score ?? null;
+              const score = c.score ?? c.Score ?? c.value ?? null;
+              const maxScore = c.maxScore ?? c.max_score ?? c.max ?? null;
               const weight = c.weight ?? c.Weight ?? null;
-              const comment = c.comment ?? c.Comment ?? null;
+              const comment = c.comment ?? c.Comment ?? c.note ?? null;
               const pct = maxScore ? clamp((Number(score ?? 0) / Number(maxScore)) * 100, 0, 100) : clamp(Number(score ?? 0), 0, 100);
 
+              const keyId = String(c.criteriaId ?? c.criteria_id ?? c.id ?? i);
+
               return (
-                <div key={String(c.criteriaId ?? c.criteria_id ?? i)} className="border rounded p-3 bg-white">
+                <div key={keyId} className="border rounded p-3 bg-white">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-sm font-medium truncate">{name}</div>

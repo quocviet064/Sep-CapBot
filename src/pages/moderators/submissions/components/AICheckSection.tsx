@@ -1,4 +1,3 @@
-// src/pages/moderators/submissions/components/AICheckSection.tsx
 import { useMemo, useState } from "react";
 
 type Props = { submissionDetail?: any };
@@ -194,7 +193,7 @@ export default function AICheckSection({ submissionDetail }: Props) {
             </div>
           )}
 
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-2 gap-3">
             {Array.isArray(aiCheck.parsed.missing_fields) && aiCheck.parsed.missing_fields.length > 0 && (
               <div className="rounded border p-3">
                 <div className="text-sm font-semibold mb-1">Missing fields</div>

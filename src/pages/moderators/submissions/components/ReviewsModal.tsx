@@ -105,7 +105,10 @@ type Props = {
 export default function ReviewsModal({ open, onClose, summary, loading, onOpenRefetch }: Props) {
   useEffect(() => {
     if (!open) return;
-    if (onOpenRefetch) onOpenRefetch().catch(() => {});
+    // try refetch once when opened
+    if (onOpenRefetch) {
+      onOpenRefetch().catch(() => {});
+    }
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -123,7 +126,7 @@ export default function ReviewsModal({ open, onClose, summary, loading, onOpenRe
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <div className="text-lg font-semibold">Danh sách đánh giá</div>
-            <div className="text-xs text-slate-500">{loading ? "Đang tải..." : `${totalReviews ?? 0} đánh giá • Trung bình: ${averageScore != null ? `${averageScore}%` : "—"}`}</div>
+            <div className="text-xs text-slate-500">{loading ? "Đang tải..." : `${totalReviews ?? 0} đánh giá • Trung bình: ${averageScore != null ? `${averageScore}` : "—"}`}</div>
           </div>
           <div><button className="rounded border px-3 py-1 text-sm" onClick={onClose}>Đóng</button></div>
         </div>
