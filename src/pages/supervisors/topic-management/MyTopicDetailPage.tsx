@@ -237,7 +237,6 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
   }, [data]);
 
   const current = data?.currentVersion;
-
   const semesterId = data?.semesterId ?? 0;
 
   const form = {
@@ -333,6 +332,10 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
 
   const handleSubmit = async () => {
     if (!data) return;
+    if (data.hasSubmitted) {
+      toast.error("Đề tài đã nộp, không thể lưu chỉnh sửa.");
+      return;
+    }
     if (!validate()) {
       toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
       return;
@@ -384,6 +387,14 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleEditClick = () => {
+    if (data?.hasSubmitted) {
+      toast.error("Đề tài đã nộp, không thể chỉnh sửa.");
+      return;
+    }
+    setIsEditing(true);
   };
 
   if (!data) {
@@ -447,32 +458,6 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
               Lựa chọn phiên bản chủ đề để nộp
             </span>
           </div>
-          {/* <Button
-            onClick={() => {
-              const seed = {
-                eN_Title: data.eN_Title ?? "",
-                vN_title: data.vN_title ?? "",
-                description: data.description ?? "",
-                objectives: data.objectives ?? "",
-                methodology: data.currentVersion?.methodology ?? "",
-                expectedOutcomes: data.currentVersion?.expectedOutcomes ?? "",
-                requirements: data.currentVersion?.requirements ?? "",
-                problem: data.problem ?? "",
-                context: data.context ?? "",
-                content: data.content ?? "",
-                supervisorId: data.supervisorId ?? 0,
-                supervisorName: data.supervisorName ?? "",
-                categoryId: data.categoryId ?? 0,
-                categoryName: data.categoryName ?? "",
-                semesterId: data.semesterId ?? 0,
-                semesterName: data.semesterName ?? "",
-              };
-              navigate(`/topics/${data.id}/versions/new`, { state: { seed } });
-            }}
-            className="inline-flex items-center gap-2"
-          >
-            + Tạo phiên bản mới
-          </Button> */}
         </div>
 
         <VersionTabs
@@ -932,8 +917,16 @@ function TopicDetailPage({ data, onBack, onUpdate }: TopicDetailPageProps) {
                   Xóa
                 </Button>
                 <Button
-                  onClick={() => setIsEditing(true)}
-                  className="inline-flex min-w-36 items-center gap-2"
+                  onClick={handleEditClick}
+                  title={
+                    data.hasSubmitted
+                      ? "Đề tài đã nộp — không thể chỉnh sửa"
+                      : undefined
+                  }
+                  className={[
+                    "inline-flex min-w-36 items-center gap-2",
+                    data.hasSubmitted ? "cursor-not-allowed opacity-60" : "",
+                  ].join(" ")}
                 >
                   <PencilLine className="h-4 w-4" /> Chỉnh sửa
                 </Button>
