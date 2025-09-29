@@ -1,31 +1,26 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoadingPage from "./pages/loading-page";
-
-import CreateProfilePage from "./pages/profile/CreateProfilePage";
-import MyProfilePage from "./pages/profile/MyProfilePage";
-import EditProfilePage from "./pages/profile/EditProfilePage";
-import AllSubmittedTopicPage from "./pages/supervisors/all-submitted-topics/AllSubmittedTopicsPage";
-import SubmittedTopicDetailPage from "./pages/supervisors/all-submitted-topics/SubmittedTopicDetailPage";
-import EvaluationCriteriaDetailPage from "./pages/admins/evaluation-criteria/EvaluationCriteriaDetailPage";
-import TopicDuplicateCheckerPage from "./pages/supervisors/ai-check";
-import AllUnsubmittedTopicPage from "./pages/supervisors/all-unsubmitted-topics/AllUnsubmittedTopicPage";
-import UnsubmittedTopicDetailPage from "./pages/supervisors/all-unsubmitted-topics/UnsubmittedTopicDetailPage";
-import TopicsListPage from "./pages/supervisors/all-topics-list/TopicsListPage";
-import TopicListDetailPage from "./pages/supervisors/all-topics-list/TopicListDetailPage";
+import DuplicateAdvancedResultPage from "./pages/supervisors/ai-check-duplicate/DuplicateAdvancedResultPage";
+import TopicListDetailDuplicatePage from "./pages/supervisors/ai-check-duplicate/TopicListDetailDuplicatePage";
+import CreateTopicFromAIPage from "./pages/supervisors/ai-check-duplicate/CreateTopicFromAIPage";
+import CreateTopicNewPage from "./pages/supervisors/CreateTopicNewPage";
+import CreateTopicSuggestPage from "./pages/supervisors/CreateTopicSuggestPage";
+import CreateTopicBackPage from "./pages/supervisors/CreateTopicBackPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
 );
+
 const Home = lazy(() => import("./pages/home-page"));
 const Login = lazy(() => import("./pages/login-page"));
 
-const CreateTopicPage = lazy(
-  () => import("./pages/supervisors/CreateTopicPage"),
+const CreateProfilePage = lazy(
+  () => import("./pages/profile/CreateProfilePage"),
 );
-const AllTopics = lazy(
-  () => import("./pages/supervisors/topic-management/topic-page"),
-);
+const MyProfilePage = lazy(() => import("./pages/profile/MyProfilePage"));
+const EditProfilePage = lazy(() => import("./pages/profile/EditProfilePage"));
+
 const AllMyTopics = lazy(
   () => import("./pages/supervisors/topic-management/myTopic-page"),
 );
@@ -38,12 +33,41 @@ const TopicVersionDetailPage = lazy(
 const TopicVersionCreatePage = lazy(
   () => import("./pages/supervisors/topic-management/TopicVersionCreatePage"),
 );
+
+const TopicsListPage = lazy(
+  () => import("./pages/supervisors/all-topics-list/TopicsListPage"),
+);
+const TopicListDetailPage = lazy(
+  () => import("./pages/supervisors/all-topics-list/TopicListDetailPage"),
+);
+const AllSubmittedTopicPage = lazy(
+  () =>
+    import("./pages/supervisors/all-submitted-topics/AllSubmittedTopicsPage"),
+);
+const SubmittedTopicDetailPage = lazy(
+  () =>
+    import("./pages/supervisors/all-submitted-topics/SubmittedTopicDetailPage"),
+);
+const AllUnsubmittedTopicPage = lazy(
+  () =>
+    import(
+      "./pages/supervisors/all-unsubmitted-topics/AllUnsubmittedTopicPage"
+    ),
+);
+const UnsubmittedTopicDetailPage = lazy(
+  () =>
+    import(
+      "./pages/supervisors/all-unsubmitted-topics/UnsubmittedTopicDetailPage"
+    ),
+);
+
 const SemesterPage = lazy(
   () => import("./pages/supervisors/semester/semester-page"),
 );
 const CategoryPage = lazy(
   () => import("./pages/supervisors/category/category-page"),
 );
+
 const SemestersPage = lazy(
   () => import("./pages/supervisors/submission-topic/semesters/semesters-page"),
 );
@@ -52,6 +76,10 @@ const PhaseTypesPage = lazy(
 );
 const PhaseListPage = lazy(
   () => import("./pages/supervisors/submission-topic/semesters/PhaseListPage"),
+);
+
+const TopicDuplicateCheckerPage = lazy(
+  () => import("./pages/supervisors/ai-check"),
 );
 
 const AdminSemesterPage = lazy(
@@ -68,6 +96,10 @@ const AdminEvaluationCriteriaPage = lazy(
   () =>
     import("./pages/admins/evaluation-criteria/AdminEvaluationCriteriaPage"),
 );
+const EvaluationCriteriaDetailPage = lazy(
+  () =>
+    import("./pages/admins/evaluation-criteria/EvaluationCriteriaDetailPage"),
+);
 const AccountProvisionPage = lazy(
   () => import("./pages/admins/auth-management/AccountProvisionPage"),
 );
@@ -76,7 +108,9 @@ const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
 const ReviewerAssignedList = lazy(
   () => import("./pages/reviewers/assigned-topics/list"),
 );
-const ReviewerAssignedDetail = lazy(() => import("./pages/reviewers/assigned-topics/detail"));
+const ReviewerAssignedDetail = lazy(
+  () => import("./pages/reviewers/assigned-topics/detail"),
+);
 const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
 const ReviewerReview = lazy(
   () => import("./pages/reviewers/evaluate-topics/review"),
@@ -113,15 +147,35 @@ function App() {
           path="/profile/CreateProfilePage"
           element={<Navigate to="/profile/create" replace />}
         />
-
         <Route element={<LectureLayout />}>
           <Route path="/home" element={<Home />} />
-
-          <Route path="/create-project" element={<CreateTopicPage />} />
           <Route
-            path="/supervisors/topics/topic-page"
-            element={<AllTopics />}
+            path="/supervisors/topics/create-new"
+            element={<CreateTopicNewPage />}
           />
+          <Route
+            path="/supervisors/topics/create-suggest"
+            element={<CreateTopicSuggestPage />}
+          />
+          <Route
+            path="/supervisors/topics/create-back"
+            element={<CreateTopicBackPage />}
+          />
+
+          <Route
+            path="/supervisors/topics/myTopic-page"
+            element={<AllMyTopics />}
+          />
+          <Route path="/topics/my/:id" element={<MyTopicDetailPage />} />
+          <Route
+            path="/topics/:topicId/versions/:versionId"
+            element={<TopicVersionDetailPage />}
+          />
+          <Route
+            path="/topics/:topicId/versions/new"
+            element={<TopicVersionCreatePage />}
+          />
+
           <Route
             path="/supervisors/topics/all-topics-list"
             element={<TopicsListPage />}
@@ -130,18 +184,28 @@ function App() {
             path="/supervisors/topics/all-topics-list/topics/:id"
             element={<TopicListDetailPage />}
           />
-          <Route
-            path="/supervisors/topics/myTopic-page"
-            element={<AllMyTopics />}
-          />
+
           <Route
             path="/supervisors/all-submitted-topics/AllSubmittedTopicsPage"
             element={<AllSubmittedTopicPage />}
           />
           <Route
+            path="/supervisors/ai-check-duplicate"
+            element={<DuplicateAdvancedResultPage />}
+          />
+          <Route
+            path="/supervisors/ai-check-duplicate/create"
+            element={<CreateTopicFromAIPage />}
+          />
+          <Route
+            path="/supervisors/ai-check-duplicate/:id"
+            element={<TopicListDetailDuplicatePage />}
+          />
+          <Route
             path="/submitted/topics/:id"
             element={<SubmittedTopicDetailPage />}
           />
+
           <Route
             path="/supervisors/all-unsubmitted-topics/AllUnSubmittedTopicsPage"
             element={<AllUnsubmittedTopicPage />}
@@ -150,6 +214,7 @@ function App() {
             path="/unsubmitted/topics/:id"
             element={<UnsubmittedTopicDetailPage />}
           />
+
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"
             element={<SemestersPage />}
@@ -161,16 +226,6 @@ function App() {
           <Route
             path="/semesters/:semesterId/phases"
             element={<PhaseListPage />}
-          />
-
-          <Route path="/topics/my/:id" element={<MyTopicDetailPage />} />
-          <Route
-            path="/topics/:topicId/versions/:versionId"
-            element={<TopicVersionDetailPage />}
-          />
-          <Route
-            path="/topics/:topicId/versions/new"
-            element={<TopicVersionCreatePage />}
           />
 
           <Route path="/supervisors/semester" element={<SemesterPage />} />
@@ -203,23 +258,14 @@ function App() {
           />
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-
-          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
-          <Route path="/reviewers/assigned-topics/detail/:submissionId" element={<ReviewerAssignedDetail />} />
-          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
-          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
-          />
-
-          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
-          <Route path="/moderators/submissions" element={<SubmissionsListPage />} />
-          <Route path="/moderators/submissions/:submissionId" element={<SubmissionDetailPage />} />
-          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
-
           <Route
             path="/reviewers/assigned-topics/list"
             element={<ReviewerAssignedList />}
           />
-
+          <Route
+            path="/reviewers/assigned-topics/detail/:submissionId"
+            element={<ReviewerAssignedDetail />}
+          />
           <Route
             path="/reviewers/evaluation-stats"
             element={<ReviewerStats />}
@@ -246,7 +292,6 @@ function App() {
             element={<ModeratorFeedbackEval />}
           />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
-
           <Route
             path="/moderators/category-manager/category-page"
             element={<ModeratorCategoryPage />}

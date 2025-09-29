@@ -11,17 +11,43 @@ import {
 import { Copy, Eye, MoreHorizontal, Send } from "lucide-react";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
-import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
 import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
-import type { TopicListItem } from "@/services/topicService";
+import type { TopicListItem, SubmissionStatus } from "@/services/topicService";
 import DataTableCellAbbreviation from "@/components/globals/molecules/data-table-abbreviation-cell";
 
 export type ColumnActionsHandlers = {
   onViewDetail: (id: number) => void;
-  // mở modal submit cho 1 topic
   onRequestSubmit?: (topic: TopicListItem) => void;
 };
+
+const OneLine = ({
+  children,
+  width = "max-w-[220px]",
+}: {
+  children: React.ReactNode;
+  width?: string;
+}) => (
+  <div className={`min-w-0 ${width} overflow-hidden`}>
+    <div className="truncate whitespace-nowrap">{children}</div>
+  </div>
+);
+
+const TwoLines = ({
+  children,
+  width = "max-w-[360px]",
+}: {
+  children: React.ReactNode;
+  width?: string;
+}) => (
+  <div className={`min-w-0 ${width} overflow-hidden`}>
+    <div className="line-clamp-2 break-words whitespace-normal">{children}</div>
+  </div>
+);
+
+// Helper chuẩn hoá status -> lowercase string
+const normalizeStatus = (s: SubmissionStatus | null | undefined): string =>
+  s ? String(s).trim().toLowerCase() : "";
 
 export const createMyUnsubmittedTopicColumns = (
   handlers: ColumnActionsHandlers,
@@ -49,6 +75,8 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     enableSorting: false,
     enableHiding: false,
+    size: 40,
+    maxSize: 40,
   },
   {
     accessorKey: "id",
@@ -56,6 +84,11 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Mã đề tài" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[90px]">{row.original.id}</OneLine>
+    ),
+    size: 100,
+    maxSize: 120,
   },
   {
     accessorKey: "eN_Title",
@@ -63,12 +96,16 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tên tiếng anh" />
     ),
-    cell: ({ row }) => (
-      <DataTableCellTopic
-        title={row.original.eN_Title || "-"}
-        supervisor={row.original.supervisorName}
-      />
-    ),
+    cell: ({ row }) =>
+      row.original.eN_Title ? (
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.eN_Title} />
+        </TwoLines>
+      ) : (
+        <span className="text-neutral-400">--</span>
+      ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "vN_title",
@@ -76,9 +113,16 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tên tiếng việt" />
     ),
-    cell: ({ row }) => (
-      <span className="line-clamp-2">{row.original.vN_title || "-"}</span>
-    ),
+    cell: ({ row }) =>
+      row.original.vN_title ? (
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.vN_title} />
+        </TwoLines>
+      ) : (
+        <span className="text-neutral-400">--</span>
+      ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "abbreviation",
@@ -88,10 +132,14 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.abbreviation ? (
-        <DataTableCellAbbreviation abbreviation={row.original.abbreviation} />
+        <OneLine width="max-w-[140px]">
+          <DataTableCellAbbreviation abbreviation={row.original.abbreviation} />
+        </OneLine>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 160,
+    maxSize: 180,
   },
   {
     accessorKey: "categoryName",
@@ -99,6 +147,13 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Danh mục" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[180px]">
+        {row.original.categoryName ?? "-"}
+      </OneLine>
+    ),
+    size: 200,
+    maxSize: 220,
   },
   {
     accessorKey: "semesterName",
@@ -106,6 +161,13 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Học kỳ" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[160px]">
+        {row.original.semesterName ?? "-"}
+      </OneLine>
+    ),
+    size: 180,
+    maxSize: 200,
   },
   {
     accessorKey: "description",
@@ -115,10 +177,14 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.description ? (
-        <DataTableCellDescription description={row.original.description} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.description} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "problem",
@@ -128,10 +194,14 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.problem ? (
-        <DataTableCellDescription description={row.original.problem} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.problem} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "context",
@@ -141,10 +211,14 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.context ? (
-        <DataTableCellDescription description={row.original.context} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.context} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "content",
@@ -154,10 +228,14 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.content ? (
-        <DataTableCellDescription description={row.original.content} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.content} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "maxStudents",
@@ -165,6 +243,11 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="SV tối đa" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[90px]">{row.original.maxStudents}</OneLine>
+    ),
+    size: 110,
+    maxSize: 130,
   },
   {
     accessorKey: "hasSubmitted",
@@ -173,18 +256,14 @@ export const createMyUnsubmittedTopicColumns = (
       <DataTableColumnHeader column={column} title="Trạng thái nộp" center />
     ),
     cell: ({ row }) => {
-      const topic = row.original as TopicListItem;
-      const latestStatus = (topic as any)?.latestSubmissionStatus
-        ? String((topic as any).latestSubmissionStatus)
-            .trim()
-            .toLowerCase()
-        : "";
+      const topic = row.original; // TopicListItem
+      const latestStatusLc = normalizeStatus(topic.latestSubmissionStatus);
 
-      let label = "Chưa nộp";
-      let badgeClass = "bg-gray-500 text-white";
+      let label: string = "Chưa nộp";
+      let badgeClass: string = "bg-gray-500 text-white";
 
       if (topic.hasSubmitted === true) {
-        if (latestStatus === "revisionrequired") {
+        if (latestStatusLc === "revisionrequired") {
           label = "Cần sửa";
           badgeClass = "bg-amber-500 text-white";
         } else {
@@ -195,10 +274,12 @@ export const createMyUnsubmittedTopicColumns = (
 
       return (
         <div className="flex justify-center pr-4">
-          <Badge className={badgeClass}>{label}</Badge>
+          <Badge className={`whitespace-nowrap ${badgeClass}`}>{label}</Badge>
         </div>
       );
     },
+    size: 160,
+    maxSize: 180,
   },
   {
     accessorKey: "currentVersionNumber",
@@ -208,9 +289,13 @@ export const createMyUnsubmittedTopicColumns = (
     ),
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
-        {row.original.currentVersionNumber ?? "-"}
+        <OneLine width="max-w-[80px]">
+          {row.original.currentVersionNumber ?? "-"}
+        </OneLine>
       </div>
     ),
+    size: 120,
+    maxSize: 140,
   },
   {
     accessorKey: "createdAt",
@@ -218,7 +303,13 @@ export const createMyUnsubmittedTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
-    cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
+    cell: ({ row }) => (
+      <OneLine width="max-w-[140px]">
+        <DataTableDate date={row.original.createdAt} />
+      </OneLine>
+    ),
+    size: 160,
+    maxSize: 180,
   },
   {
     id: "actions",
@@ -226,7 +317,7 @@ export const createMyUnsubmittedTopicColumns = (
     enableHiding: false,
     header: () => <span className="flex justify-center">Thao tác</span>,
     cell: ({ row }) => {
-      const topic = row.original as TopicListItem;
+      const topic = row.original;
       return (
         <div className="flex justify-center">
           <DropdownMenu>
@@ -261,5 +352,7 @@ export const createMyUnsubmittedTopicColumns = (
         </div>
       );
     },
+    size: 140,
+    maxSize: 160,
   },
 ];

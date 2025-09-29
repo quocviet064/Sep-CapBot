@@ -122,6 +122,7 @@ export default function SubmitTopicDialog({
 }: Props) {
   const [searchParams] = useSearchParams();
   const phaseIdFromURL = searchParams.get("phaseId");
+
   const resolvedPhaseId = useMemo(() => {
     if (typeof defaultPhaseId === "number" && !Number.isNaN(defaultPhaseId)) {
       return defaultPhaseId;
@@ -154,7 +155,7 @@ export default function SubmitTopicDialog({
     setSubmitting(true);
     try {
       await createThenSubmitSubmission({
-        topicId: topic.id as number,
+        topicId: topic.id,
         phaseId: resolvedPhaseId,
         documentUrl: null,
         additionalNotes: additionalNotes || "",
@@ -162,8 +163,9 @@ export default function SubmitTopicDialog({
       toast.success("Nộp đề tài thành công");
       await onSuccess?.();
       onClose();
-    } catch (e: any) {
-      const msg = e?.message || "Có lỗi xảy ra khi nộp đề tài";
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error ? e.message : "Có lỗi xảy ra khi nộp đề tài";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -224,15 +226,15 @@ export default function SubmitTopicDialog({
             >
               <Section title="Thông tin đề tài">
                 <div className="border-t" />
-                <Row label="Tên tiếng việt">
+                <Row label="Tên tiếng Việt">
                   <div className="text-sm font-medium text-neutral-900">
-                    {topic.eN_Title || "--"}
+                    {topic.vN_title || "--"}
                   </div>
                 </Row>
                 <div className="border-t" />
-                <Row label="Tên tiếng anh">
+                <Row label="Tên tiếng Anh">
                   <div className="text-sm text-neutral-800">
-                    {topic.vN_title || "--"}
+                    {topic.eN_Title || "--"}
                   </div>
                 </Row>
                 <div className="border-t" />
