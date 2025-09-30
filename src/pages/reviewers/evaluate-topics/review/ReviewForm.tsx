@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/globals/atoms/button";
 import { Textarea } from "@/components/globals/atoms/textarea";
 import {
@@ -18,7 +18,6 @@ const CHOICES = [
 
 const RECOMMENDATIONS = [
   { key: "Approve", label: "Approve" },
-  { key: "Revise", label: "Revise" },
   { key: "Reject", label: "Reject" },
 ];
 
@@ -51,7 +50,6 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
   const submitMut = useSubmitReview();
   const reviewDetailQuery = useReviewDetail(reviewId ?? undefined);
 
-  // init rows
   useEffect(() => {
     if (!criteriaList) return;
     setRows(criteriaList.map((c: any) => ({
@@ -62,7 +60,6 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
     })));
   }, [criteriaList]);
 
-  // nếu có reviewId thì load detail
   useEffect(() => {
     if (!reviewDetailQuery?.data) return;
     const rv = reviewDetailQuery.data;
@@ -246,7 +243,7 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
                       onClick={() => setChoice(r.criteriaId, c.key)}
                     >
                       <div className="font-semibold">{c.label}</div>
-                      <div className="text-xs">{c.sub}</div>
+                      {/* <div className="text-xs">{c.sub}</div> */}
                     </label>
                   );
                 })}

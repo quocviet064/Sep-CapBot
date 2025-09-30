@@ -1,4 +1,3 @@
-// src/pages/reviewers/assigned-topics/list/index.tsx
 import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMyAssignments, useStartReview } from "@/hooks/useReviewerAssignment";
@@ -25,15 +24,12 @@ const STATUS = {
 export default function ReviewerAssignedList() {
   const navigate = useNavigate();
 
-  // assignments for this reviewer
   const { data, isLoading, error } = useMyAssignments();
   const assignments = data ?? [];
 
-  // review statistics (global) via hook (used to find existing submitted/draft reviews)
   const { data: reviewStatsResp, isLoading: statsLoading } = useReviewStatistics();
   const reviewList = reviewStatsResp?.listObjects ?? [];
 
-  // memo: build map assignmentId -> chosen review (prefer Submitted > Draft > newest)
   const reviewByAssignment = useMemo(() => {
     const map = new Map<number | string, any>();
     if (!Array.isArray(reviewList)) return map;
