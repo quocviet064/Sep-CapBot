@@ -11,11 +11,12 @@ import {
   type SubmissionType,
   type SubmissionDTO,
   getSubmissionDetail,
-  // NEW:
   createSubmission,
   submitSubmission,
   createThenSubmitSubmission,
   type CreateSubmissionRequest,
+  resubmitSubmission,
+  type ResubmitSubmissionRequest,
 } from "@/services/submissionService";
 
 type UseSubsArgs = {
@@ -53,7 +54,6 @@ export const useSubmissions = (args: UseSubsArgs) =>
         args.TotalRecord,
       ),
     staleTime: 1000 * 60 * 5,
-
     placeholderData: keepPreviousData,
   });
 
@@ -89,24 +89,17 @@ export const useSubmissionDetail = (id?: string | number) =>
     staleTime: 1000 * 60 * 5,
   });
 
-/* ===========================
-   NEW: Mutation hooks
-   =========================== */
-
-// Tạo submission
 export const useCreateSubmission = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateSubmissionRequest) => createSubmission(payload),
     onSuccess: () => {
-      // Làm tươi các list
       qc.invalidateQueries({ queryKey: ["submissions"] });
       qc.invalidateQueries({ queryKey: ["submissions-all"] });
     },
   });
 };
 
-// Submit submission theo id
 export const useSubmitSubmission = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -118,14 +111,24 @@ export const useSubmitSubmission = () => {
   });
 };
 
-// Tiện ích: create rồi submit một lần
+export const useResubmitSubmission = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ResubmitSubmissionRequest) =>
+      resubmitSubmission(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["submissions"] });
+      qc.invalidateQueries({ queryKey: ["submissions-all"] });
+    },
+  });
+};
+
 export const useCreateThenSubmitSubmission = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateSubmissionRequest) =>
       createThenSubmitSubmission(payload),
     onSuccess: (created) => {
-      // refresh list & detail của submission vừa tạo (nếu cần)
       qc.invalidateQueries({ queryKey: ["submissions"] });
       qc.invalidateQueries({ queryKey: ["submissions-all"] });
       qc.invalidateQueries({

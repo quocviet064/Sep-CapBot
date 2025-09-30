@@ -5,9 +5,10 @@ import {
   useLocation,
   useNavigationType,
 } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
-import { useMyTopics } from "@/hooks/useTopic";
+import { fetchAllMyTopics } from "@/hooks/useTopic";
 import type { TopicListItem } from "@/services/topicService";
 import { createMyUnsubmittedTopicColumns } from "./ColumnsAllUnsubmittedTopics";
 import SubmitTopicDialog from "./SubmitTopicDialog";
@@ -84,58 +85,43 @@ function AllUnsubmittedTopicPage() {
     [navigate, phaseIdDefault, phaseNameParam],
   );
 
-  const { data, isLoading, error, refetch } = useMyTopics(
-    semesterId,
-    categoryId,
-    pageNumber,
-    pageSize,
-    searchTerm.trim() ? searchTerm.trim() : undefined,
-    undefined,
-  );
+  const {
+    data: allTopics = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<TopicListItem[], Error>({
+    queryKey: ["my-topics-all", semesterId, categoryId, searchTerm],
+    queryFn: () => fetchAllMyTopics(semesterId, categoryId, searchTerm),
+    staleTime: 1000 * 60 * 5,
+  });
 
   useEffect(() => {
     setPageNumber(1);
   }, [pageSize, searchTerm, semesterId, categoryId]);
 
-  // Refetch khi quay lại bằng back/forward
   useEffect(() => {
-    if (navType === "POP") {
-      refetch();
-    }
+    if (navType === "POP") refetch();
   }, [location.key, navType, refetch]);
 
-  // Refetch khi tab lấy lại focus
   useEffect(() => {
     const onFocus = () => refetch();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refetch]);
 
-  const serverPage: TopicListItem[] = data?.listObjects ?? [];
-
-  // ⚙️ Bao gồm: (1) chưa nộp OR (2) đã nộp nhưng latestSubmissionStatus = "RevisionRequired"
   const pageUnsubmitted = useMemo(() => {
-    let base = serverPage.filter((t) => {
-      const status = (t as any).latestSubmissionStatus;
-      const needsRevision =
-        typeof status === "string" &&
-        status.trim().toLowerCase() === "revisionrequired".toLowerCase();
-      return t.hasSubmitted !== true || needsRevision;
-    });
-
-    if (typeof semesterId === "number") {
-      base = base.filter((t: any) =>
-        typeof t?.semesterId === "number" ? t.semesterId === semesterId : true,
-      );
-    } else if (semesterNameParam) {
+    let base = allTopics.filter(
+      (t) => !t.hasSubmitted || t.latestSubmissionStatus === "RevisionRequired",
+    );
+    if (semesterNameParam) {
       base = base.filter(
         (t) =>
           (t.semesterName || "").trim().toLowerCase() === semesterNameParam,
       );
     }
-
     return base;
-  }, [serverPage, semesterId, semesterNameParam]);
+  }, [allTopics, semesterNameParam]);
 
   const totalPagesLocal = Math.max(
     1,

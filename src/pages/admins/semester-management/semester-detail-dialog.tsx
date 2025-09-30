@@ -383,7 +383,7 @@ export default function SemesterDetailDialog({
                 </Row>
                 <div className="border-t" />
                 <Row
-                  label="Mô tả"
+                  label="Xu hướng"
                   hint="Mô tả ngắn gọn mục tiêu hoặc ghi chú cho học kỳ."
                 >
                   {!isEditing ? (

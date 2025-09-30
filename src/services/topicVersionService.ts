@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import axios from "axios";
 
 interface ApiResponse<T> {
-  statusCode: string;
+  statusCode: string | number;
   success: boolean;
   data: T;
   errors: unknown;
@@ -12,13 +12,22 @@ interface ApiResponse<T> {
 
 export interface CreateTopicVersionPayload {
   topicId: number;
-  title: string;
+
+  eN_Title: string;
+  vN_title: string;
+
   description: string;
   objectives: string;
   methodology: string;
   expectedOutcomes: string;
   requirements: string;
-  documentUrl: string;
+
+  fileId?: number;
+  documentUrl?: string;
+
+  problem: string;
+  context: string;
+  content: string;
 }
 
 export interface TopicVersionDetail {

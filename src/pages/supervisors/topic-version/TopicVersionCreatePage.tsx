@@ -1,21 +1,23 @@
-// src/pages/topics/topic-version/TopicVersionCreatePage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
 import {
   BookOpen,
-  Loader2,
   ArrowLeft,
   Upload,
   FileText,
   X,
   Asterisk,
+  Sparkles,
 } from "lucide-react";
-import { useCreateTopicVersion } from "@/hooks/useTopicVersion";
 import { useTopicDetail } from "@/hooks/useTopic";
-import { uploadFileReturnId } from "@/services/fileService";
 
 function RequiredBadge() {
   return (
@@ -110,15 +112,6 @@ type VersionSeed = {
   semesterName: string;
 };
 
-function getErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "object" && e !== null && "message" in e) {
-    const m = (e as { message?: unknown }).message;
-    if (typeof m === "string") return m;
-  }
-  return "Đã xảy ra lỗi";
-}
-
 function formatBytes(b: number) {
   if (b === 0) return "0 B";
   const k = 1024;
@@ -133,9 +126,19 @@ export default function TopicVersionCreatePage() {
   const tid = topicId ? Number(topicId) : NaN;
 
   const location = useLocation() as {
-    state?: { seed?: Partial<VersionSeed> };
+    state?: { seed?: Partial<VersionSeed>; submissionId?: number };
   };
   const navSeed = location.state?.seed;
+
+  const [searchParams] = useSearchParams();
+  const submissionIdFromQuery = searchParams.get("submissionId");
+  const submissionIdFromState = location.state?.submissionId;
+  const submissionId =
+    typeof submissionIdFromState === "number"
+      ? submissionIdFromState
+      : submissionIdFromQuery
+        ? Number(submissionIdFromQuery)
+        : undefined;
 
   const {
     data: topic,
@@ -185,8 +188,6 @@ export default function TopicVersionCreatePage() {
     semesterId: navSeed?.semesterId ?? fetchedSeed?.semesterId ?? 0,
     semesterName: navSeed?.semesterName ?? fetchedSeed?.semesterName ?? "",
   };
-
-  const { mutateAsync: createVersion, isPending } = useCreateTopicVersion();
 
   const [eN_Title, setENTitle] = useState(initialSeed.eN_Title);
   const [vN_title, setVNTitle] = useState(initialSeed.vN_title);
@@ -332,60 +333,55 @@ export default function TopicVersionCreatePage() {
     setFileError(undefined);
   };
 
-  const onSubmit = async () => {
+  const goCheckDuplicate = () => {
     if (!Number.isFinite(tid)) {
       toast.error("Thiếu topicId hợp lệ");
       return;
     }
     if (!validate()) {
-      toast.error("Vui lòng kiểm tra lại các trường bắt buộc");
+      toast.error(
+        "Vui lòng kiểm tra lại các trường bắt buộc trước khi kiểm tra trùng lặp",
+      );
       return;
     }
-    const toastId = toast.loading("Đang tạo phiên bản...");
-    try {
-      let fileId: number | null = null;
-      if (docFile) {
-        const upId = toast.loading("Đang upload tài liệu...", { id: toastId });
-        try {
-          fileId = await uploadFileReturnId(docFile);
-          toast.success("Upload thành công", { id: upId });
-        } catch {
-          toast.error("Upload thất bại", { id: upId });
-          return;
-        }
-      }
-      const payload = {
+
+    const formSnapshot = {
+      eN_Title,
+      vN_title,
+      problem,
+      context,
+      content,
+      description,
+      objectives,
+      methodology,
+      expectedOutcomes,
+      requirements,
+      supervisorId: initialSeed.supervisorId,
+      supervisorName: initialSeed.supervisorName,
+      categoryId: initialSeed.categoryId,
+      categoryName: initialSeed.categoryName,
+      semesterId: initialSeed.semesterId,
+      semesterName: initialSeed.semesterName,
+      maxStudents: 1,
+      fileToken: null,
+
+      docFileName: docFile?.name ?? undefined,
+      docFileSize: docFile?.size ?? undefined,
+    };
+
+    const to = `/topics/topic-version/duplicate-check${
+      submissionId
+        ? `?submissionId=${encodeURIComponent(String(submissionId))}`
+        : ""
+    }`;
+
+    navigate(to, {
+      state: {
+        formSnapshot,
         topicId: tid,
-        eN_Title: eN_Title.trim(),
-        description: description.trim(),
-        objectives: objectives.trim(),
-        methodology: methodology.trim(),
-        expectedOutcomes: expectedOutcomes.trim(),
-        requirements: requirements.trim(),
-        fileId: fileId ?? 0,
-        documentUrl: "",
-        vN_title: vN_title.trim(),
-        problem: problem.trim(),
-        context: context.trim(),
-        content: content.trim(),
-        supervisorId: initialSeed.supervisorId,
-        categoryId: initialSeed.categoryId,
-        semesterId: initialSeed.semesterId,
-      };
-
-      const created = await createVersion(payload as any);
-      toast.success("Tạo phiên bản thành công!", { id: toastId });
-
-      navigate(`/topics/${tid}/versions/${created.id}`, {
-        state: {
-          categoryName: initialSeed.categoryName,
-          semesterName: initialSeed.semesterName,
-        },
-        replace: true,
-      });
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err), { id: toastId });
-    }
+        ...(submissionId ? { submissionId } : {}),
+      },
+    });
   };
 
   if (!navSeed && loadingTopic) {
@@ -437,9 +433,7 @@ export default function TopicVersionCreatePage() {
             title="Thông tin cơ bản"
             desc="Các trường bắt buộc để định danh phiên bản (khớp API)."
           >
-            <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
-            >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="EN Title" required error={errors.eN_Title}>
                 <input
                   type="text"
@@ -462,9 +456,7 @@ export default function TopicVersionCreatePage() {
           </SectionCard>
 
           <SectionCard title="Nội dung chi tiết" desc="Khớp các field API.">
-            <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
-            >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Vấn đề (problem)" required error={errors.problem}>
                 <textarea
                   className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
@@ -586,9 +578,7 @@ export default function TopicVersionCreatePage() {
             title="Nội dung nghiên cứu"
             desc="Các trường bổ sung (tuỳ chọn)."
           >
-            <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isPending ? "pointer-events-none opacity-70" : ""}`}
-            >
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field
                 label="Phương pháp (Methodology)"
                 required
@@ -705,28 +695,32 @@ export default function TopicVersionCreatePage() {
       </div>
 
       <div className="sticky bottom-3 z-30">
-        <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 rounded-2xl border bg-white/70 px-3 py-2 shadow-lg backdrop-blur">
-          <Button variant="ghost" onClick={resetForm} disabled={isPending}>
-            Xoá nội dung
-          </Button>
-          <Button onClick={onSubmit} disabled={isPending} className="min-w-36">
-            {isPending ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Đang tạo...
-              </span>
-            ) : (
-              "Tạo phiên bản"
-            )}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => navigate(`/topics/my/${tid}`)}
-            className="min-w-36"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Về chi tiết đề tài
-          </Button>
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 rounded-2xl border bg-white/70 px-3 py-2 shadow-lg backdrop-blur">
+          <div className="flex items-center">
+            <Button
+              variant="secondary"
+              onClick={() => navigate(-1)}
+              className="min-w-36"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Về chi tiết đề tài
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={resetForm}>
+              Xoá nội dung
+            </Button>
+
+            <Button
+              onClick={goCheckDuplicate}
+              variant="default"
+              className="inline-flex min-w-44 items-center gap-2"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Kiểm tra trùng lặp
+            </Button>
+          </div>
         </div>
       </div>
     </div>
