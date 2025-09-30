@@ -89,7 +89,7 @@ function LoginPage() {
       const payload = parseJwt(token);
       const role = data.role || payload?.role;
       const roleRoutes: Record<string, string> = {
-        Supervisor: "/supervisors/topics/myTopic-page",
+        Supervisor: "/supervisors/topics/ai-agent",
         Administrator: "/admins/dashboard/overview",
         Moderator: "/moderators/dashboard",
         Reviewer: "/reviewers/dashboard/assigned-count",
