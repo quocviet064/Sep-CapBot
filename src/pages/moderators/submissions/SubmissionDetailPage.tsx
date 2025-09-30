@@ -1,4 +1,3 @@
-/* SubmissionDetailPage.tsx (partial/full file) */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,7 +25,6 @@ import ReviewsModal from "./components/ReviewsModal";
 import SidebarActions from "./components/SidebarActions";
 import FinalReviewDialog from "./components/FinalReviewDialog";
 
-/* --- helper: map status to css classes (tailwind-like) --- */
 function statusColorClass(status?: string) {
   if (!status) return "bg-slate-100 text-slate-700";
   const s = status.toLowerCase();
@@ -100,7 +98,6 @@ export default function SubmissionDetailPage() {
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
 
-  // derived states
   const requiredReviewers = topicDetail?.requiredReviewers ?? 2;
   const assignedCount = (assignments ?? []).length;
   const isAssignDisabled = assignedCount >= requiredReviewers;
@@ -136,14 +133,6 @@ export default function SubmissionDetailPage() {
   const openFinalReview = () => (sid ? setIsFinalReviewOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closeFinalReview = () => setIsFinalReviewOpen(false);
 
-  /**
-   * handleConfirmAssign now accepts different shapes:
-   * - array of ids: [1,2]  (legacy)
-   * - object with { assignments: [{ submissionId, reviewerId, assignmentType?, deadline? }, ...] }
-   * - object with { reviewerIds: [...], assignmentType?, deadline? } (less preferred)
-   *
-   * We normalize to payload { assignments: [...] } and call bulkAssign.mutateAsync(payload)
-   */
   const handleConfirmAssign = async (arg: any) => {
     if (!sid) {
       toast.error("Submission ID không hợp lệ");
@@ -154,25 +143,20 @@ export default function SubmissionDetailPage() {
       return;
     }
 
-    // normalize
     let payload: any = null;
 
-    // case 1: parent called with assignments payload already
     if (arg && Array.isArray(arg.assignments)) {
       payload = { assignments: arg.assignments.map((a: any) => ({ ...a, submissionId: a.submissionId ?? sid })) };
     } else if (Array.isArray(arg)) {
-      // legacy: array of ids
       const reviewerIds = arg.map((id: any) => Number(id)).filter((n) => !Number.isNaN(n));
       if (reviewerIds.length === 0) {
         toast.error("Vui lòng chọn reviewer hợp lệ");
         return;
       }
-      // default: no deadline, default assignmentType = 1
       payload = {
         assignments: reviewerIds.map((rid) => ({ submissionId: sid, reviewerId: rid, assignmentType: 1 })),
       };
     } else if (arg && Array.isArray(arg.reviewerIds)) {
-      // maybe object with reviewerIds + assignmentType/deadline
       const reviewerIds = (arg.reviewerIds as any[]).map((id) => Number(id)).filter((n) => !Number.isNaN(n));
       if (reviewerIds.length === 0) {
         toast.error("Vui lòng chọn reviewer hợp lệ");
@@ -188,20 +172,14 @@ export default function SubmissionDetailPage() {
       return;
     }
 
-    // Extra validation: ensure each assignment has deadline (if your BE requires it)
     const missingDeadline = payload.assignments.some((a: any) => !a.deadline);
     if (missingDeadline) {
-      // if you want to force deadline, uncomment next lines; currently we'll warn but still try
-      // toast.error("Vui lòng cung cấp deadline cho mỗi phân công.");
-      // return;
-      // Instead show warning to user
       console.warn("Some assignments missing deadline:", payload);
     }
 
     setAssigning(true);
     try {
       const res = await bulkAssign.mutateAsync(payload as any);
-      // backend may return { success: false, message } even with 200
       if (res && typeof res === "object" && (res.success === false || res.error)) {
         toast.error(res.message ?? res.error ?? "Phân công reviewer thất bại");
       } else {
@@ -256,7 +234,7 @@ export default function SubmissionDetailPage() {
           <div className="mt-6 grid gap-6 md:grid-cols-3">
             {/* Left */}
             <div className="md:col-span-2 space-y-4 min-w-0">
-              {/* Topic info card (enhanced) */}
+              {/* Topic info card */}
               <div className="bg-white border rounded-md p-4 w-full">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -365,9 +343,7 @@ export default function SubmissionDetailPage() {
           submissionId={sid}
           availableReviewers={availableReviewers ?? []}
           onClose={closePicker}
-          // now parent expects full assignments payload (dialog will send)
           onConfirm={(payloadOrIds: any) => handleConfirmAssign(payloadOrIds)}
-          // loading/disabled passed so dialog can disable appropriately
           loading={bulkAssign.isLoading || loadingAvailable || assigning}
           confirmDisabled={isAssignDisabled || assigning}
           assignedCount={assignedCount}

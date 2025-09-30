@@ -1,5 +1,3 @@
-// src/pages/moderators/submissions/TopicSubmittedTable.tsx
-import React from "react";
 import type { TopicListItem } from "@/services/topicService";
 
 type Props = {
@@ -10,7 +8,7 @@ type Props = {
   setPageSize: (s: number) => void;
   totalPages: number;
   onViewSubmission: (topic: TopicListItem) => void;
-  loadingTopicId?: number | null; // id topic đang fetch detail
+  loadingTopicId?: number | null; 
 };
 
 function statusColorClass(status?: string) {
@@ -63,7 +61,7 @@ export default function TopicSubmittedTable({
               <tr key={String(r.id)} className="hover:bg-slate-50">
                 <td className="p-3 align-top text-sm whitespace-nowrap">#{r.id}</td>
 
-                {/* Title: EN on top (bold), VN below */}
+                {/* Title */}
                 <td className="p-3 align-top text-sm max-w-[420px]">
                   <div className="font-medium text-sm">{r.eN_Title ?? "—"}</div>
                   <div className="text-xs text-slate-500 mt-1">{r.vN_title ?? "—"}</div>
