@@ -83,7 +83,7 @@ export default function AICheckSection({ submissionDetail }: Props) {
     const pretty = getPrettyJson(aiCheck.raw) ?? aiCheck.raw;
     try {
       await navigator.clipboard.writeText(pretty);
-    } catch {}
+    } catch { }
   };
   const downloadAiPretty = () => {
     if (!aiCheck.raw) return;
@@ -115,8 +115,7 @@ export default function AICheckSection({ submissionDetail }: Props) {
                 <div style={{ width: `${overallScorePercent}%` }} className="h-2 bg-emerald-500" />
               </div>
               <div className={`mt-1 text-sm ${scoreColorSmall(overallScorePercent)}`}>
-                {overallScorePercent}% {overallScoreRaw != null && <>• Raw: {overallScoreRaw}</>}
-                {aiCheck.parsed?.overall_rating ? ` • ${aiCheck.parsed.overall_rating}` : ""}
+                {overallScorePercent}% {aiCheck.parsed?.overall_rating ? ` • ${aiCheck.parsed.overall_rating}` : ""}
               </div>
             </div>
           ) : (

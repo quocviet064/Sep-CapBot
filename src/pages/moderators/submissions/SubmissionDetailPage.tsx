@@ -16,17 +16,16 @@ import {
   useBulkAssignReviewers,
   useAvailableReviewers,
   useAssignmentsBySubmission,
+  useCancelAssignment,
 } from "@/hooks/useReviewerAssignment";
 
 import ReviewerPickerDialog from "./ReviewerPickerDialog";
-import SubmissionAssignmentsDialog from "./SubmissionAssignmentsDialog";
 import ReviewerSuggestionDialog from "./ReviewerSuggestionDialog";
 
 import AICheckSection from "./components/AICheckSection";
 import ReviewsModal from "./components/ReviewsModal";
 import SidebarActions from "./components/SidebarActions";
 import FinalReviewDialog from "./components/FinalReviewDialog";
-import SubmissionsListTable from "./SubmissionsListTable";
 
 /* --- helper: map status to css classes (tailwind-like) --- */
 function statusColorClass(status?: string) {
@@ -41,7 +40,6 @@ function statusColorClass(status?: string) {
   return "bg-slate-100 text-slate-700";
 }
 
-/* --- Route state typing --- */
 type RouteState = {
   topicId?: number;
   row?: SubmissionListItem;
@@ -54,7 +52,6 @@ export default function SubmissionDetailPage() {
   const { submissionId } = useParams<{ submissionId: string }>();
   const { state } = useLocation();
 
-  // typed state
   const typedState = state as RouteState;
   const initialRow = (typedState?.row as SubmissionListItem | undefined) ?? undefined;
 
@@ -66,26 +63,20 @@ export default function SubmissionDetailPage() {
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
 
-  // ---- submission short detail (use number id) ----
-  // Note: ensure your hook supports number | undefined; if not, change to sid?.toString()
   const { data: submissionDetailShort } = useSubmissionDetail(sid);
 
-  // topicId from state or submission short (typed)
   const topicIdFromState = typedState?.topicId ?? (submissionDetailShort as any)?.topicId ?? undefined;
   const topicId: number | undefined = topicIdFromState ? Number(topicIdFromState) : undefined;
 
-  // full topic detail via hook
   const { data: topicDetailResponse, refetch: refetchTopicDetail } = useTopicDetail(topicId);
   const topicDetail = topicDetailResponse as TopicDetailResponse | undefined;
 
-  // use existing summary hook (already in your hooks)
   const {
     data: summary,
     isLoading: loadingSummary,
     refetch: refetchSummary,
   } = useSubmissionReviewSummary(sid);
 
-  // choose selected submission
   const selectedSubmission = useMemo<SubmissionDTO | undefined>(() => {
     if (!topicDetail) return (initialRow ?? (submissionDetailShort as any)) as SubmissionDTO | undefined;
     const subs = topicDetail.submissions ?? [];
@@ -101,33 +92,20 @@ export default function SubmissionDetailPage() {
     return sorted[0] ?? ((initialRow ?? (submissionDetailShort as any)) as SubmissionDTO | undefined);
   }, [topicDetail, sid, initialRow, submissionDetailShort]);
 
-  // seed cache for submission-detail so useSubmissionDetail reads immediate
   useEffect(() => {
     const id = selectedSubmission?.id;
     if (!id) return;
-    // only seed if no cached data to avoid overwriting a fresher cache
     const existing = qc.getQueryData(["submission-detail", id]);
     if (!existing) {
       qc.setQueryData(["submission-detail", id], selectedSubmission);
     }
   }, [qc, selectedSubmission]);
 
-  // reviewer/assignment hooks
   const { data: assignments, isLoading: loadingAssignments } = useAssignmentsBySubmission(sid);
   const { data: availableReviewers, isLoading: loadingAvailable } = useAvailableReviewers(isPickerOpen ? sid : undefined);
   const bulkAssign = useBulkAssignReviewers();
+  const cancelAssignment = useCancelAssignment();
 
-  // header
-  const header = {
-    id: sid,
-    code: String(initialRow?.id ?? submissionId ?? ""),
-    title: initialRow?.topicTitle ?? topicDetail?.eN_Title ?? topicDetail?.vN_title ?? `Submission #${submissionId ?? "-"}`,
-    submittedByName: (selectedSubmission as any)?.submittedByName ?? "-",
-    round: (selectedSubmission as any)?.submissionRound ?? "-",
-    submittedAt: (selectedSubmission as any)?.submittedAt ?? "-",
-  };
-
-  // open/close reviews (uses summary hook already)
   const openReviews = async () => {
     setShowReviewsModal(true);
     try {
@@ -183,8 +161,6 @@ export default function SubmissionDetailPage() {
     const reviewerIds = selectedReviewerIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n));
     try {
       await bulkAssign.mutateAsync({ submissionId: sid, reviewerIds } as any);
-
-      // invalidate only relevant keys (ensure hooks use same key structure)
       if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
       qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
       qc.invalidateQueries({ queryKey: ["assignments", sid] });
@@ -204,11 +180,35 @@ export default function SubmissionDetailPage() {
     }
   };
 
-  // navigate to a submission within same topic (seed cache first)
-  const goToSubmission = (id: number) => {
-    const s = (topicDetail?.submissions ?? []).find((x) => x.id === id);
-    if (s) qc.setQueryData(["submission-detail", id], s);
-    navigate(`/moderators/submissions/${id}`, { state: { topicId, topicDetail } });
+  const handleRemoveAssignment = (assignmentId?: number | string) => {
+    if (!assignmentId) {
+      toast.error("Assignment ID không hợp lệ");
+      return;
+    }
+
+    const ok = window.confirm("Bạn có chắc muốn huỷ phân công reviewer này không? Hành động không thể hoàn tác.");
+    if (!ok) return;
+
+    cancelAssignment.mutate(assignmentId, {
+      onSuccess: () => {
+        toast.success("Đã huỷ phân công reviewer");
+        try {
+          if (sid) {
+            qc.invalidateQueries({ queryKey: ["assignments", sid] });
+            qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+            qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+          } else {
+            qc.invalidateQueries({ queryKey: ["assignments"] });
+          }
+        } catch {
+          // ignore 
+        }
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.message ?? err?.message ?? "Không thể huỷ phân công";
+        toast.error(msg);
+      },
+    });
   };
 
   const refreshTopicDetail = async () => {
@@ -222,121 +222,87 @@ export default function SubmissionDetailPage() {
   return (
     <div className="w-full px-4 py-4">
       <div className="flex items-start gap-4">
-        <div>
-          <button
-            type="button"
-            className="inline-flex items-center rounded border px-3 py-2"
-            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/moderators/submissions"))}
-          >
-            ← Trở về
-          </button>
-        </div>
-
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-4">
-            <div className="min-w-0">
-              <h2 className="text-xl font-semibold">{header.title}</h2>
-              <div className="text-sm text-slate-500">
-                #{header.code} • {header.submittedByName}
-              </div>
-            </div>
-            <div className="ml-auto" />
-          </div>
-
           <div className="mt-6 grid gap-6 md:grid-cols-3">
             {/* Left */}
             <div className="md:col-span-2 space-y-4 min-w-0">
-              {/* Topic info card */}
+              {/* Topic info card (enhanced) */}
               <div className="bg-white border rounded-md p-4 w-full">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
                     <div className="text-sm font-semibold">Topic</div>
-                    <div className="text-base font-medium mt-1">{topicDetail?.eN_Title ?? topicDetail?.vN_title ?? "—"}</div>
-                    <div className="text-xs text-slate-500 mt-1">{topicDetail?.description ?? "—"}</div>
+                    <div className="text-xl font-bold mt-1 truncate">{topicDetail?.eN_Title ?? topicDetail?.vN_title ?? "—"}</div>
+                    <div className="text-sm text-slate-600 mt-2 line-clamp-3">{topicDetail?.description ?? "—"}</div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {(topicDetail?.tags ?? []).slice(0, 6).map((t: string, i: number) => (
+                        <span key={i} className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-[#ecfeff] text-[#0ea5a0] border" >
+                          {t}
+                        </span>
+                      ))}
+                      {Array.isArray(topicDetail?.tags) && topicDetail.tags.length > 6 && (
+                        <span className="text-xs text-slate-500">+{topicDetail.tags.length - 6} more</span>
+                      )}
+                    </div>
+
+                    {(topicDetail?.keywords || topicDetail?.keywordsList) && (
+                      <div className="mt-3 text-xs text-slate-500">
+                        <strong>Keywords:</strong>{" "}
+                        {(topicDetail.keywords ?? (topicDetail.keywordsList?.join?.(", ") ?? ""))}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="text-sm text-right">
-                    <div className="mb-1">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass(topicDetail?.latestSubmissionStatus ?? "")}`}>
+                  <div className="text-sm text-right min-w-[180px]">
+                    <div className="mb-2">
+                      <div className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass(topicDetail?.latestSubmissionStatus ?? "")}`}>
                         {topicDetail?.latestSubmissionStatus ?? "—"}
-                      </span>
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-500">Max students: {topicDetail?.maxStudents ?? "—"}</div>
-                    <div className="text-xs text-slate-500">Has submitted: {topicDetail?.hasSubmitted ? "Yes" : "No"}</div>
-                    <div className="text-xs text-slate-500 mt-2">Created: {topicDetail?.createdAt ? new Date(topicDetail.createdAt).toLocaleString() : "—"}</div>
+
+                    <div className="text-xs text-slate-500">Max students</div>
+                    <div className="font-medium mb-2">{topicDetail?.maxStudents ?? "—"}</div>
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-700">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-700">
                   <div>
                     <div className="text-xs text-slate-500">Category</div>
                     <div className="font-medium">{topicDetail?.categoryName ?? "—"}</div>
                   </div>
+
                   <div>
                     <div className="text-xs text-slate-500">Semester</div>
                     <div className="font-medium">{topicDetail?.semesterName ?? "—"}</div>
                   </div>
+
                   <div>
                     <div className="text-xs text-slate-500">Supervisor</div>
-                    <div className="font-medium">{topicDetail?.supervisorName ?? "—"}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-semibold text-sm">
+                        {(topicDetail?.supervisorName ?? "U").split(" ").map((p: string) => p[0]?.toUpperCase()).slice(0, 2).join("")}
+                      </div>
+                      <div>
+                        <div className="font-medium">{topicDetail?.supervisorName ?? "—"}</div>
+                        <div className="text-xs text-slate-500">{topicDetail?.supervisorEmail ?? ""}</div>
+                      </div>
+                    </div>
                   </div>
+
                   <div>
                     <div className="text-xs text-slate-500">Document</div>
-                    <div>
+                    <div className="font-medium">
                       {topicDetail?.documentUrl ? (
                         <a href={topicDetail.documentUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">
-                          Open document
+                          Download document
                         </a>
-                      ) : (
-                        "—"
-                      )}
+                      ) : "—"}
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Selected submission */}
-              <div className="bg-white border rounded-md p-4 w-full">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">Selected Submission</div>
-                  <div className="text-xs text-slate-500">Round: {selectedSubmission?.submissionRound ?? "—"}</div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="text-sm font-medium">{selectedSubmission?.submittedByName ?? selectedSubmission?.submittedBy ?? "—"}</div>
-                  <div className="text-sm text-slate-600 mt-2">
-                    Status:{" "}
-                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass(selectedSubmission?.status ?? "")}`}>
-                      {selectedSubmission?.status ?? "—"}
-                    </span>
-                    {" • "}
-                    Submitted at: {selectedSubmission?.submittedAt ? new Date(selectedSubmission.submittedAt).toLocaleString() : "—"}
-                  </div>
-
-                  <div className="mt-3 text-sm text-slate-700">
-                    <div className="font-medium">Additional notes</div>
-                    <div className="text-sm text-slate-600 mt-1">{selectedSubmission?.additionalNotes ?? "—"}</div>
-                  </div>
-
-                  {selectedSubmission?.documentUrl && (
-                    <div className="mt-3">
-                      <a href={selectedSubmission.documentUrl} rel="noreferrer" target="_blank" className="text-sm text-blue-600 underline">
-                        View submission document
-                      </a>
-                    </div>
-                  )}
                 </div>
               </div>
 
               <AICheckSection submissionDetail={selectedSubmission} />
-
-              {/* Extracted table component */}
-              <div className="bg-white border rounded-md p-4 w-full">
-                <SubmissionsListTable
-                  submissions={topicDetail?.submissions ?? []}
-                  onView={goToSubmission}
-                />
-              </div>
             </div>
 
             {/* Right */}
@@ -355,6 +321,8 @@ export default function SubmissionDetailPage() {
                 onOpenFinalReview={openFinalReview}
                 submissionId={sid}
                 onRefreshTopicDetail={refreshTopicDetail}
+                onRemoveAssignment={handleRemoveAssignment}
+                reviewSummary={summary}
               />
             </aside>
           </div>
