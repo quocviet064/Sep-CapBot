@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import {formatDateTime} from "@/utils/formatter"
+import { formatDateTime } from "@/utils/formatter";
 
 type Assignment = any;
 
@@ -15,6 +15,8 @@ type Props = {
   submissionId?: string | number;
   onRemoveAssignment?: (assignmentId: number | string) => void;
   reviewSummary?: any | null;
+  isAssignDisabled?: boolean;
+  isEscalated?: boolean;
 };
 
 function initials(name?: string) {
@@ -65,7 +67,7 @@ function mapRecommendationToText(val: unknown): string | null {
         const t = mapRecommendationToText(c);
         if (t) return t;
       }
-    } catch {}
+    } catch { }
   }
   return null;
 }
@@ -130,6 +132,8 @@ export default function SidebarActions({
   submissionId,
   onRemoveAssignment,
   reviewSummary,
+  isAssignDisabled = false,
+  isEscalated = false,
 }: Props) {
   const [open, setOpen] = useState(true);
 
@@ -240,10 +244,10 @@ export default function SidebarActions({
                           ? a.status === 1
                             ? "Assigned"
                             : a.status === 2
-                            ? "In progress"
-                            : a.status === 3
-                            ? "Completed"
-                            : "Overdue"
+                              ? "In progress"
+                              : a.status === 3
+                                ? "Completed"
+                                : "Overdue"
                           : a.status ?? "—"}
                       </span>
 
@@ -287,7 +291,8 @@ export default function SidebarActions({
           <button
             className="rounded border px-3 py-2 text-sm text-left"
             onClick={onOpenPicker}
-            disabled={!submissionId}
+            disabled={!submissionId || Boolean(isAssignDisabled)}
+            title={!submissionId ? "Vui lòng mở chi tiết submission trước" : (isAssignDisabled ? "Đã đủ reviewer, không thể phân công thêm" : "Phân công reviewer")}
             type="button"
           >
             Assign reviewers
@@ -314,8 +319,14 @@ export default function SidebarActions({
                 console.error("Error when invoking onOpenFinalReview", err);
               }
             }}
-            disabled={!submissionId}
-            title={!submissionId ? "Vui lòng mở chi tiết submission trước" : "Quyết định cuối (Moderator)"}
+            disabled={!submissionId || !isEscalated}
+            title={
+              !submissionId
+                ? "Vui lòng mở chi tiết submission trước"
+                : !isEscalated
+                  ? "Chỉ khả dụng khi submission ở trạng thái EscalatedToModerator"
+                  : "Quyết định cuối (Moderator)"
+            }
             type="button"
           >
             Final decision

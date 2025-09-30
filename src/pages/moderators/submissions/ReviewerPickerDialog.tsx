@@ -10,12 +10,9 @@ import {
 import { Button } from "@/components/globals/atoms/button";
 import { Input } from "@/components/globals/atoms/input";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
-import {
-  useAvailableReviewers,
-  useBulkAssignReviewers,
-} from "@/hooks/useReviewerAssignment";
 import { toast } from "sonner";
 import type { IdLike } from "@/services/reviewerAssignmentService";
+import { useAvailableReviewers as useAvailableReviewersHook } from "@/hooks/useReviewerAssignment";
 
 type RowVM = {
   id: number | string;
@@ -28,19 +25,38 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   submissionId?: IdLike;
+  onConfirm: (payload: any) => Promise<any> | any; // expects payload { assignments: [...] } ideally
   onAssignedSuccess?: () => void;
+  availableReviewers?: any[];
+  loading?: boolean;
+  confirmDisabled?: boolean;
+  assignedCount?: number;
+  requiredReviewers?: number;
 }
 
 export default function ReviewerPickerDialog({
   isOpen,
   onClose,
   submissionId,
+  onConfirm,
   onAssignedSuccess,
+  availableReviewers,
+  loading,
+  confirmDisabled,
+  assignedCount = 0,
+  requiredReviewers = 2,
 }: Props) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [assignmentType, setAssignmentType] = useState<number>(1);
   const [globalDeadline, setGlobalDeadline] = useState<string>("");
+
+  const availableHook = useAvailableReviewersHook(submissionId);
+  const hookData = availableHook.data ?? [];
+  const hookLoading = availableHook.isLoading ?? false;
+
+  const list = Array.isArray(availableReviewers) ? availableReviewers : hookData;
+  const isListLoading = typeof loading === "boolean" ? loading : hookLoading;
 
   useEffect(() => {
     if (!isOpen) {
@@ -51,17 +67,12 @@ export default function ReviewerPickerDialog({
     }
   }, [isOpen]);
 
-  const availableQ = useAvailableReviewers(submissionId);
-  const bulkMut = useBulkAssignReviewers();
-
-  const allNormalized: RowVM[] = (availableQ.data ?? []).map((r: any) => ({
+  const allNormalized: RowVM[] = (list ?? []).map((r: any) => ({
     id: r.id,
-    userName: r.userName ?? r.email ?? `#${r.id}`,
+    userName: r.userName ?? r.fullName ?? r.displayName ?? r.email ?? `#${r.id}`,
     email: r.email,
-    currentAssignments: r.currentAssignments ?? 0,
+    currentAssignments: r.currentAssignments ?? r.current_assignments ?? 0,
   }));
-
-  const isListLoading = availableQ.isLoading;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return allNormalized;
@@ -74,11 +85,21 @@ export default function ReviewerPickerDialog({
     );
   }, [allNormalized, search]);
 
-  const toggle = (id: string | number, checked: boolean) => {
-    setSelected((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
-  };
+  const remaining = Math.max(0, (requiredReviewers ?? 2) - (assignedCount ?? 0));
 
-  const canConfirm = selected.length > 0 && !isListLoading;
+  const toggle = (id: string | number, checked: boolean) => {
+    setSelected((prev) => {
+      if (checked) {
+        if (prev.length >= remaining) {
+          toast.error(`Chỉ được chọn tối đa ${remaining} reviewer thêm.`);
+          return prev;
+        }
+        return [...prev, id];
+      } else {
+        return prev.filter((x) => x !== id);
+      }
+    });
+  };
 
   const toIso = (dateStr?: string) => {
     if (!dateStr) return undefined;
@@ -90,63 +111,67 @@ export default function ReviewerPickerDialog({
     }
   };
 
-  // Bulk-assign
-  const doBulkAssign = () => {
+  const canConfirm = selected.length > 0 && !isListLoading && !confirmDisabled && remaining > 0 && !!globalDeadline;
+
+  // now dialog builds the assignments payload (with deadline) and delegates to parent
+  const handleConfirm = async () => {
     if (!submissionId) {
       toast.error("Thiếu submissionId");
-      return;
-    }
-    if (!selected.length) {
-      toast.error("Chọn ít nhất 1 reviewer");
       return;
     }
     if (!globalDeadline) {
       toast.error("Vui lòng chọn deadline trước khi phân công");
       return;
     }
+    if (selected.length === 0) {
+      toast.error("Chọn ít nhất 1 reviewer");
+      return;
+    }
+    if (selected.length > remaining) {
+      toast.error(`Bạn chỉ có thể chọn tối đa ${remaining} reviewer.`);
+      return;
+    }
 
     const isoDeadline = toIso(globalDeadline);
-    const payload = {
-      assignments: selected.map((rid) => ({
-        submissionId,
-        reviewerId: rid,
-        assignmentType,
-        deadline: isoDeadline,
-      })),
-    };
+    if (!isoDeadline) {
+      toast.error("Deadline không hợp lệ");
+      return;
+    }
 
-    bulkMut.mutate(payload as any, {
-      onSuccess: (resp) => {
-        if ((resp as any)?.success) {
-          toast.success("Phân công thành công");
-          onAssignedSuccess?.();
-          onClose();
-        } else {
-          toast.error((resp as any)?.message || "Bulk assign thất bại");
-        }
-      },
-      onError: (e) => {
-        toast.error(e instanceof Error ? e.message : "Bulk assign thất bại");
-      },
-    });
+    const assignments = selected.map((rid) => ({
+      submissionId,
+      reviewerId: rid,
+      assignmentType,
+      deadline: isoDeadline,
+    }));
+
+    try {
+      // parent handles API call; expects payload { assignments: [...] } ideally
+      await onConfirm({ assignments });
+      onAssignedSuccess?.();
+    } catch (err: any) {
+      // parent may throw or return rejection
+      toast.error(err?.message ?? "Phân công reviewer thất bại");
+      return;
+    } finally {
+      onClose();
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-[1000px] max-h-[90vh] p-0 overflow-hidden">
-        {/* Header */}
         <div className="sticky top-0 z-10 border-b bg-white px-6 py-4">
           <DialogHeader>
             <DialogTitle>Chọn reviewer</DialogTitle>
             <DialogDescription>
               {submissionId
-                ? `Tick reviewer để phân công cho Submission #${submissionId}.`
+                ? `Tick reviewer để phân công cho Submission #${submissionId}. Remaining: ${remaining}`
                 : "Vui lòng mở dialog theo 1 submission để dùng tính năng này."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b bg-slate-50">
           <Input
             placeholder="Tìm reviewer theo tên / email / id..."
@@ -179,7 +204,6 @@ export default function ReviewerPickerDialog({
           </div>
         </div>
 
-        {/* Reviewer list */}
         <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
           <div className="h-[60vh] overflow-auto rounded-md border">
             {isListLoading ? (
@@ -200,17 +224,19 @@ export default function ReviewerPickerDialog({
                 <tbody>
                   {filtered.map((r) => {
                     const checked = selected.includes(r.id);
+                    const disableCheckbox = !checked && selected.length >= remaining;
                     return (
-                      <tr
-                        key={String(r.id)}
-                        className={`border-t hover:bg-slate-50 ${
-                          checked ? "bg-blue-50" : ""
-                        }`}
-                      >
+                      <tr key={String(r.id)} className={`border-t hover:bg-slate-50 ${checked ? "bg-blue-50" : ""}`}>
                         <td className="p-2 text-center">
                           <Checkbox
                             checked={checked}
-                            onCheckedChange={(v) => toggle(r.id, !!v)}
+                            onCheckedChange={(v) => {
+                              if (disableCheckbox && !!v) {
+                                toast.error(`Bạn chỉ có thể chọn tối đa ${remaining} reviewer thêm.`);
+                                return;
+                              }
+                              toggle(r.id, !!v);
+                            }}
                           />
                         </td>
                         <td className="p-2">{String(r.id)}</td>
@@ -226,16 +252,13 @@ export default function ReviewerPickerDialog({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="sticky bottom-0 z-10 border-t bg-white px-6 py-4">
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={onClose} disabled={bulkMut.isPending}>
+            <Button variant="outline" onClick={onClose} disabled={Boolean(confirmDisabled)}>
               Hủy
             </Button>
-            <Button onClick={doBulkAssign} disabled={!canConfirm || bulkMut.isPending}>
-              {bulkMut.isPending
-                ? "Đang phân công..."
-                : `Xác nhận (${selected.length})`}
+            <Button onClick={handleConfirm} disabled={!canConfirm}>
+              {loading ? "Đang phân công..." : `Xác nhận (${selected.length})`}
             </Button>
           </DialogFooter>
         </div>

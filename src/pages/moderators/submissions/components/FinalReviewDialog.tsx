@@ -17,52 +17,89 @@ type Props = {
   onSuccess?: () => void;
 };
 
+type Decision = "approve" | "revision" | "reject" | "";
+
 export default function FinalReviewDialog({
   isOpen,
   onClose,
   submissionId,
   onSuccess,
 }: Props) {
-  const [decision, setDecision] = useState<string>("");
-  const [finalScore, setFinalScore] = useState<string>("");
+  const [decision, setDecision] = useState<Decision>("");
   const [notes, setNotes] = useState<string>("");
+  const [revisionDeadline, setRevisionDeadline] = useState<string>(""); // yyyy-mm-dd
+
+  // derived score from decision
+  const scoreFor = (d: Decision) => {
+    if (d === "approve") return 10;
+    if (d === "revision") return 5;
+    if (d === "reject") return 0;
+    return undefined;
+  };
 
   useEffect(() => {
     if (!isOpen) {
       setDecision("");
       setNotes("");
-      setFinalScore("");
+      setRevisionDeadline("");
     }
   }, [isOpen]);
 
   const mut = useMutation({
-    mutationFn: async () =>
-      moderatorFinalReview({
-        submissionId,
-        finalRecommendation: mapDecisionToNumber(decision),
-        finalScore: finalScore ? Number(finalScore) : undefined,
-        moderatorNotes: notes,
-        revisionDeadline: undefined,
-      } as any),
+    mutationFn: async (payload: any) =>
+      moderatorFinalReview(payload as any),
     onSuccess: () => {
       toast.success("Đã lưu quyết định của Moderator");
       onClose();
       onSuccess?.();
     },
     onError: (err: any) => {
-      const msg = (err?.message as string) ?? "Lỗi khi gửi quyết định";
+      const msg = (err?.response?.data?.message as string) ?? (err?.message as string) ?? "Lỗi khi gửi quyết định";
       toast.error(msg);
     },
   });
 
-  function mapDecisionToNumber(d: string): 1 | 2 | 3 | 4 {
-    const v = (d ?? "").toLowerCase();
-    if (v === "approve" || v === "duyệt") return 1;
-    if (v === "minor" || v === "sửa nhẹ") return 2;
-    if (v === "major" || v === "sửa lớn") return 3;
-    if (v === "reject" || v === "từ chối") return 4;
-    return 4;
+  function mapDecisionToNumber(d: Decision): 1 | 2 | 4 {
+    if (d === "approve") return 1; // approve
+    if (d === "revision") return 2; // minor/major combined -> use 2
+    return 4; // reject
   }
+
+  const handleSubmit = async () => {
+    if (!decision) {
+      toast.error("Vui lòng chọn kết luận trước khi xác nhận.");
+      return;
+    }
+
+    if (decision === "revision" && !revisionDeadline) {
+      toast.error("Vui lòng chọn deadline cho revision.");
+      return;
+    }
+
+    const finalScore = scoreFor(decision);
+    const payload: any = {
+      submissionId,
+      finalRecommendation: mapDecisionToNumber(decision),
+      finalScore,
+      moderatorNotes: notes || undefined,
+    };
+
+    if (decision === "revision") {
+      try {
+        const iso = new Date(revisionDeadline);
+        if (Number.isNaN(iso.getTime())) {
+          toast.error("Deadline không hợp lệ");
+          return;
+        }
+        payload.revisionDeadline = iso.toISOString();
+      } catch {
+        toast.error("Deadline không hợp lệ");
+        return;
+      }
+    }
+
+    mut.mutate(payload);
+  };
 
   if (!isOpen) return null;
 
@@ -80,43 +117,60 @@ export default function FinalReviewDialog({
 
         <div className="space-y-4 px-4 pb-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Kết luận</label>
-            <select
-              className="w-full border rounded px-2 py-1 text-sm"
-              value={decision}
-              onChange={(e) => setDecision(e.target.value)}
-            >
-              <option value="">— Chọn quyết định —</option>
-              <option value="approve">Duyệt (Approve)</option>
-              <option value="minor">Sửa nhẹ (Minor revision)</option>
-              <option value="major">Sửa lớn (Major revision)</option>
-              <option value="reject">Từ chối (Reject)</option>
-            </select>
-          </div>
+            <label className="block text-sm font-medium mb-2">Kết luận</label>
+            <div className="flex flex-col gap-2">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="final-decision"
+                  value="approve"
+                  checked={decision === "approve"}
+                  onChange={() => setDecision("approve")}
+                />
+                <span className="ml-1">Approve (Duyệt)</span>
+              </label>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Điểm cuối (tùy chọn)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min={0}
-              max={100}
-              placeholder="Nhập điểm cuối hoặc để trống"
-              value={finalScore}
-              onChange={(e) => setFinalScore(e.target.value)}
-              className="w-full border rounded px-2 py-1 text-sm"
-            />
-            <div className="text-xs text-slate-500 mt-1">
-              Có thể để trống nếu không cần nhập điểm.
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="final-decision"
+                  value="revision"
+                  checked={decision === "revision"}
+                  onChange={() => setDecision("revision")}
+                />
+                <span className="ml-1">Revision (Sửa — minor/major gộp)</span>
+              </label>
+
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="final-decision"
+                  value="reject"
+                  checked={decision === "reject"}
+                  onChange={() => setDecision("reject")}
+                />
+                <span className="ml-1">Reject (Từ chối)</span>
+              </label>
             </div>
           </div>
 
+          {decision === "revision" && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Revision deadline (bắt buộc)</label>
+              <input
+                type="date"
+                value={revisionDeadline}
+                onChange={(e) => setRevisionDeadline(e.target.value)}
+                className="w-full border rounded px-2 py-1 text-sm"
+              />
+              <div className="text-xs text-slate-500 mt-1">
+                Chọn deadline để người nộp sửa bài.
+              </div>
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Ghi chú của Moderator
-            </label>
+            <label className="block text-sm font-medium mb-1">Ghi chú của Moderator (tuỳ chọn)</label>
             <textarea
               rows={4}
               value={notes}
@@ -138,11 +192,7 @@ export default function FinalReviewDialog({
             </Button>
             <Button
               onClick={() => {
-                if (!decision) {
-                  toast.error("Vui lòng chọn kết luận trước khi xác nhận.");
-                  return;
-                }
-                mut.mutate();
+                handleSubmit();
               }}
               disabled={mut.isLoading}
             >

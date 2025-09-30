@@ -1,7 +1,7 @@
+/* SubmissionDetailPage.tsx (partial/full file) */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-
 import { toast } from "sonner";
 
 import { useSubmissionDetail } from "@/hooks/useSubmission";
@@ -21,7 +21,6 @@ import {
 
 import ReviewerPickerDialog from "./ReviewerPickerDialog";
 import ReviewerSuggestionDialog from "./ReviewerSuggestionDialog";
-
 import AICheckSection from "./components/AICheckSection";
 import ReviewsModal from "./components/ReviewsModal";
 import SidebarActions from "./components/SidebarActions";
@@ -54,7 +53,6 @@ export default function SubmissionDetailPage() {
 
   const typedState = state as RouteState;
   const initialRow = (typedState?.row as SubmissionListItem | undefined) ?? undefined;
-
   const sid: number | undefined = submissionId ? Number(submissionId) : undefined;
 
   const [showReviewsModal, setShowReviewsModal] = useState(false);
@@ -62,20 +60,16 @@ export default function SubmissionDetailPage() {
   const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   const { data: submissionDetailShort } = useSubmissionDetail(sid);
-
   const topicIdFromState = typedState?.topicId ?? (submissionDetailShort as any)?.topicId ?? undefined;
   const topicId: number | undefined = topicIdFromState ? Number(topicIdFromState) : undefined;
 
   const { data: topicDetailResponse, refetch: refetchTopicDetail } = useTopicDetail(topicId);
   const topicDetail = topicDetailResponse as TopicDetailResponse | undefined;
 
-  const {
-    data: summary,
-    isLoading: loadingSummary,
-    refetch: refetchSummary,
-  } = useSubmissionReviewSummary(sid);
+  const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } = useSubmissionReviewSummary(sid);
 
   const selectedSubmission = useMemo<SubmissionDTO | undefined>(() => {
     if (!topicDetail) return (initialRow ?? (submissionDetailShort as any)) as SubmissionDTO | undefined;
@@ -106,6 +100,24 @@ export default function SubmissionDetailPage() {
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
 
+  // derived states
+  const requiredReviewers = topicDetail?.requiredReviewers ?? 2;
+  const assignedCount = (assignments ?? []).length;
+  const isAssignDisabled = assignedCount >= requiredReviewers;
+
+  const recCount = (summary as any)?.recommendationsCount ?? (summary as any)?.recommendationCounts;
+  const isEscalated = (() => {
+    const status = (selectedSubmission as any)?.status ?? topicDetail?.latestSubmissionStatus ?? "";
+    if (String(status).toLowerCase().includes("escalat")) return true;
+    if (recCount) {
+      const ok = Number(recCount.approve ?? recCount.Approve ?? 0);
+      const rej = Number(recCount.reject ?? recCount.Reject ?? 0);
+      if (ok > 0 && rej > 0) return true;
+    }
+    return false;
+  })();
+
+  // handlers
   const openReviews = async () => {
     setShowReviewsModal(true);
     try {
@@ -115,68 +127,95 @@ export default function SubmissionDetailPage() {
     }
   };
   const closeReviews = () => setShowReviewsModal(false);
-
-  const openPicker = () => {
-    if (!sid) {
-      toast.error("Submission ID không hợp lệ");
-      return;
-    }
-    setIsPickerOpen(true);
-  };
+  const openPicker = () => (sid ? setIsPickerOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closePicker = () => setIsPickerOpen(false);
-
-  const openAssignments = () => {
-    if (!sid) {
-      toast.error("Submission ID không hợp lệ");
-      return;
-    }
-    setIsAssignmentsOpen(true);
-  };
+  const openAssignments = () => (sid ? setIsAssignmentsOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closeAssignments = () => setIsAssignmentsOpen(false);
-
-  const openSuggestions = () => {
-    if (!sid) {
-      toast.error("Submission ID không hợp lệ");
-      return;
-    }
-    setIsSuggestionOpen(true);
-  };
+  const openSuggestions = () => (sid ? setIsSuggestionOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closeSuggestions = () => setIsSuggestionOpen(false);
-
-  const openFinalReview = () => {
-    if (!sid) {
-      toast.error("Submission ID không hợp lệ");
-      return;
-    }
-    setIsFinalReviewOpen(true);
-  };
+  const openFinalReview = () => (sid ? setIsFinalReviewOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closeFinalReview = () => setIsFinalReviewOpen(false);
 
-  // handle assign
-  const handleConfirmAssign = async (selectedReviewerIds: (number | string)[]) => {
+  /**
+   * handleConfirmAssign now accepts different shapes:
+   * - array of ids: [1,2]  (legacy)
+   * - object with { assignments: [{ submissionId, reviewerId, assignmentType?, deadline? }, ...] }
+   * - object with { reviewerIds: [...], assignmentType?, deadline? } (less preferred)
+   *
+   * We normalize to payload { assignments: [...] } and call bulkAssign.mutateAsync(payload)
+   */
+  const handleConfirmAssign = async (arg: any) => {
     if (!sid) {
       toast.error("Submission ID không hợp lệ");
       return;
     }
-    const reviewerIds = selectedReviewerIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n));
-    try {
-      await bulkAssign.mutateAsync({ submissionId: sid, reviewerIds } as any);
-      if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
-      qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
-      qc.invalidateQueries({ queryKey: ["assignments", sid] });
-      qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+    if (isAssignDisabled) {
+      toast.error(`Đã có ${assignedCount} reviewer. Không thể phân công thêm.`);
+      return;
+    }
 
-      toast.success("Phân công reviewer thành công");
-      if (showReviewsModal) {
-        try {
-          await refetchSummary?.();
-        } catch {
-          /* ignore */
-        }
+    // normalize
+    let payload: any = null;
+
+    // case 1: parent called with assignments payload already
+    if (arg && Array.isArray(arg.assignments)) {
+      payload = { assignments: arg.assignments.map((a: any) => ({ ...a, submissionId: a.submissionId ?? sid })) };
+    } else if (Array.isArray(arg)) {
+      // legacy: array of ids
+      const reviewerIds = arg.map((id: any) => Number(id)).filter((n) => !Number.isNaN(n));
+      if (reviewerIds.length === 0) {
+        toast.error("Vui lòng chọn reviewer hợp lệ");
+        return;
       }
-      closePicker();
+      // default: no deadline, default assignmentType = 1
+      payload = {
+        assignments: reviewerIds.map((rid) => ({ submissionId: sid, reviewerId: rid, assignmentType: 1 })),
+      };
+    } else if (arg && Array.isArray(arg.reviewerIds)) {
+      // maybe object with reviewerIds + assignmentType/deadline
+      const reviewerIds = (arg.reviewerIds as any[]).map((id) => Number(id)).filter((n) => !Number.isNaN(n));
+      if (reviewerIds.length === 0) {
+        toast.error("Vui lòng chọn reviewer hợp lệ");
+        return;
+      }
+      const at = arg.assignmentType ?? 1;
+      const dl = arg.deadline ?? undefined;
+      payload = {
+        assignments: reviewerIds.map((rid) => ({ submissionId: sid, reviewerId: rid, assignmentType: at, deadline: dl })),
+      };
+    } else {
+      toast.error("Dữ liệu phân công không hợp lệ");
+      return;
+    }
+
+    // Extra validation: ensure each assignment has deadline (if your BE requires it)
+    const missingDeadline = payload.assignments.some((a: any) => !a.deadline);
+    if (missingDeadline) {
+      // if you want to force deadline, uncomment next lines; currently we'll warn but still try
+      // toast.error("Vui lòng cung cấp deadline cho mỗi phân công.");
+      // return;
+      // Instead show warning to user
+      console.warn("Some assignments missing deadline:", payload);
+    }
+
+    setAssigning(true);
+    try {
+      const res = await bulkAssign.mutateAsync(payload as any);
+      // backend may return { success: false, message } even with 200
+      if (res && typeof res === "object" && (res.success === false || res.error)) {
+        toast.error(res.message ?? res.error ?? "Phân công reviewer thất bại");
+      } else {
+        toast.success("Phân công reviewer thành công");
+        if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
+        qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+        qc.invalidateQueries({ queryKey: ["assignments", sid] });
+        qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+      }
     } catch (err: any) {
-      toast.error(err?.message ?? "Phân công reviewer thất bại");
+      toast.error(err?.response?.data?.message ?? err?.message ?? "Phân công reviewer thất bại");
+    } finally {
+      setAssigning(false);
+      closePicker();
     }
   };
 
@@ -185,28 +224,19 @@ export default function SubmissionDetailPage() {
       toast.error("Assignment ID không hợp lệ");
       return;
     }
-
-    const ok = window.confirm("Bạn có chắc muốn huỷ phân công reviewer này không? Hành động không thể hoàn tác.");
+    const ok = window.confirm("Bạn có chắc muốn huỷ phân công reviewer này không?");
     if (!ok) return;
-
     cancelAssignment.mutate(assignmentId, {
       onSuccess: () => {
         toast.success("Đã huỷ phân công reviewer");
-        try {
-          if (sid) {
-            qc.invalidateQueries({ queryKey: ["assignments", sid] });
-            qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
-            qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
-          } else {
-            qc.invalidateQueries({ queryKey: ["assignments"] });
-          }
-        } catch {
-          // ignore 
+        if (sid) {
+          qc.invalidateQueries({ queryKey: ["assignments", sid] });
+          qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+          qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
         }
       },
       onError: (err: any) => {
-        const msg = err?.response?.data?.message ?? err?.message ?? "Không thể huỷ phân công";
-        toast.error(msg);
+        toast.error(err?.response?.data?.message ?? err?.message ?? "Không thể huỷ phân công");
       },
     });
   };
@@ -311,10 +341,7 @@ export default function SubmissionDetailPage() {
                 assignments={assignments}
                 loadingAssignments={loadingAssignments}
                 showReviews={!!showReviewsModal}
-                toggleShowReviews={() => {
-                  if (!showReviewsModal) openReviews();
-                  else closeReviews();
-                }}
+                toggleShowReviews={() => (!showReviewsModal ? openReviews() : closeReviews())}
                 onOpenPicker={openPicker}
                 onOpenSuggestions={openSuggestions}
                 onOpenAssignments={openAssignments}
@@ -323,6 +350,8 @@ export default function SubmissionDetailPage() {
                 onRefreshTopicDetail={refreshTopicDetail}
                 onRemoveAssignment={handleRemoveAssignment}
                 reviewSummary={summary}
+                isAssignDisabled={isAssignDisabled}
+                isEscalated={isEscalated}
               />
             </aside>
           </div>
@@ -336,25 +365,22 @@ export default function SubmissionDetailPage() {
           submissionId={sid}
           availableReviewers={availableReviewers ?? []}
           onClose={closePicker}
-          onConfirm={(ids) => handleConfirmAssign(ids)}
-          loading={bulkAssign.isLoading || loadingAvailable}
+          // now parent expects full assignments payload (dialog will send)
+          onConfirm={(payloadOrIds: any) => handleConfirmAssign(payloadOrIds)}
+          // loading/disabled passed so dialog can disable appropriately
+          loading={bulkAssign.isLoading || loadingAvailable || assigning}
+          confirmDisabled={isAssignDisabled || assigning}
+          assignedCount={assignedCount}
+          requiredReviewers={requiredReviewers}
         />
       )}
 
       {isSuggestionOpen && sid && (
-        <ReviewerSuggestionDialog
-          submissionId={sid}
-          open={isSuggestionOpen}
-          onClose={closeSuggestions}
-        />
+        <ReviewerSuggestionDialog submissionId={sid} open={isSuggestionOpen} onClose={closeSuggestions} />
       )}
 
       {isAssignmentsOpen && sid && (
-        <SubmissionAssignmentsDialog
-          isOpen={isAssignmentsOpen}
-          submissionId={sid}
-          onClose={closeAssignments}
-        />
+        <SubmissionAssignmentsDialog isOpen={isAssignmentsOpen} submissionId={sid} onClose={closeAssignments} />
       )}
 
       <ReviewsModal
