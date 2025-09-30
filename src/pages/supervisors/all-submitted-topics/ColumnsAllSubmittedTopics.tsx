@@ -11,7 +11,6 @@ import {
 import { Copy, Eye, MoreHorizontal } from "lucide-react";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
-import DataTableCellTopic from "@/components/globals/molecules/data-table-topic-cell";
 import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import type { TopicListItem } from "@/services/topicService";
@@ -20,6 +19,30 @@ import DataTableCellAbbreviation from "@/components/globals/molecules/data-table
 export type ColumnActionsHandlers = {
   onViewDetail: (id: number) => void;
 };
+
+const OneLine = ({
+  children,
+  width = "max-w-[220px]",
+}: {
+  children: React.ReactNode;
+  width?: string;
+}) => (
+  <div className={`min-w-0 ${width} overflow-hidden`}>
+    <div className="truncate whitespace-nowrap">{children}</div>
+  </div>
+);
+
+const TwoLines = ({
+  children,
+  width = "max-w-[360px]",
+}: {
+  children: React.ReactNode;
+  width?: string;
+}) => (
+  <div className={`min-w-0 ${width} overflow-hidden`}>
+    <div className="line-clamp-2 break-words whitespace-normal">{children}</div>
+  </div>
+);
 
 export const createMyTopicColumns = (
   handlers: ColumnActionsHandlers,
@@ -47,6 +70,8 @@ export const createMyTopicColumns = (
     ),
     enableSorting: false,
     enableHiding: false,
+    size: 40,
+    maxSize: 40,
   },
   {
     accessorKey: "id",
@@ -54,6 +79,11 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Mã đề tài" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[90px]">{row.original.id}</OneLine>
+    ),
+    size: 100,
+    maxSize: 120,
   },
   {
     accessorKey: "eN_Title",
@@ -61,12 +91,16 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tên tiếng anh" />
     ),
-    cell: ({ row }) => (
-      <DataTableCellTopic
-        title={row.original.eN_Title || "-"}
-        supervisor={row.original.supervisorName}
-      />
-    ),
+    cell: ({ row }) =>
+      row.original.eN_Title ? (
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.eN_Title} />
+        </TwoLines>
+      ) : (
+        <span className="text-neutral-400">--</span>
+      ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "vN_title",
@@ -74,9 +108,16 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tên tiếng việt" />
     ),
-    cell: ({ row }) => (
-      <span className="line-clamp-2">{row.original.vN_title || "-"}</span>
-    ),
+    cell: ({ row }) =>
+      row.original.vN_title ? (
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.vN_title} />
+        </TwoLines>
+      ) : (
+        <span className="text-neutral-400">--</span>
+      ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "abbreviation",
@@ -86,10 +127,14 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.abbreviation ? (
-        <DataTableCellAbbreviation abbreviation={row.original.abbreviation} />
+        <OneLine width="max-w-[140px]">
+          <DataTableCellAbbreviation abbreviation={row.original.abbreviation} />
+        </OneLine>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 160,
+    maxSize: 180,
   },
   {
     accessorKey: "categoryName",
@@ -97,6 +142,13 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Danh mục" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[180px]">
+        {row.original.categoryName ?? "-"}
+      </OneLine>
+    ),
+    size: 200,
+    maxSize: 220,
   },
   {
     accessorKey: "semesterName",
@@ -104,6 +156,13 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Học kỳ" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[160px]">
+        {row.original.semesterName ?? "-"}
+      </OneLine>
+    ),
+    size: 180,
+    maxSize: 200,
   },
   {
     accessorKey: "description",
@@ -113,10 +172,14 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.description ? (
-        <DataTableCellDescription description={row.original.description} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.description} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "problem",
@@ -126,10 +189,14 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.problem ? (
-        <DataTableCellDescription description={row.original.problem} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.problem} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "context",
@@ -139,10 +206,14 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.context ? (
-        <DataTableCellDescription description={row.original.context} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.context} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "content",
@@ -152,10 +223,14 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.content ? (
-        <DataTableCellDescription description={row.original.content} />
+        <TwoLines width="max-w-[360px]">
+          <DataTableCellDescription description={row.original.content} />
+        </TwoLines>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 380,
+    maxSize: 420,
   },
   {
     accessorKey: "maxStudents",
@@ -163,6 +238,11 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="SV tối đa" />
     ),
+    cell: ({ row }) => (
+      <OneLine width="max-w-[90px]">{row.original.maxStudents}</OneLine>
+    ),
+    size: 110,
+    maxSize: 130,
   },
   {
     accessorKey: "hasSubmitted",
@@ -172,9 +252,13 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
-        <Badge>{row.original.hasSubmitted ? "Đã nộp" : "Chưa nộp"}</Badge>
+        <Badge className="whitespace-nowrap">
+          {row.original.hasSubmitted ? "Đã nộp" : "Chưa nộp"}
+        </Badge>
       </div>
     ),
+    size: 160,
+    maxSize: 180,
   },
   {
     accessorKey: "latestSubmissionStatus",
@@ -197,14 +281,18 @@ export const createMyTopicColumns = (
                 : "orange";
       return (
         <div className="flex justify-center pr-4">
-          <Badge className="text-white" style={{ backgroundColor: color }}>
+          <Badge
+            className="whitespace-nowrap text-white"
+            style={{ backgroundColor: color }}
+          >
             {s || "--"}
           </Badge>
         </div>
       );
     },
+    size: 150,
+    maxSize: 170,
   },
-
   {
     accessorKey: "currentVersionNumber",
     meta: { title: "Version" },
@@ -213,9 +301,13 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
-        {row.original.currentVersionNumber ?? "-"}
+        <OneLine width="max-w-[80px]">
+          {row.original.currentVersionNumber ?? "-"}
+        </OneLine>
       </div>
     ),
+    size: 120,
+    maxSize: 140,
   },
   {
     accessorKey: "isLegacy",
@@ -226,13 +318,15 @@ export const createMyTopicColumns = (
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
         <Badge
-          className="text-white"
+          className="whitespace-nowrap text-white"
           style={{ backgroundColor: row.original.isLegacy ? "green" : "red" }}
         >
           {row.original.isLegacy ? "Có" : "Không"}
         </Badge>
       </div>
     ),
+    size: 120,
+    maxSize: 140,
   },
   {
     accessorKey: "isApproved",
@@ -243,7 +337,7 @@ export const createMyTopicColumns = (
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
         <Badge
-          className="text-white"
+          className="whitespace-nowrap text-white"
           style={{
             backgroundColor: row.original.isApproved ? "green" : "orange",
           }}
@@ -252,6 +346,8 @@ export const createMyTopicColumns = (
         </Badge>
       </div>
     ),
+    size: 130,
+    maxSize: 150,
   },
   {
     accessorKey: "createdAt",
@@ -259,7 +355,13 @@ export const createMyTopicColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ngày tạo" />
     ),
-    cell: ({ row }) => <DataTableDate date={row.original.createdAt} />,
+    cell: ({ row }) => (
+      <OneLine width="max-w-[140px]">
+        <DataTableDate date={row.original.createdAt} />
+      </OneLine>
+    ),
+    size: 160,
+    maxSize: 180,
   },
   {
     accessorKey: "latestSubmittedAt",
@@ -269,10 +371,14 @@ export const createMyTopicColumns = (
     ),
     cell: ({ row }) =>
       row.original.latestSubmittedAt ? (
-        <DataTableDate date={row.original.latestSubmittedAt} />
+        <OneLine width="max-w-[140px]">
+          <DataTableDate date={row.original.latestSubmittedAt} />
+        </OneLine>
       ) : (
-        <span>--</span>
+        <span className="text-neutral-400">--</span>
       ),
+    size: 160,
+    maxSize: 180,
   },
   {
     id: "actions",
@@ -307,5 +413,7 @@ export const createMyTopicColumns = (
         </div>
       );
     },
+    size: 140,
+    maxSize: 160,
   },
 ];
