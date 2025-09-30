@@ -1,4 +1,5 @@
 import aiAPI from "@/lib/AiApi";
+import { normalizeDuplicateResponse } from "@/utils/normalizeAi";
 
 export type AdvancedDuplicateParams = {
   threshold?: number;
@@ -15,6 +16,7 @@ export type AdvancedDuplicatePayload = {
   content: string;
   description: string;
   objectives: string;
+
   semesterId?: number;
 };
 
@@ -59,10 +61,11 @@ export type ModificationProposal = {
     problem?: string;
     context?: string;
     content?: string;
-    category_id?: number;
-    supervisor_id?: number;
-    semester_id?: number;
-    max_students?: number;
+
+    categoryId?: number;
+    supervisorId?: number;
+    semesterId?: number;
+    maxStudents?: number;
   };
   modifications_made?: string[];
   rationale?: string;
@@ -80,11 +83,12 @@ export type AdvancedDuplicateResponse = {
 export async function checkDuplicateAdvanced(
   body: AdvancedDuplicatePayload,
   params?: AdvancedDuplicateParams,
-) {
-  const { data } = await aiAPI.post<AdvancedDuplicateResponse>(
+): Promise<AdvancedDuplicateResponse> {
+  const { data } = await aiAPI.post(
     "/api/v1/topics/check-duplicate-advanced",
     body,
     { params },
   );
-  return data;
+
+  return normalizeDuplicateResponse(data) as AdvancedDuplicateResponse;
 }
