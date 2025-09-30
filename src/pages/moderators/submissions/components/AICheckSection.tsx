@@ -1,4 +1,3 @@
-// src/pages/moderators/submissions/components/AICheckSection.tsx
 import { useMemo, useState } from "react";
 
 type Props = { submissionDetail?: any };
@@ -84,7 +83,7 @@ export default function AICheckSection({ submissionDetail }: Props) {
     const pretty = getPrettyJson(aiCheck.raw) ?? aiCheck.raw;
     try {
       await navigator.clipboard.writeText(pretty);
-    } catch {}
+    } catch { }
   };
   const downloadAiPretty = () => {
     if (!aiCheck.raw) return;
@@ -116,8 +115,7 @@ export default function AICheckSection({ submissionDetail }: Props) {
                 <div style={{ width: `${overallScorePercent}%` }} className="h-2 bg-emerald-500" />
               </div>
               <div className={`mt-1 text-sm ${scoreColorSmall(overallScorePercent)}`}>
-                {overallScorePercent}% {overallScoreRaw != null && <>• Raw: {overallScoreRaw}</>}
-                {aiCheck.parsed?.overall_rating ? ` • ${aiCheck.parsed.overall_rating}` : ""}
+                {overallScorePercent}% {aiCheck.parsed?.overall_rating ? ` • ${aiCheck.parsed.overall_rating}` : ""}
               </div>
             </div>
           ) : (
@@ -194,7 +192,7 @@ export default function AICheckSection({ submissionDetail }: Props) {
             </div>
           )}
 
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-2 gap-3">
             {Array.isArray(aiCheck.parsed.missing_fields) && aiCheck.parsed.missing_fields.length > 0 && (
               <div className="rounded border p-3">
                 <div className="text-sm font-semibold mb-1">Missing fields</div>

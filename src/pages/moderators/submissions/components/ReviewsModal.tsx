@@ -105,7 +105,10 @@ type Props = {
 export default function ReviewsModal({ open, onClose, summary, loading, onOpenRefetch }: Props) {
   useEffect(() => {
     if (!open) return;
-    if (onOpenRefetch) onOpenRefetch().catch(() => {});
+    // try refetch once when opened
+    if (onOpenRefetch) {
+      onOpenRefetch().catch(() => {});
+    }
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -123,7 +126,7 @@ export default function ReviewsModal({ open, onClose, summary, loading, onOpenRe
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <div className="text-lg font-semibold">Danh sách đánh giá</div>
-            <div className="text-xs text-slate-500">{loading ? "Đang tải..." : `${totalReviews ?? 0} đánh giá • Trung bình: ${averageScore != null ? `${averageScore}%` : "—"}`}</div>
+            <div className="text-xs text-slate-500">{loading ? "Đang tải..." : `${totalReviews ?? 0} đánh giá • Trung bình: ${averageScore != null ? `${averageScore}` : "—"}`}</div>
           </div>
           <div><button className="rounded border px-3 py-1 text-sm" onClick={onClose}>Đóng</button></div>
         </div>
@@ -142,8 +145,6 @@ export default function ReviewsModal({ open, onClose, summary, loading, onOpenRe
               <div className="text-xs text-slate-500">Recommendations</div>
               <div className="text-sm mt-1 flex gap-3 items-center">
                 <div className="flex items-center gap-2"><span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs">Approve</span><strong>{recommendationsCount.approve ?? 0}</strong></div>
-                <div className="flex items-center gap-2"><span className="inline-block px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs">Minor</span><strong>{recommendationsCount.minor ?? 0}</strong></div>
-                <div className="flex items-center gap-2"><span className="inline-block px-2 py-0.5 rounded bg-orange-100 text-orange-700 text-xs">Major</span><strong>{recommendationsCount.major ?? 0}</strong></div>
                 <div className="flex items-center gap-2"><span className="inline-block px-2 py-0.5 rounded bg-rose-100 text-rose-700 text-xs">Reject</span><strong>{recommendationsCount.reject ?? 0}</strong></div>
               </div>
             </div>
