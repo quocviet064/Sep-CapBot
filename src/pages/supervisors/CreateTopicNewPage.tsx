@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
@@ -115,6 +115,8 @@ function formatBytes(b: number) {
 
 export default function CreateTopicNewPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefApplied = useRef(false);
   const dupAdv = useCheckDuplicateAdvanced();
 
   const {
@@ -131,9 +133,7 @@ export default function CreateTopicNewPage() {
   useEffect(() => {
     try {
       sessionStorage.removeItem(DRAFT_KEY);
-    } catch (err) {
-      void err;
-    }
+    } catch {}
   }, []);
 
   const [catQuery, setCatQuery] = useState("");
@@ -172,10 +172,53 @@ export default function CreateTopicNewPage() {
   useEffect(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify(form));
-    } catch (err) {
-      void err;
-    }
+    } catch {}
   }, [form]);
+
+  useEffect(() => {
+    if (prefApplied.current) return;
+    const st = location.state as {
+      fromAISuggest?: boolean;
+      prefill?: {
+        eN_Title?: string;
+        vN_title?: string;
+        abbreviation?: string;
+        problem?: string;
+        context?: string;
+        content?: string;
+        description?: string;
+        objectives?: string;
+        maxStudents?: number;
+        semesterId?: number;
+        categoryId?: number;
+      };
+    } | null;
+    if (st?.fromAISuggest && st.prefill) {
+      const pf = st.prefill;
+      setForm((prev) => ({
+        ...prev,
+        eN_Title: pf.eN_Title ?? prev.eN_Title,
+        vN_title: pf.vN_title ?? prev.vN_title,
+        abbreviation: pf.abbreviation ?? prev.abbreviation,
+        problem: pf.problem ?? prev.problem,
+        context: pf.context ?? prev.context,
+        content: pf.content ?? prev.content,
+        description: pf.description ?? prev.description,
+        objectives: pf.objectives ?? prev.objectives,
+        maxStudents:
+          typeof pf.maxStudents === "number"
+            ? pf.maxStudents
+            : prev.maxStudents,
+        semesterId:
+          typeof pf.semesterId === "number" ? pf.semesterId : prev.semesterId,
+        categoryId:
+          typeof pf.categoryId === "number" ? pf.categoryId : prev.categoryId,
+      }));
+      prefApplied.current = true;
+      navigate(".", { replace: true, state: null });
+      toast.success("Đã nạp dữ liệu từ gợi ý AI");
+    }
+  }, [location.state, navigate]);
 
   const [docFiles, setDocFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | undefined>(undefined);
@@ -276,9 +319,7 @@ export default function CreateTopicNewPage() {
   const clearDraft = () => {
     try {
       sessionStorage.removeItem(DRAFT_KEY);
-    } catch (err) {
-      void err;
-    }
+    } catch {}
   };
 
   const resetForm = () => {
@@ -397,9 +438,7 @@ export default function CreateTopicNewPage() {
             icon={<CheckCircle2 className="h-4 w-4" />}
           >
             <div
-              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${
-                dupAdv.isPending ? "pointer-events-none opacity-70" : ""
-              }`}
+              className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${dupAdv.isPending ? "pointer-events-none opacity-70" : ""}`}
             >
               <Field label="EN Title" required error={errors.eN_Title}>
                 <input

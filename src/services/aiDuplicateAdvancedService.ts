@@ -9,7 +9,6 @@ export type AdvancedDuplicateParams = {
 
 export type AdvancedDuplicatePayload = {
   eN_Title: string;
-
   vN_title: string;
 
   title?: string;
@@ -74,6 +73,7 @@ export type ModificationProposal = {
     supervisor_id?: number;
     semester_id?: number;
     max_students?: number;
+
     categoryId?: number;
     supervisorId?: number;
     semesterId?: number;
@@ -111,4 +111,57 @@ export async function checkDuplicateAdvanced(
   );
 
   return normalizeDuplicateResponse(data) as AdvancedDuplicateResponse;
+}
+
+export type TopicSuggestionsV2Params = {
+  semester_id: number; // required
+  category_preference?: string;
+  keywords?: string[];
+  supervisor_expertise?: string[];
+  student_level?: "undergraduate" | "graduate";
+  team_size?: 4 | 5;
+};
+
+export type TopicSuggestionV2 = {
+  eN_Title: string;
+  vN_title: string;
+  abbreviation?: string;
+
+  problem?: string;
+  context?: string;
+  content?: string;
+  description?: string;
+  objectives?: string;
+
+  category?: string;
+  rationale?: string;
+  difficulty_level?: string;
+  estimated_duration?: string;
+  team_size?: number;
+  suggested_roles?: string[];
+};
+
+export type TopicSuggestionsV2Response = {
+  suggestions: TopicSuggestionV2[];
+  trending_areas?: string[];
+  generated_at?: string;
+  processing_time?: number;
+  trending_analysis?: Record<string, unknown>;
+};
+
+export async function getTopicSuggestionsV2(
+  params: TopicSuggestionsV2Params,
+): Promise<TopicSuggestionsV2Response> {
+  const entries = Object.entries(params).filter(([_, v]) => {
+    if (v == null) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    return true;
+  });
+  const cleaned = Object.fromEntries(entries) as TopicSuggestionsV2Params;
+
+  const { data } = await aiAPI.get<TopicSuggestionsV2Response>(
+    "/api/v1/topics/suggestions-v2",
+    { params: cleaned },
+  );
+  return data;
 }

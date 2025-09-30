@@ -39,6 +39,11 @@ export const siteSupervisor = [
     icon: Bot,
   },
   {
+    title: "Gợi ý AI",
+    url: "/supervisors/topics/ai-agent",
+    icon: Bot,
+  },
+  {
     title: "Nộp đề tài",
     url: "/supervisors/submission-topic/semesters/semesters-page",
     icon: Bot,

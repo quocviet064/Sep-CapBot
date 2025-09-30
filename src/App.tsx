@@ -15,6 +15,8 @@ import VersionDuplicateCheck from "./pages/supervisors/topic-version/VersionDupl
 import TopicVersionCreateSuggestPage from "./pages/supervisors/topic-version/TopicVersionCreateSuggestPage";
 import TopicVersionCreateBackPage from "./pages/supervisors/topic-version/TopicVersionCreateBackPage";
 import TopicCreateConfirmPage from "./pages/supervisors/topic-version/TopicVersionCreateConfirmPage";
+import WelcomeCreateTopicPage from "./pages/supervisors/WelcomeCreateTopicPage";
+import AISuggestPage from "./pages/supervisors/AISuggestPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -261,6 +263,11 @@ function App() {
             path="/supervisors/submission-topic/semesters/phase-types"
             element={<PhaseTypesPage />}
           />
+          <Route
+            path="/supervisors/topics/ai-agent"
+            element={<WelcomeCreateTopicPage />}
+          />
+          <Route path="//supervisors/aisuggest" element={<AISuggestPage />} />
           <Route
             path="/semesters/:semesterId/phases"
             element={<PhaseListPage />}
