@@ -189,6 +189,8 @@ export default function CreateTopicFromAIPage() {
   const [catQuery, setCatQuery] = useState("");
   const [semQuery, setSemQuery] = useState("");
 
+  const [redirecting, setRedirecting] = useState(false);
+
   const viewOnly = true;
 
   useEffect(() => {
@@ -219,8 +221,7 @@ export default function CreateTopicFromAIPage() {
       try {
         const file = await storedToFile(stored);
         setDocFiles([file]);
-      } catch (err) {
-        console.error(err);
+      } catch {
         toast.error("Không thể tải tệp đã lưu");
       }
     })();
@@ -366,13 +367,13 @@ export default function CreateTopicFromAIPage() {
     }
     let fileId: number | null = null;
     if (docFiles.length > 0) {
-      const toastId = toast.loading("Đang upload tài liệu...");
+      const upId = toast.loading("Đang upload tài liệu...");
       try {
         const id = await uploadFileReturnId(docFiles[0]);
-        toast.success("Upload thành công", { id: toastId });
+        toast.success("Upload thành công", { id: upId, duration: 1200 });
         fileId = id;
       } catch {
-        toast.error("Upload thất bại", { id: toastId });
+        toast.error("Upload thất bại", { id: upId });
         return;
       }
     }
@@ -390,15 +391,18 @@ export default function CreateTopicFromAIPage() {
       maxStudents: Number(form.maxStudents),
       fileId,
     };
+    const loadId = toast.loading("Đang tạo đề tài...");
     try {
-      await toast.promise(createTopic(payload), {
-        loading: "Đang tạo đề tài...",
-        success: "Tạo đề tài thành công!",
-        error: "Tạo đề tài thất bại",
-      });
+      await createTopic(payload);
+      toast.success("Tạo đề tài thành công!", { id: loadId, duration: 1400 });
       resetForm();
+      setRedirecting(true);
+      setTimeout(() => {
+        toast.dismiss();
+        navigate("/supervisors/topics/create-new", { replace: true });
+      }, 1600);
     } catch {
-      toast.error("Tạo đề tài thất bại");
+      toast.error("Tạo đề tài thất bại", { id: loadId });
     }
   };
 
@@ -419,6 +423,32 @@ export default function CreateTopicFromAIPage() {
 
   return (
     <div className="space-y-4">
+      {redirecting && (
+        <div className="fixed inset-0 z-[40] grid place-items-center bg-white/70 backdrop-blur-sm">
+          <div className="w-[360px] rounded-2xl border bg-white p-6 shadow-2xl ring-1 ring-black/5">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-900 text-white">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold">Đã tạo đề tài</div>
+                <div className="text-xs text-neutral-600">
+                  Đang chuyển về trang tạo mới
+                </div>
+              </div>
+            </div>
+            <div className="relative h-2 w-full overflow-hidden rounded-full bg-neutral-100">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.2s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-neutral-300 to-transparent" />
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-xs text-neutral-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Vui lòng chờ trong giây lát...
+            </div>
+          </div>
+          <style>{`@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}`}</style>
+        </div>
+      )}
+
       <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 p-5 text-white shadow-sm">
         <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
@@ -492,11 +522,10 @@ export default function CreateTopicFromAIPage() {
                 />
               </Field>
               <Field label="Viết tắt" required error={errors.abbreviation}>
-                <input
-                  type="text"
+                <textarea
                   readOnly={viewOnly}
-                  className="w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
-                  placeholder="Abbreviation"
+                  className="min-h-[90px] w-full rounded-xl border px-3 py-2 text-sm transition outline-none focus:border-neutral-800 focus:ring-2 focus:ring-neutral-900/10"
+                  placeholder="Viết tắt"
                   value={form.abbreviation}
                   onChange={(e) => update("abbreviation", e.target.value)}
                 />
@@ -877,11 +906,15 @@ export default function CreateTopicFromAIPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Quay lại
           </Button>
-          <Button onClick={onSubmit} disabled={isPending} className="min-w-36">
-            {isPending ? (
+          <Button
+            onClick={onSubmit}
+            disabled={isPending || redirecting}
+            className="min-w-36"
+          >
+            {isPending || redirecting ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Đang tạo...
+                Đang xử lý...
               </span>
             ) : (
               "Xác nhận tạo"

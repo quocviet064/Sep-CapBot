@@ -19,15 +19,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCategories } from "@/hooks/useCategory";
 import { useSemesters } from "@/hooks/useSemester";
 import {
-  StateType,
   pct,
   clamp01,
   statusTone,
   toneClasses,
   RadialGauge,
   useCountUp,
-} from "./kit";
+} from "../ai-check-duplicate/kit";
 import { toast } from "sonner";
+import { StateType } from "../ai-check-duplicate/kit";
 
 function StatusPill({
   status,
@@ -290,8 +290,9 @@ export default function DuplicateAdvancedResultPage() {
 
   const handleUseSuggestion = () => {
     const suggested = (mod?.modified_topic ?? {}) as {
-      title?: string;
-      eN_Title?: string;
+      // các field có thể có từ API gợi ý
+      title?: string; // VN Title
+      eN_Title?: string; // (có thể có)
       description?: string;
       objectives?: string;
       problem?: string;
@@ -302,6 +303,7 @@ export default function DuplicateAdvancedResultPage() {
       maxStudents?: number;
     };
 
+    // Lấy snapshot trước đó (không dùng any để tránh eslint no-explicit-any)
     const prev = (state?.formSnapshot ?? {}) as {
       eN_Title?: string;
       vN_title?: string;

@@ -1,4 +1,5 @@
 import aiAPI from "@/lib/AiApi";
+import { normalizeDuplicateResponse } from "@/utils/normalizeAi";
 
 export type AdvancedDuplicateParams = {
   threshold?: number;
@@ -8,14 +9,21 @@ export type AdvancedDuplicateParams = {
 
 export type AdvancedDuplicatePayload = {
   eN_Title: string;
-  abbreviation?: string;
+
   vN_title: string;
+
+  title?: string;
+  abbreviation?: string;
   problem: string;
   context: string;
   content: string;
   description: string;
   objectives: string;
+
+  categoryId?: number;
   semesterId?: number;
+  maxStudents?: number;
+  fileId?: number | null;
 };
 
 export type SimilarTopic = {
@@ -53,6 +61,9 @@ export type DuplicateCheckBlock = {
 
 export type ModificationProposal = {
   modified_topic?: {
+    eN_Title?: string;
+    vN_title?: string;
+    abbreviation?: string;
     title?: string;
     description?: string;
     objectives?: string;
@@ -63,6 +74,10 @@ export type ModificationProposal = {
     supervisor_id?: number;
     semester_id?: number;
     max_students?: number;
+    categoryId?: number;
+    supervisorId?: number;
+    semesterId?: number;
+    maxStudents?: number;
   };
   modifications_made?: string[];
   rationale?: string;
@@ -80,11 +95,20 @@ export type AdvancedDuplicateResponse = {
 export async function checkDuplicateAdvanced(
   body: AdvancedDuplicatePayload,
   params?: AdvancedDuplicateParams,
-) {
-  const { data } = await aiAPI.post<AdvancedDuplicateResponse>(
+): Promise<AdvancedDuplicateResponse> {
+  const { title, vN_title, ...rest } = body;
+  const payloadForApi = {
+    ...rest,
+    eN_Title: body.eN_Title,
+    vN_title: vN_title,
+    title: title ?? vN_title,
+  };
+
+  const { data } = await aiAPI.post(
     "/api/v1/topics/check-duplicate-advanced",
-    body,
+    payloadForApi,
     { params },
   );
-  return data;
+
+  return normalizeDuplicateResponse(data) as AdvancedDuplicateResponse;
 }

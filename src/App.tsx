@@ -7,6 +7,14 @@ import CreateTopicFromAIPage from "./pages/supervisors/ai-check-duplicate/Create
 import CreateTopicNewPage from "./pages/supervisors/CreateTopicNewPage";
 import CreateTopicSuggestPage from "./pages/supervisors/CreateTopicSuggestPage";
 import CreateTopicBackPage from "./pages/supervisors/CreateTopicBackPage";
+import DuplicateAdvancedInspectorFullPage from "./pages/supervisors/topic-management/DuplicateAdvancedInspectorFullPage";
+import MyTopicEditPage from "./pages/supervisors/topic-management/MyTopicEditPage";
+import TopicEditFromSuggestionPage from "./pages/supervisors/topic-management/MyTopicEditFromSuggestionPage";
+import SuggestPreviewConfirmPage from "./pages/supervisors/topic-management/SuggestPreviewConfirmPage";
+import VersionDuplicateCheck from "./pages/supervisors/topic-version/VersionDuplicateCheck";
+import TopicVersionCreateSuggestPage from "./pages/supervisors/topic-version/TopicVersionCreateSuggestPage";
+import TopicVersionCreateBackPage from "./pages/supervisors/topic-version/TopicVersionCreateBackPage";
+import TopicCreateConfirmPage from "./pages/supervisors/topic-version/TopicVersionCreateConfirmPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -28,10 +36,10 @@ const MyTopicDetailPage = lazy(
   () => import("./pages/supervisors/topic-management/MyTopicDetailPage"),
 );
 const TopicVersionDetailPage = lazy(
-  () => import("./pages/supervisors/topic-management/TopicVersionDetailPage"),
+  () => import("./pages/supervisors/topic-version/TopicVersionDetailPage"),
 );
 const TopicVersionCreatePage = lazy(
-  () => import("./pages/supervisors/topic-management/TopicVersionCreatePage"),
+  () => import("./pages/supervisors/topic-version/TopicVersionCreatePage"),
 );
 
 const TopicsListPage = lazy(
@@ -167,6 +175,7 @@ function App() {
             element={<AllMyTopics />}
           />
           <Route path="/topics/my/:id" element={<MyTopicDetailPage />} />
+          <Route path="/topics/my/:id/edit" element={<MyTopicEditPage />} />
           <Route
             path="/topics/:topicId/versions/:versionId"
             element={<TopicVersionDetailPage />}
@@ -194,12 +203,41 @@ function App() {
             element={<DuplicateAdvancedResultPage />}
           />
           <Route
+            path="/supervisors/topics/:id/suggest-edit"
+            element={<TopicEditFromSuggestionPage />}
+          />
+          <Route
+            path="/supervisors/topics/:id/suggest-preview"
+            element={<SuggestPreviewConfirmPage />}
+          />
+          <Route
+            path="/supervisors/ai-check-duplicate/advanced-result"
+            element={<DuplicateAdvancedInspectorFullPage />}
+          />
+          <Route
             path="/supervisors/ai-check-duplicate/create"
             element={<CreateTopicFromAIPage />}
           />
+
           <Route
             path="/supervisors/ai-check-duplicate/:id"
             element={<TopicListDetailDuplicatePage />}
+          />
+          <Route
+            path="/topics/topic-version/duplicate-check"
+            element={<VersionDuplicateCheck />}
+          />
+          <Route
+            path="/topics/:topicId/versions/create-suggest"
+            element={<TopicVersionCreateSuggestPage />}
+          />
+          <Route
+            path="/supervisors/topics/version-create-back"
+            element={<TopicVersionCreateBackPage />}
+          />
+          <Route
+            path="/supervisors/topics/create-version-confirm"
+            element={<TopicCreateConfirmPage />}
           />
           <Route
             path="/submitted/topics/:id"
@@ -258,16 +296,39 @@ function App() {
           />
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />
-          <Route path="/reviewers/assigned-topics/list" element={<ReviewerAssignedList />} />
-          <Route path="/reviewers/assigned-topics/detail/:submissionId" element={<ReviewerAssignedDetail />} />
-          <Route path="/reviewers/evaluation-stats" element={<ReviewerStats />} />
-          <Route path="/reviewers/evaluate-topics/:assignmentId" element={<ReviewerReview />}
+          <Route
+            path="/reviewers/assigned-topics/list"
+            element={<ReviewerAssignedList />}
+          />
+          <Route
+            path="/reviewers/assigned-topics/detail/:submissionId"
+            element={<ReviewerAssignedDetail />}
+          />
+          <Route
+            path="/reviewers/evaluation-stats"
+            element={<ReviewerStats />}
+          />
+          <Route
+            path="/reviewers/evaluate-topics/:assignmentId"
+            element={<ReviewerReview />}
           />
 
-          <Route path="/moderators/dashboard" element={<ModeratorDashboard />} />
-          <Route path="/moderators/submissions" element={<SubmissionsListPage />} />
-          <Route path="/moderators/submissions/:submissionId" element={<SubmissionDetailPage />} />
-          <Route path="/moderators/feedback-evaluation" element={<ModeratorFeedbackEval />} />
+          <Route
+            path="/moderators/dashboard"
+            element={<ModeratorDashboard />}
+          />
+          <Route
+            path="/moderators/submissions"
+            element={<SubmissionsListPage />}
+          />
+          <Route
+            path="/moderators/submissions/:submissionId"
+            element={<SubmissionDetailPage />}
+          />
+          <Route
+            path="/moderators/feedback-evaluation"
+            element={<ModeratorFeedbackEval />}
+          />
           <Route path="/moderators/reports" element={<ModeratorReports />} />
           <Route
             path="/moderators/category-manager/category-page"

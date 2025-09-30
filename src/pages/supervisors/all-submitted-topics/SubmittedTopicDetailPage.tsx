@@ -11,7 +11,7 @@ import {
   type TopicDetailResponse,
 } from "@/services/topicService";
 import { normalizeAssetUrl } from "@/utils/assetUrl";
-import VersionTabs from "../topic-management/TopicVersionTabs";
+import VersionTabs from "../topic-version/TopicVersionTabs";
 
 function SectionCard({
   title,

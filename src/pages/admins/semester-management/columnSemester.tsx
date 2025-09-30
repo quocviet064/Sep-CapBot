@@ -84,9 +84,9 @@ export const createSemesterColumns = (
   },
   {
     accessorKey: "description",
-    meta: { title: "Mô tả" },
+    meta: { title: "Xu hướng" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Mô tả" />
+      <DataTableColumnHeader column={column} title="Xu hướng" />
     ),
     cell: ({ row }) => (
       <div className="max-w-[420px] truncate text-neutral-700">
