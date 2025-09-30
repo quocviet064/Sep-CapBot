@@ -69,7 +69,6 @@ export interface SubmissionDTO {
   submittedByName?: string;
   submissionRound?: number;
   submittedAt?: string;
-
   aiCheckStatus?: number | string | null;
   aiCheckScore?: number | null;
   aiCheckDetails?: string | Record<string, unknown> | null;
@@ -106,9 +105,6 @@ export type GetSubmissionsQueryDTO = {
   TotalRecord?: number;
 };
 
-// ======================
-// LIST & DETAIL (GIỮ NGUYÊN)
-// ======================
 export const fetchSubmissions = async (
   TopicVersionId?: number,
   PhaseId?: number,
@@ -138,7 +134,6 @@ export const fetchSubmissions = async (
         res.data.message || "Không lấy được danh sách submission",
       );
     }
-
     const src = res.data.data as Record<string, unknown> | unknown;
     const items = normalizeList<SubmissionDTO>(src);
     const obj = (
@@ -151,11 +146,9 @@ export const fetchSubmissions = async (
         ? (obj.paging as Record<string, unknown>)
         : {}
     ) as Record<string, unknown>;
-
     const pageNumber = asNumber(pagingObj.pageNumber) ?? PageNumber;
     const pageSize = asNumber(pagingObj.pageSize) ?? PageSize;
     const keyword = asString(pagingObj.keyword) ?? Keyword ?? null;
-
     const totalRecordFromPaging = asNumber(pagingObj.totalRecord);
     const totalRecordTop = asNumber(obj.totalRecord);
     const totalRecord =
@@ -164,19 +157,16 @@ export const fetchSubmissions = async (
       (pageNumber === 1 && items.length < pageSize
         ? items.length
         : (TotalRecord ?? 0));
-
     const totalPagesFromSrc = asNumber(obj.totalPages);
     const totalPages =
       totalPagesFromSrc ??
       (totalRecord > 0 && pageSize > 0
         ? Math.max(1, Math.ceil(totalRecord / pageSize))
         : Math.max(1, pageNumber));
-
     const hasNextPageFromSrc = asBoolean(obj.hasNextPage);
     const hasPrevPageFromSrc = asBoolean(obj.hasPreviousPage);
     const hasNextPage = hasNextPageFromSrc ?? pageNumber < totalPages;
     const hasPreviousPage = hasPrevPageFromSrc ?? pageNumber > 1;
-
     return {
       paging: {
         pageNumber,
@@ -251,9 +241,6 @@ export const getSubmissionDetail = async (
   }
 };
 
-// ======================
-// NEW: CREATE / SUBMIT
-// ======================
 export type CreateSubmissionRequest = {
   topicId: number;
   phaseId: number;
@@ -295,6 +282,29 @@ export const submitSubmission = async (id: IdLike): Promise<void> => {
     }
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể submit submission");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
+export type ResubmitSubmissionRequest = {
+  id: IdLike;
+  topicVersionId: IdLike;
+};
+
+export const resubmitSubmission = async (
+  payload: ResubmitSubmissionRequest,
+): Promise<void> => {
+  try {
+    const res = await capBotAPI.post<ApiResponse<unknown>>(
+      `/submission/resubmit`,
+      payload,
+    );
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || "Resubmit submission thất bại");
+    }
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể resubmit submission");
     toast.error(msg);
     throw new Error(msg);
   }

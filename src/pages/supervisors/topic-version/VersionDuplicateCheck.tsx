@@ -1,4 +1,7 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { Button } from "@/components/globals/atoms/button";
 import { Badge } from "@/components/globals/atoms/badge";
 import {
@@ -14,20 +17,107 @@ import {
   Info,
   PlusCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useCategories } from "@/hooks/useCategory";
 import { useSemesters } from "@/hooks/useSemester";
+import { useCheckDuplicateAdvanced } from "@/hooks/useAiDuplicateAdvanced";
 import {
-  StateType,
   pct,
   clamp01,
   statusTone,
   toneClasses,
   RadialGauge,
   useCountUp,
-} from "./kit";
-import { toast } from "sonner";
+} from "../ai-check-duplicate/kit";
+
+type FormSnapshot = {
+  eN_Title?: string;
+  vN_title?: string;
+  title?: string;
+  abbreviation?: string;
+  problem?: string;
+  context?: string;
+  content?: string;
+  description?: string;
+  objectives?: string;
+  methodology?: string;
+  expectedOutcomes?: string;
+  requirements?: string;
+  supervisorId?: number;
+  supervisorName?: string;
+  docFileName?: string;
+  docFileSize?: number;
+  categoryId?: number;
+  categoryName?: string;
+  semesterId?: number;
+  semesterName?: string;
+  maxStudents?: number;
+  fileToken?: string | null;
+  __fromSuggestion?: boolean;
+};
+
+type LocationState = {
+  formSnapshot?: FormSnapshot;
+  topicId?: number;
+  submissionId?: number;
+};
+
+type DuplicateStatus =
+  | "duplicate_found"
+  | "potential_duplicate"
+  | "no_duplicate";
+
+type StateType = {
+  result: {
+    duplicate_check: {
+      status: DuplicateStatus;
+      similarity_score: number;
+      similar_topics: Array<{
+        id: string;
+        topicId: number;
+        versionId: number | null;
+        versionNumber: number | null;
+        eN_Title: string | null;
+        vN_title: string | null;
+        semesterId?: number | null;
+        categoryId?: number | null;
+        similarity_score: number;
+        source?: string | null;
+        createdAt?: string | null;
+      }>;
+      threshold: number;
+      message?: string;
+      recommendations?: string[];
+      processing_time?: number;
+    };
+    modification_proposal?: {
+      modified_topic?: {
+        title?: string;
+        eN_Title?: string;
+        description?: string;
+        objectives?: string;
+        problem?: string;
+        context?: string;
+        content?: string;
+        categoryId?: number;
+        supervisorId?: number;
+        semesterId?: number;
+        maxStudents?: number;
+        methodology?: string;
+        expectedOutcomes?: string;
+        requirements?: string;
+      };
+      modifications_made?: string[];
+      rationale?: string;
+      similarity_improvement?: number;
+      processing_time?: number;
+    };
+  };
+  formSnapshot?: FormSnapshot;
+};
+
+type ModifiedTopic = NonNullable<
+  StateType["result"]["modification_proposal"]
+>["modified_topic"];
 
 function StatusPill({
   status,
@@ -110,6 +200,7 @@ function SectionPanel({
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const t = toneClasses(tone);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -199,16 +290,37 @@ function WarmupOverlay({ show }: { show: boolean }) {
   );
 }
 
-export default function DuplicateAdvancedResultPage() {
+export default function VersionDuplicateCheck() {
   const nav = useNavigate();
-  const { state } = useLocation() as { state?: StateType };
-  const data = state?.result;
+  const { state } = useLocation() as { state?: LocationState };
+  const topicId = state?.topicId;
+  const [searchParams] = useSearchParams();
 
-  const [warmup, setWarmup] = useState(true);
-  useEffect(() => {
-    const id = setTimeout(() => setWarmup(false), 650);
-    return () => clearTimeout(id);
-  }, []);
+  const submissionIdFromQuery = searchParams.get("submissionId");
+  const submissionId =
+    typeof state?.submissionId === "number"
+      ? state.submissionId
+      : submissionIdFromQuery
+        ? Number(submissionIdFromQuery)
+        : undefined;
+
+  const snap = state?.formSnapshot;
+
+  const handleBack = () => {
+    if (snap && topicId) {
+      nav(`/topics/${topicId}/versions/create-suggest`, {
+        state: { seed: { ...snap }, ...(submissionId ? { submissionId } : {}) },
+      });
+    } else {
+      nav(-1);
+    }
+  };
+
+  const threshold = Number(searchParams.get("threshold") ?? "0.8") || 0.8;
+  const last_n_semesters =
+    Number(searchParams.get("last_n_semesters") ?? "3") || 3;
+  const semester_id_param = searchParams.get("semester_id");
+  const semester_id = semester_id_param ? Number(semester_id_param) : undefined;
 
   const { data: categories = [] } = useCategories();
   const { data: semesters = [] } = useSemesters();
@@ -226,13 +338,76 @@ export default function DuplicateAdvancedResultPage() {
   }, [semesters]);
 
   const chips = [
-    ["EN Title", state?.formSnapshot?.eN_Title as string | undefined],
-    ["VN Title", state?.formSnapshot?.vN_title as string | undefined],
-    ["Danh mục", state?.formSnapshot?.categoryName as string | undefined],
-    ["Kỳ học", state?.formSnapshot?.semesterName as string | undefined],
+    ["EN Title", snap?.eN_Title || ""],
+    ["VN Title", snap?.vN_title || ""],
+    ["Danh mục", snap?.categoryName || ""],
+    ["Kỳ học", snap?.semesterName || ""],
   ] as const;
 
-  if (!data) {
+  const { mutateAsync: checkDuplicate, isPending } =
+    useCheckDuplicateAdvanced();
+  const [result, setResult] = useState<StateType["result"] | null>(null);
+  const [warmup, setWarmup] = useState(true);
+
+  useEffect(() => {
+    const id = setTimeout(() => setWarmup(false), 650);
+    return () => clearTimeout(id);
+  }, []);
+
+  useEffect(() => {
+    const doCheck = async () => {
+      if (!snap) return;
+
+      const body = {
+        title: String(snap.vN_title ?? "").trim(),
+        vN_title: String(snap.vN_title ?? "").trim(),
+        eN_Title: String(snap.eN_Title ?? "").trim(),
+        problem: String(snap.problem ?? "").trim(),
+        context: String(snap.context ?? "").trim(),
+        content: String(snap.content ?? "").trim(),
+        description: String(snap.description ?? "").trim(),
+        objectives: String(snap.objectives ?? "").trim(),
+        semesterId:
+          typeof snap.semesterId === "number"
+            ? Number(snap.semesterId)
+            : undefined,
+      };
+
+      if (!body.title) {
+        toast.error(
+          "Thiếu VN Title (title). Vui lòng nhập trước khi kiểm tra.",
+        );
+        return;
+      }
+
+      try {
+        const res = await checkDuplicate({
+          body,
+          params: {
+            threshold,
+            last_n_semesters,
+            semester_id:
+              typeof semester_id === "number" ? semester_id : undefined,
+          },
+        });
+
+        setResult({
+          duplicate_check: res.duplicate_check,
+          modification_proposal: res.modification_proposal,
+        });
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "Không kiểm tra được trùng lặp. Vui lòng thử lại.";
+        toast.error(msg);
+      }
+    };
+
+    if (snap) void doCheck();
+  }, [snap, checkDuplicate, threshold, last_n_semesters, semester_id]);
+
+  if (!snap) {
     return (
       <div className="mx-auto max-w-4xl space-y-4 p-4">
         <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
@@ -240,18 +415,15 @@ export default function DuplicateAdvancedResultPage() {
             <Sparkles className="h-6 w-6 text-neutral-600" />
           </div>
           <div className="mb-1 text-lg font-semibold">
-            Không có dữ liệu kiểm tra
+            Thiếu dữ liệu kiểm tra
           </div>
           <div className="text-sm text-neutral-600">
-            Hãy quay lại trang Tạo đề tài và thực hiện kiểm tra trùng lặp.
+            Hãy quay lại trang Tạo phiên bản và nhập thông tin trước khi kiểm
+            tra.
           </div>
           <div className="mt-5">
             <Button
-              onClick={() =>
-                nav("/supervisors/topics/create-back", {
-                  state: { formSnapshot: state?.formSnapshot ?? {} },
-                })
-              }
+              onClick={handleBack}
               className="inline-flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -263,10 +435,86 @@ export default function DuplicateAdvancedResultPage() {
     );
   }
 
-  const s = data.duplicate_check;
-  const mod = data.modification_proposal;
+  if (!result) {
+    return (
+      <>
+        <WarmupOverlay show={isPending || warmup} />
+        <div className="mx-auto max-w-4xl space-y-4 p-4">
+          <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
+              <Sparkles className="h-6 w-6 text-neutral-600" />
+            </div>
+            <div className="mb-1 text-lg font-semibold">
+              Đang kiểm tra trùng lặp…
+            </div>
+            <div className="text-sm text-neutral-600">
+              Vui lòng đợi trong giây lát để hiển thị kết quả.
+            </div>
+            <div className="mt-5">
+              <Button variant="ghost" onClick={handleBack}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Quay lại
+              </Button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const s = result.duplicate_check;
+  const mod = result.modification_proposal;
   const tone = statusTone(s.status) as "red" | "amber" | "emerald";
   const t = toneClasses(tone);
+
+  const handleUseSuggestion = () => {
+    const suggested = (mod?.modified_topic ?? {}) as ModifiedTopic;
+
+    const categoryId = suggested?.categoryId ?? snap.categoryId ?? 0;
+    const semesterId = suggested?.semesterId ?? snap.semesterId ?? 0;
+
+    const categoryName =
+      (categoryId && categories.find((c) => c.id === categoryId)?.name) ||
+      snap.categoryName ||
+      "";
+    const semesterName =
+      (semesterId && semesters.find((s) => s.id === semesterId)?.name) ||
+      snap.semesterName ||
+      "";
+
+    const seed: FormSnapshot = {
+      eN_Title: suggested?.eN_Title ?? snap.eN_Title ?? "",
+      vN_title: suggested?.title ?? snap.vN_title ?? "",
+      description: suggested?.description ?? snap.description ?? "",
+      objectives: suggested?.objectives ?? snap.objectives ?? "",
+      methodology: suggested?.methodology ?? snap.methodology ?? "",
+      expectedOutcomes:
+        suggested?.expectedOutcomes ?? snap.expectedOutcomes ?? "",
+      requirements: suggested?.requirements ?? snap.requirements ?? "",
+      problem: suggested?.problem ?? snap.problem ?? "",
+      context: suggested?.context ?? snap.context ?? "",
+      content: suggested?.content ?? snap.content ?? "",
+      supervisorId: snap.supervisorId,
+      supervisorName: snap.supervisorName,
+      categoryId,
+      categoryName,
+      semesterId,
+      semesterName,
+      docFileName: snap.docFileName,
+      docFileSize: snap.docFileSize,
+    };
+
+    if (!topicId || Number.isNaN(Number(topicId))) {
+      toast.error(
+        "Thiếu topicId. Vui lòng mở kiểm tra trùng lặp lại từ trang phiên bản của đề tài.",
+      );
+      return;
+    }
+
+    nav(`/topics/${topicId}/versions/create-suggest`, {
+      state: { seed, ...(submissionId ? { submissionId } : {}) },
+    });
+  };
 
   const onCreateClick = () => {
     if (s.status === "duplicate_found") {
@@ -283,86 +531,18 @@ export default function DuplicateAdvancedResultPage() {
       if (!ok) return;
     }
 
-    nav("/supervisors/ai-check-duplicate/create", {
-      state: { formSnapshot: { ...(state?.formSnapshot ?? {}) } },
-    });
-  };
-
-  const handleUseSuggestion = () => {
-    const suggested = (mod?.modified_topic ?? {}) as {
-      title?: string;
-      eN_Title?: string;
-      description?: string;
-      objectives?: string;
-      problem?: string;
-      context?: string;
-      content?: string;
-      categoryId?: number;
-      semesterId?: number;
-      maxStudents?: number;
-    };
-
-    const prev = (state?.formSnapshot ?? {}) as {
-      eN_Title?: string;
-      vN_title?: string;
-      abbreviation?: string;
-      problem?: string;
-      context?: string;
-      content?: string;
-      description?: string;
-      objectives?: string;
-      categoryId?: number;
-      semesterId?: number;
-      maxStudents?: number;
-      categoryName?: string;
-      semesterName?: string;
-      fileToken?: string | null;
-    };
-
-    const categoryId = suggested.categoryId ?? prev.categoryId ?? 0;
-    const semesterId = suggested.semesterId ?? prev.semesterId ?? 0;
-
-    const categoryName =
-      (categoryId && categories.find((c) => c.id === categoryId)?.name) ||
-      prev.categoryName ||
-      "";
-    const semesterName =
-      (semesterId && semesters.find((s) => s.id === semesterId)?.name) ||
-      prev.semesterName ||
-      "";
-
-    const snapshot = {
-      eN_Title: suggested.eN_Title ?? prev.eN_Title ?? "",
-
-      vN_title: suggested.title ?? prev.vN_title ?? "",
-
-      title: suggested.title ?? prev.vN_title ?? "",
-
-      abbreviation: prev.abbreviation ?? "",
-      problem: suggested.problem ?? prev.problem ?? "",
-      context: suggested.context ?? prev.context ?? "",
-      content: suggested.content ?? prev.content ?? "",
-      description: suggested.description ?? prev.description ?? "",
-      objectives: suggested.objectives ?? prev.objectives ?? "",
-
-      categoryId,
-      semesterId,
-      maxStudents: suggested.maxStudents ?? prev.maxStudents ?? 1,
-
-      categoryName,
-      semesterName,
-      fileToken: prev.fileToken ?? null,
-      __fromSuggestion: true,
-    };
-
-    nav("/supervisors/topics/create-suggest", {
-      state: { formSnapshot: snapshot },
+    nav("/supervisors/topics/create-version-confirm", {
+      state: {
+        formSnapshot: { ...(snap ?? {}) },
+        topicId,
+        submissionId,
+      },
     });
   };
 
   return (
     <>
-      <WarmupOverlay show={warmup} />
+      <WarmupOverlay show={false} />
 
       <div className="w-full space-y-6 px-3 md:px-6 lg:px-10">
         <motion.div
@@ -382,7 +562,7 @@ export default function DuplicateAdvancedResultPage() {
                   <ShieldAlert className="h-5 w-5" />
                 </span>
                 <span className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-500 bg-clip-text text-transparent">
-                  Kết quả kiểm tra trùng lặp
+                  Kết quả kiểm tra trùng lặp (Phiên bản)
                 </span>
               </h2>
 
@@ -426,7 +606,7 @@ export default function DuplicateAdvancedResultPage() {
               tone={tone}
               size={176}
               stroke={14}
-              delay={warmup ? 800 : 200}
+              delay={200}
             />
           </div>
           <div className="md:col-span-1">
@@ -437,7 +617,7 @@ export default function DuplicateAdvancedResultPage() {
               tone="sky"
               size={176}
               stroke={14}
-              delay={warmup ? 900 : 280}
+              delay={280}
             />
           </div>
           <motion.div
@@ -473,7 +653,7 @@ export default function DuplicateAdvancedResultPage() {
           <div className="lg:col-span-2">
             <RiskMeter value={Number(s.similarity_score) || 0} />
           </div>
-          {state?.formSnapshot && (
+          {!!snap && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -554,7 +734,7 @@ export default function DuplicateAdvancedResultPage() {
           <div className="flex items-center justify-between bg-neutral-900/95 px-6 py-4 text-white backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/10">
-                <Sparkles className="h-4.5 w-4.5" />
+                <Sparkles className="h-4 w-4" />
               </div>
               <div>
                 <div className="text-base font-semibold tracking-wide">
@@ -583,7 +763,7 @@ export default function DuplicateAdvancedResultPage() {
                     : null;
                   return (
                     <motion.div
-                      key={`${topic.id}-${topic.topicId}`}
+                      key={`${topic.id}-${topic.topicId}-${i}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.06 + i * 0.04 }}
@@ -593,9 +773,7 @@ export default function DuplicateAdvancedResultPage() {
                         <div
                           className="absolute inset-0 rounded-full"
                           style={{
-                            background: `conic-gradient(${t.color} ${
-                              clamp01(topic.similarity_score) * 360
-                            }deg, #E5E7EB ${
+                            background: `conic-gradient(${t.color} ${clamp01(topic.similarity_score) * 360}deg, #E5E7EB ${
                               clamp01(topic.similarity_score) * 360
                             }deg)`,
                           }}
@@ -636,12 +814,11 @@ export default function DuplicateAdvancedResultPage() {
                             size="sm"
                             variant="outline"
                             className="rounded-full px-3"
-                            onClick={() =>
-                              topic.topicId &&
-                              nav(
-                                `/supervisors/ai-check-duplicate/${topic.topicId}`,
-                              )
-                            }
+                            onClick={() => {
+                              toast.info(
+                                "Mở chi tiết đề tài tương tự (chưa cấu hình route).",
+                              );
+                            }}
                           >
                             Xem chi tiết
                           </Button>
@@ -687,7 +864,7 @@ export default function DuplicateAdvancedResultPage() {
                   size={188}
                   stroke={14}
                   tone="emerald"
-                  delay={warmup ? 800 : 200}
+                  delay={200}
                 />
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-xl border bg-white/70 p-3">
@@ -728,10 +905,10 @@ export default function DuplicateAdvancedResultPage() {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="rounded-xl border bg-neutral-50 p-3">
                       <div className="text-[11px] text-neutral-500">
-                        Tiêu đề gợi ý
+                        Tiêu đề gợi ý (VN)
                       </div>
                       <div className="mt-1 line-clamp-2 text-sm font-medium text-neutral-900">
-                        {mod.modified_topic.title || "—"}
+                        {mod.modified_topic?.title || "—"}
                       </div>
                     </div>
                     <div className="rounded-xl border bg-neutral-50 p-3">
@@ -739,7 +916,7 @@ export default function DuplicateAdvancedResultPage() {
                         Mục tiêu
                       </div>
                       <div className="mt-1 text-sm text-neutral-800">
-                        {mod.modified_topic.objectives || "—"}
+                        {mod.modified_topic?.objectives || "—"}
                       </div>
                     </div>
                   </div>
@@ -747,7 +924,7 @@ export default function DuplicateAdvancedResultPage() {
                     <div className="rounded-xl border bg-white p-3">
                       <div className="text-[11px] text-neutral-500">Mô tả</div>
                       <div className="mt-1 text-sm text-neutral-800">
-                        {mod.modified_topic.description || "—"}
+                        {mod.modified_topic?.description || "—"}
                       </div>
                     </div>
                     <div className="rounded-xl border bg-white p-3">
@@ -755,7 +932,7 @@ export default function DuplicateAdvancedResultPage() {
                         Nội dung
                       </div>
                       <div className="mt-1 text-sm whitespace-pre-wrap text-neutral-800">
-                        {mod.modified_topic.content || "—"}
+                        {mod.modified_topic?.content || "—"}
                       </div>
                     </div>
                   </div>
@@ -815,11 +992,7 @@ export default function DuplicateAdvancedResultPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
-                onClick={() =>
-                  nav("/supervisors/topics/create-back", {
-                    state: { formSnapshot: { ...(state?.formSnapshot ?? {}) } },
-                  })
-                }
+                onClick={handleBack}
                 className="inline-flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />

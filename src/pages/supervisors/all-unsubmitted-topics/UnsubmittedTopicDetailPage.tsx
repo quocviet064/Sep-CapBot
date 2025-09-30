@@ -1,5 +1,4 @@
-// src/pages/topics/unsubmitted/UnsubmittedTopicDetailPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BookOpen, ArrowLeft, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +12,7 @@ import {
   type TopicDetailResponse,
 } from "@/services/topicService";
 import { normalizeAssetUrl } from "@/utils/assetUrl";
-import VersionTabs from "../topic-management/TopicVersionTabs";
+import VersionTabs from "../topic-version/TopicVersionTabs";
 import type { TopicListItem } from "@/services/topicService";
 import SubmitTopicDialog from "./SubmitTopicDialog";
 
@@ -25,8 +24,8 @@ function SectionCard({
 }: {
   title: string;
   desc?: string;
-  children: React.ReactNode;
-  icon?: React.ReactNode;
+  children: ReactNode;
+  icon?: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border bg-white/70 p-4 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-sm">
@@ -51,7 +50,7 @@ function InfoBlock({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-1">
@@ -109,6 +108,7 @@ function FileAttachment({
 }
 
 type SubmissionLite = {
+  id?: number | string;
   additionalNotes?: string | null;
   status?: string | null;
   submittedAt?: string | null;
@@ -121,7 +121,7 @@ const pickLatestSubmission = (
 ): SubmissionLite | null => {
   const listA = (data as WithSubs).submissions ?? [];
   const listB = (data as WithVersionSubs).currentVersion?.submissions ?? [];
-  const list = [...listA, ...listB];
+  const list: SubmissionLite[] = [...listA, ...listB];
   if (list.length === 0) return null;
   const sorted = [...list].sort((a, b) => {
     const ta = a.submittedAt ? Date.parse(a.submittedAt) : 0;
@@ -174,7 +174,6 @@ function TopicDetailPage({
   const navigate = useNavigate();
   const current = data.currentVersion;
   const resolvedStatus = data.latestSubmissionStatus ?? null;
-  const resolvedSubmittedAt = data.latestSubmittedAt ?? null;
   const isRevisionRequired = resolvedStatus === "RevisionRequired";
 
   return (
@@ -239,8 +238,35 @@ function TopicDetailPage({
                   semesterId: data.semesterId ?? 0,
                   semesterName: data.semesterName ?? "",
                 };
-                navigate(`/topics/${data.id}/versions/new`, {
-                  state: { seed },
+
+                const latestSubmissionId = (() => {
+                  const a: SubmissionLite[] = data.submissions ?? [];
+                  const b: SubmissionLite[] =
+                    data.currentVersion?.submissions ?? [];
+                  const merged: SubmissionLite[] = [...a, ...b].sort((x, y) => {
+                    const tx = x.submittedAt ? Date.parse(x.submittedAt) : 0;
+                    const ty = y.submittedAt ? Date.parse(y.submittedAt) : 0;
+                    return ty - tx;
+                  });
+                  const id = merged[0]?.id;
+                  return typeof id === "number" || typeof id === "string"
+                    ? id
+                    : undefined;
+                })();
+
+                const to = `/topics/${data.id}/versions/new${
+                  latestSubmissionId
+                    ? `?submissionId=${latestSubmissionId}`
+                    : ""
+                }`;
+
+                navigate(to, {
+                  state: {
+                    seed,
+                    ...(latestSubmissionId
+                      ? { submissionId: latestSubmissionId }
+                      : {}),
+                  },
                 });
               }}
               className="inline-flex items-center gap-2"
@@ -385,15 +411,23 @@ function TopicDetailPage({
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Trạng thái đề tài</span>
                 <span className="font-medium">
-                  {resolvedStatus ? (
-                    <Badge className={statusClass(resolvedStatus)}>
-                      {statusLabel[resolvedStatus] ?? resolvedStatus}
-                    </Badge>
-                  ) : data.hasSubmitted === false ? (
-                    <Badge className="bg-slate-600 text-white">Chưa nộp</Badge>
-                  ) : (
-                    <Badge className="bg-slate-600 text-white">Chưa nộp</Badge>
-                  )}
+                  {(() => {
+                    if (data.latestSubmissionStatus) {
+                      return (
+                        <Badge
+                          className={statusClass(data.latestSubmissionStatus)}
+                        >
+                          {statusLabel[data.latestSubmissionStatus] ??
+                            data.latestSubmissionStatus}
+                        </Badge>
+                      );
+                    }
+                    return (
+                      <Badge className="bg-slate-600 text-white">
+                        Chưa nộp
+                      </Badge>
+                    );
+                  })()}
                 </span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
@@ -413,8 +447,8 @@ function TopicDetailPage({
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Thời gian nộp</span>
                 <span className="font-medium">
-                  {resolvedSubmittedAt
-                    ? formatDateTime(resolvedSubmittedAt)
+                  {data.latestSubmittedAt
+                    ? formatDateTime(data.latestSubmittedAt)
                     : data.hasSubmitted === false
                       ? "—"
                       : "—"}
@@ -436,12 +470,13 @@ function TopicDetailPage({
               >
                 {(() => {
                   const latest = pickLatestSubmission(data);
-                  if (data.hasSubmitted === false)
+                  if (data.hasSubmitted === false) {
                     return (
                       <span className="text-neutral-400 italic">
                         — Chưa có ghi chú vì đề tài chưa nộp —
                       </span>
                     );
+                  }
                   if (latest?.additionalNotes && latest.additionalNotes.trim())
                     return latest.additionalNotes;
                   return (
