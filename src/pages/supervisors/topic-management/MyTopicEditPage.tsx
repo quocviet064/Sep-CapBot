@@ -18,7 +18,7 @@ import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
 import { Label } from "@/components/globals/atoms/label";
 import { useCategories } from "@/hooks/useCategory";
-import VersionTabs from "./TopicVersionTabs";
+import VersionTabs from "../topic-version/TopicVersionTabs";
 
 import {
   getTopicDetail,

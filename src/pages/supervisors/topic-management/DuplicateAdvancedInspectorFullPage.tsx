@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, generatePath } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/globals/atoms/button";
 import { Badge } from "@/components/globals/atoms/badge";
 import {
@@ -19,46 +19,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCategories } from "@/hooks/useCategory";
 import { useSemesters } from "@/hooks/useSemester";
 import {
+  pct,
   clamp01,
   statusTone,
   toneClasses,
   RadialGauge,
   useCountUp,
-  pct,
 } from "../ai-check-duplicate/kit";
 import { toast } from "sonner";
-import type {
-  AdvancedDuplicateResponse,
-  DuplicateCheckBlock,
-} from "@/services/aiDuplicateAdvancedService";
-
-type NavState = {
-  result: AdvancedDuplicateResponse;
-  formSnapshot?: {
-    eN_Title?: string;
-    vN_title?: string;
-    abbreviation?: string;
-    problem?: string;
-    context?: string;
-    content?: string;
-    description?: string;
-    objectives?: string;
-    categoryId?: number;
-    semesterId?: number;
-    maxStudents?: number;
-    categoryName?: string;
-    semesterName?: string;
-    fileToken?: string | null;
-    topicId?: number;
-    __fromSuggestion?: boolean;
-  };
-};
+import { StateType } from "../ai-check-duplicate/kit";
 
 function StatusPill({
   status,
   value,
 }: {
-  status: DuplicateCheckBlock["status"];
+  status: StateType["result"]["duplicate_check"]["status"];
   value: number;
 }) {
   if (status === "duplicate_found")
@@ -224,9 +199,9 @@ function WarmupOverlay({ show }: { show: boolean }) {
   );
 }
 
-export default function DuplicateAdvancedInspectorFullPage() {
+export default function DuplicateAdvancedResultPage() {
   const nav = useNavigate();
-  const { state } = useLocation() as { state?: NavState };
+  const { state } = useLocation() as { state?: StateType };
   const data = state?.result;
 
   const [warmup, setWarmup] = useState(true);
@@ -250,23 +225,11 @@ export default function DuplicateAdvancedInspectorFullPage() {
     return m;
   }, [semesters]);
 
-  const chipCategory =
-    (state?.formSnapshot?.categoryId &&
-      categoryMap.get(state.formSnapshot.categoryId)) ||
-    state?.formSnapshot?.categoryName ||
-    "—";
-
-  const chipSemester =
-    (state?.formSnapshot?.semesterId &&
-      semesterMap.get(state.formSnapshot.semesterId)) ||
-    state?.formSnapshot?.semesterName ||
-    "—";
-
   const chips = [
-    ["EN Title", state?.formSnapshot?.eN_Title],
-    ["VN Title", state?.formSnapshot?.vN_title],
-    ["Danh mục", chipCategory],
-    ["Kỳ học", chipSemester],
+    ["EN Title", state?.formSnapshot?.eN_Title as string | undefined],
+    ["VN Title", state?.formSnapshot?.vN_title as string | undefined],
+    ["Danh mục", state?.formSnapshot?.categoryName as string | undefined],
+    ["Kỳ học", state?.formSnapshot?.semesterName as string | undefined],
   ] as const;
 
   if (!data) {
@@ -280,11 +243,15 @@ export default function DuplicateAdvancedInspectorFullPage() {
             Không có dữ liệu kiểm tra
           </div>
           <div className="text-sm text-neutral-600">
-            Hãy quay lại trang trước và thực hiện kiểm tra trùng lặp.
+            Hãy quay lại trang Tạo đề tài và thực hiện kiểm tra trùng lặp.
           </div>
           <div className="mt-5">
             <Button
-              onClick={() => nav(-1)}
+              onClick={() =>
+                nav("/supervisors/topics/create-back", {
+                  state: { formSnapshot: state?.formSnapshot ?? {} },
+                })
+              }
               className="inline-flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -302,99 +269,97 @@ export default function DuplicateAdvancedInspectorFullPage() {
   const t = toneClasses(tone);
 
   const onCreateClick = () => {
-    const topicId = state?.formSnapshot?.topicId;
-    if (!topicId) {
-      toast.error("Thiếu topicId để mở trang xác nhận chỉnh sửa.");
-      return;
-    }
     if (s.status === "duplicate_found") {
       toast.error(
         "Hệ thống phát hiện đề tài trùng lặp. Vui lòng chỉnh sửa hoặc dùng gợi ý trước khi tạo.",
       );
       return;
     }
+
     if (s.status === "potential_duplicate") {
       const ok = window.confirm(
-        "Kết quả cho thấy có khả năng trùng lặp. Bạn có chắc chắn muốn tiếp tục?",
+        "Kết quả cho thấy có khả năng trùng lặp. Bạn có chắc chắn muốn tiếp tục tạo đề tài?",
       );
       if (!ok) return;
     }
-    nav(
-      generatePath("/supervisors/topics/:id/suggest-preview", {
-        id: String(topicId),
-      }),
-      {
-        state: { formSnapshot: { ...(state?.formSnapshot ?? {}) } },
-      },
-    );
-  };
-  const onBack = () => {
-    const topicId = state?.formSnapshot?.topicId;
-    if (topicId) {
-      nav(
-        generatePath("/supervisors/topics/:id/suggest-edit", {
-          id: String(topicId),
-        }),
-        { state: { formSnapshot: state?.formSnapshot } },
-      );
-    } else {
-      nav(-1);
-    }
+
+    nav("/supervisors/ai-check-duplicate/create", {
+      state: { formSnapshot: { ...(state?.formSnapshot ?? {}) } },
+    });
   };
 
   const handleUseSuggestion = () => {
-    const suggested = mod?.modified_topic || {};
-    const topicId = state?.formSnapshot?.topicId;
+    const suggested = (mod?.modified_topic ?? {}) as {
+      // các field có thể có từ API gợi ý
+      title?: string; // VN Title
+      eN_Title?: string; // (có thể có)
+      description?: string;
+      objectives?: string;
+      problem?: string;
+      context?: string;
+      content?: string;
+      categoryId?: number;
+      semesterId?: number;
+      maxStudents?: number;
+    };
 
-    if (!topicId) {
-      toast.error("Thiếu topicId để mở trang chỉnh sửa từ gợi ý.");
-      return;
-    }
+    // Lấy snapshot trước đó (không dùng any để tránh eslint no-explicit-any)
+    const prev = (state?.formSnapshot ?? {}) as {
+      eN_Title?: string;
+      vN_title?: string;
+      abbreviation?: string;
+      problem?: string;
+      context?: string;
+      content?: string;
+      description?: string;
+      objectives?: string;
+      categoryId?: number;
+      semesterId?: number;
+      maxStudents?: number;
+      categoryName?: string;
+      semesterName?: string;
+      fileToken?: string | null;
+    };
 
-    const categoryId =
-      (suggested.categoryId as number | undefined) ??
-      (state?.formSnapshot?.categoryId as number | undefined) ??
-      0;
-    const semesterId =
-      (suggested.semesterId as number | undefined) ??
-      (state?.formSnapshot?.semesterId as number | undefined) ??
-      0;
+    const categoryId = suggested.categoryId ?? prev.categoryId ?? 0;
+    const semesterId = suggested.semesterId ?? prev.semesterId ?? 0;
 
     const categoryName =
       (categoryId && categories.find((c) => c.id === categoryId)?.name) ||
-      state?.formSnapshot?.categoryName ||
+      prev.categoryName ||
       "";
     const semesterName =
       (semesterId && semesters.find((s) => s.id === semesterId)?.name) ||
-      state?.formSnapshot?.semesterName ||
+      prev.semesterName ||
       "";
 
     const snapshot = {
-      eN_Title: suggested.title ?? state?.formSnapshot?.eN_Title ?? "",
-      vN_title: state?.formSnapshot?.vN_title ?? "",
-      abbreviation: state?.formSnapshot?.abbreviation ?? "",
-      problem: suggested.problem ?? state?.formSnapshot?.problem ?? "",
-      context: suggested.context ?? state?.formSnapshot?.context ?? "",
-      content: suggested.content ?? state?.formSnapshot?.content ?? "",
-      description:
-        suggested.description ?? state?.formSnapshot?.description ?? "",
-      objectives: suggested.objectives ?? state?.formSnapshot?.objectives ?? "",
+      eN_Title: suggested.eN_Title ?? prev.eN_Title ?? "",
+
+      vN_title: suggested.title ?? prev.vN_title ?? "",
+
+      title: suggested.title ?? prev.vN_title ?? "",
+
+      abbreviation: prev.abbreviation ?? "",
+      problem: suggested.problem ?? prev.problem ?? "",
+      context: suggested.context ?? prev.context ?? "",
+      content: suggested.content ?? prev.content ?? "",
+      description: suggested.description ?? prev.description ?? "",
+      objectives: suggested.objectives ?? prev.objectives ?? "",
+
       categoryId,
       semesterId,
-      maxStudents: state?.formSnapshot?.maxStudents ?? 5,
+      maxStudents: suggested.maxStudents ?? prev.maxStudents ?? 1,
+
       categoryName,
       semesterName,
-      fileToken: state?.formSnapshot?.fileToken ?? null,
-      topicId,
+      fileToken: prev.fileToken ?? null,
       __fromSuggestion: true,
     };
 
-    nav(
-      generatePath("/supervisors/topics/:id/suggest-edit", {
-        id: String(topicId),
-      }),
-      { state: { formSnapshot: snapshot } },
-    );
+    nav("/supervisors/topics/create-suggest", {
+      state: { formSnapshot: snapshot },
+    });
   };
 
   return (
@@ -852,7 +817,11 @@ export default function DuplicateAdvancedInspectorFullPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
-                onClick={onBack}
+                onClick={() =>
+                  nav("/supervisors/topics/create-back", {
+                    state: { formSnapshot: { ...(state?.formSnapshot ?? {}) } },
+                  })
+                }
                 className="inline-flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -884,14 +853,22 @@ export default function DuplicateAdvancedInspectorFullPage() {
                   }
                   className="inline-flex items-center"
                   title="Không thể tạo vì hệ thống phát hiện trùng lặp"
-                ></div>
+                >
+                  <Button
+                    disabled
+                    className="inline-flex cursor-not-allowed items-center gap-2 opacity-60 select-none"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Tạo đề tài
+                  </Button>
+                </div>
               ) : (
                 <Button
                   onClick={onCreateClick}
                   className="inline-flex items-center gap-2"
                 >
                   <PlusCircle className="h-4 w-4" />
-                  Tạo chỉnh sửa
+                  Tạo đề tài
                 </Button>
               )}
             </div>
