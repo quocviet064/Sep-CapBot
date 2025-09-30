@@ -63,7 +63,6 @@ export default function ReviewerAssignedList() {
     return map;
   }, [reviewList]);
 
-  // Enrich assignments with review summary so columns can read it
   const enrichedAssignments = useMemo(() => {
     return (assignments || []).map((a: any) => {
       const aid = a.id ?? a.assignmentId;
@@ -85,12 +84,10 @@ export default function ReviewerAssignedList() {
     });
   }, [assignments, reviewByAssignment]);
 
-  // local UI state
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [statusFilter, setStatusFilter] = useState<string>(STATUS.ALL);
 
-  // debounce search input to reduce re-filter frequency
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
     return () => clearTimeout(t);
@@ -99,7 +96,6 @@ export default function ReviewerAssignedList() {
   const startReviewMut = useStartReview();
   const withdrawMut = useWithdrawReview();
 
-  // handlers
   const handlers = useMemo(
     () => ({
       onViewSubmission: (submissionId: number | string) => {
@@ -124,8 +120,6 @@ export default function ReviewerAssignedList() {
 
       try {
         console.debug("OPEN_REVIEW row:", row);
-
-        // if direct review id provided (e.g. call from UI) -> navigate directly
         if (directReviewId != null) {
           navigate(
             `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(
@@ -134,8 +128,6 @@ export default function ReviewerAssignedList() {
           );
           return;
         }
-
-        // check map for an already-known review
         const found = reviewByAssignment.get(assignmentId);
         console.debug("reviewByAssignment found:", found);
 
@@ -171,12 +163,10 @@ export default function ReviewerAssignedList() {
           // Other statuses: fall through to further checks
         }
 
-        // No immediate found draft/submitted -> call API to list reviews for extra check
         let list: any[] = [];
         try {
           list = (await getReviewsByAssignment(assignmentId)) ?? [];
         } catch (err: any) {
-          // If API fails, don't block user; log and continue to start path
           console.warn("getReviewsByAssignment failed", err);
           list = [];
         }
@@ -217,8 +207,6 @@ export default function ReviewerAssignedList() {
           String(val ?? "").toLowerCase() === String(expect ?? "").toLowerCase();
 
         let allowStart = false;
-
-        // If backend explicitly marks as "Assigned" -> allow
         if (isStatusEquals(statusKey, STATUS.ASSIGNED)) {
           allowStart = true;
         } else {
@@ -237,14 +225,12 @@ export default function ReviewerAssignedList() {
             }
           }
 
-          // If no existing review and row.status is blank-ish -> allow as fallback
           if (!allowStart && !found && (!statusKey || statusKey.length === 0)) {
             allowStart = true;
           }
         }
 
         if (allowStart) {
-          // startReview may set server-side "InProgress" etc. disable during mutation
           if (startReviewMut.isLoading) {
             toast.info("Đang bắt đầu phiên đánh giá — vui lòng chờ.");
             return;
@@ -312,7 +298,6 @@ export default function ReviewerAssignedList() {
     [reviewByAssignment, withdrawMut]
   );
 
-  // prepare columns with handlers
   const handlersObject = useMemo(
     () => ({
       onViewSubmission: handlers.onViewSubmission,
@@ -328,7 +313,6 @@ export default function ReviewerAssignedList() {
 
   const columns = useMemo(() => createColumns(handlersObject), [handlersObject]);
 
-  // filtered list (status + search)
   const filtered: any[] = useMemo(() => {
     const q = debouncedSearch;
     const arr = enrichedAssignments;
