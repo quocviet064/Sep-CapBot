@@ -35,7 +35,7 @@ export const siteSupervisor = [
   },
   {
     title: "Tạo đề tài mới",
-    url: "/create-project",
+    url: "/supervisors/topics/create-new",
     icon: Bot,
   },
   {
