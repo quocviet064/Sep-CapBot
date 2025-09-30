@@ -6,6 +6,7 @@ import {
   SidebarTrigger,
 } from "../atoms/sidebar";
 import { AppSidebar } from "../organisms/sidebar";
+import FloatingAgentWidget from "@/pages/supervisors/agent-chat/AgentWidget/FloatingAgentWidget";
 
 export default function LectureLayout() {
   return (
@@ -18,6 +19,7 @@ export default function LectureLayout() {
             <span className="font-medium">
               Hệ thống hỗ trợ quản lý đề tài đồ án tốt nghiệp
             </span>
+            <FloatingAgentWidget />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
