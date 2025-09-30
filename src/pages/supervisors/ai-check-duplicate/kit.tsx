@@ -42,6 +42,10 @@ export type ModificationProposal = {
     supervisor_id?: number;
     semester_id?: number;
     max_students?: number;
+    categoryId?: number;
+    supervisorId?: number;
+    semesterId?: number;
+    maxStudents?: number;
   };
   modifications_made?: string[];
   rationale?: string;

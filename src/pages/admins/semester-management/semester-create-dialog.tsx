@@ -149,7 +149,7 @@ export default function SemesterCreateDialog({
               />
             </Row>
             <div className="border-t" />
-            <Row label="Mô tả">
+            <Row label="Xu hướng">
               <FieldTextarea
                 rows={4}
                 value={form.description}

@@ -7,6 +7,10 @@ import CreateTopicFromAIPage from "./pages/supervisors/ai-check-duplicate/Create
 import CreateTopicNewPage from "./pages/supervisors/CreateTopicNewPage";
 import CreateTopicSuggestPage from "./pages/supervisors/CreateTopicSuggestPage";
 import CreateTopicBackPage from "./pages/supervisors/CreateTopicBackPage";
+import DuplicateAdvancedInspectorFullPage from "./pages/supervisors/topic-management/DuplicateAdvancedInspectorFullPage";
+import MyTopicEditPage from "./pages/supervisors/topic-management/MyTopicEditPage";
+import TopicEditFromSuggestionPage from "./pages/supervisors/topic-management/MyTopicEditFromSuggestionPage";
+import SuggestPreviewConfirmPage from "./pages/supervisors/topic-management/SuggestPreviewConfirmPage";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -167,6 +171,7 @@ function App() {
             element={<AllMyTopics />}
           />
           <Route path="/topics/my/:id" element={<MyTopicDetailPage />} />
+          <Route path="/topics/my/:id/edit" element={<MyTopicEditPage />} />
           <Route
             path="/topics/:topicId/versions/:versionId"
             element={<TopicVersionDetailPage />}
@@ -194,9 +199,22 @@ function App() {
             element={<DuplicateAdvancedResultPage />}
           />
           <Route
+            path="/supervisors/topics/:id/suggest-edit"
+            element={<TopicEditFromSuggestionPage />}
+          />
+          <Route
+            path="/supervisors/topics/:id/suggest-preview"
+            element={<SuggestPreviewConfirmPage />}
+          />
+          <Route
+            path="/supervisors/ai-check-duplicate/advanced-result"
+            element={<DuplicateAdvancedInspectorFullPage />}
+          />
+          <Route
             path="/supervisors/ai-check-duplicate/create"
             element={<CreateTopicFromAIPage />}
           />
+
           <Route
             path="/supervisors/ai-check-duplicate/:id"
             element={<TopicListDetailDuplicatePage />}
