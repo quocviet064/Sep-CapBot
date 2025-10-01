@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
 import { createMyTopicColumns } from "./columnsMyTopics";
-import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
+import TopicAnalysis from "../TopicAnalysis";
 import { fetchAllMyTopics, useMyTopics } from "@/hooks/useTopic";
 import { motion } from "framer-motion";
 import { BookOpen } from "lucide-react";

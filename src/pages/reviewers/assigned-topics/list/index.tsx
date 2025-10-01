@@ -1,5 +1,4 @@
-// src/pages/reviewers/assigned-topics/list/index.tsx
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMyAssignments, useStartReview } from "@/hooks/useReviewerAssignment";
 import { useWithdrawReview, useReviewStatistics } from "@/hooks/useReview";
@@ -28,36 +27,42 @@ export default function ReviewerAssignedList() {
   const { data, isLoading, error } = useMyAssignments();
   const assignments = data ?? [];
 
-  // load review statistics (global) via hook
   const { data: reviewStatsResp, isLoading: statsLoading } = useReviewStatistics();
   const reviewList = reviewStatsResp?.listObjects ?? [];
 
-  // build map assignmentId -> chosen review (prefer Submitted > Draft > newest)
   const reviewByAssignment = useMemo(() => {
     const map = new Map<number | string, any>();
+    if (!Array.isArray(reviewList)) return map;
+
     for (const rv of reviewList) {
-      const aid = rv.assignmentId ?? (rv as any).AssignmentId;
+      const aid = rv.assignmentId ?? rv.AssignmentId ?? rv.assignment?.id ?? null;
       if (aid == null) continue;
+
       const existing = map.get(aid);
       if (!existing) {
         map.set(aid, rv);
         continue;
       }
-      const prefOrder = (s: string | undefined | null) => (s === "Submitted" ? 2 : s === "Draft" ? 1 : 0);
+
+      const prefOrder = (s: string | undefined | null) =>
+        s === "Submitted" ? 3 : s === "Draft" ? 2 : s === "InProgress" ? 1 : 0;
+
       const eScore = prefOrder(existing.status);
       const rScore = prefOrder(rv.status);
+
       if (rScore > eScore) {
         map.set(aid, rv);
       } else if (rScore === eScore) {
-        const eTime = new Date(existing.submittedAt ?? existing.createdDate ?? 0).getTime();
-        const rTime = new Date(rv.submittedAt ?? rv.createdDate ?? 0).getTime();
-        if (rTime > eTime) map.set(aid, rv);
+        const eTime = new Date(existing.submittedAt ?? existing.createdDate ?? existing.createdAt ?? 0).getTime();
+        const rTime = new Date(rv.submittedAt ?? rv.createdDate ?? rv.createdAt ?? 0).getTime();
+        if (rTime > eTime) {
+          map.set(aid, rv);
+        }
       }
     }
     return map;
   }, [reviewList]);
 
-  // Enrich assignments with review summary so columns can read it
   const enrichedAssignments = useMemo(() => {
     return (assignments || []).map((a: any) => {
       const aid = a.id ?? a.assignmentId;
@@ -67,8 +72,7 @@ export default function ReviewerAssignedList() {
             id: found.id ?? found.Id,
             status: found.status,
             assignmentId: found.assignmentId,
-            submittedAt: found.submittedAt,
-            createdDate: found.createdDate,
+            submittedAt: found.submittedAt ?? found.createdDate ?? found.createdAt,
           }
         : null;
       return {
@@ -76,12 +80,18 @@ export default function ReviewerAssignedList() {
         review: reviewSummary,
         reviewStatus: reviewSummary?.status ?? null,
         reviewId: reviewSummary?.id ?? null,
-      };
+      } as ReviewerAssignmentResponseDTO & { review?: any; reviewStatus?: string | null; reviewId?: any };
     });
   }, [assignments, reviewByAssignment]);
 
-  const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<string>(STATUS.ALL);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [statusFilter, setStatusFilter] = useState<string>(STATUS.ALL);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const startReviewMut = useStartReview();
   const withdrawMut = useWithdrawReview();
@@ -95,205 +105,226 @@ export default function ReviewerAssignedList() {
         }
         navigate(`/reviewers/assigned-topics/detail/${encodeURIComponent(String(submissionId))}`);
       },
+    }),
+    [navigate]
+  );
 
-      onOpenReview: async (row: ReviewerAssignmentResponseDTO, directReviewId?: number | string) => {
-        const assignmentId = row.id ?? row.assignmentId;
-        if (!assignmentId) {
-          toast.error("Không có assignmentId hợp lệ");
+  // onOpenReview: allow opening draft / start review / withdraw then open
+  const onOpenReview = useCallback(
+    async (row: ReviewerAssignmentResponseDTO, directReviewId?: number | string) => {
+      const assignmentId = row.id ?? row.assignmentId;
+      if (!assignmentId) {
+        toast.error("Không có assignmentId hợp lệ");
+        return;
+      }
+
+      try {
+        console.debug("OPEN_REVIEW row:", row);
+        if (directReviewId != null) {
+          navigate(
+            `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(
+              String(directReviewId)
+            )}`
+          );
           return;
         }
+        const found = reviewByAssignment.get(assignmentId);
+        console.debug("reviewByAssignment found:", found);
 
-        try {
-          // debug logs to inspect why opening is blocked
-          // eslint-disable-next-line no-console
-          console.debug("OPEN_REVIEW row:", row);
+        if (found) {
+          const st = String(found.status ?? "").toLowerCase();
+          const rid = found.id ?? found.Id ?? found.reviewId;
 
-          if (directReviewId != null) {
+          // Draft -> open
+          if (st === "draft") {
             navigate(
-              `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(
-                String(directReviewId)
-              )}`
+              `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(String(rid))}`
             );
             return;
           }
 
-          const found = reviewByAssignment.get(assignmentId);
-          // eslint-disable-next-line no-console
-          console.debug("reviewByAssignment found:", found);
+          // Submitted -> ask to withdraw then open a new review (or editing)
+          if (st === "submitted") {
+            const conf = window.confirm("Bản đánh giá này đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
+            if (!conf) return;
 
-          if (found) {
-            // If Draft: open it
-            if (String(found.status || "").toLowerCase() === "draft") {
-              const rid = found.id ?? found.Id;
-              navigate(
-                `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(String(rid))}`
-              );
-              return;
-            }
-
-            // If Submitted: ask to withdraw first
-            if (String(found.status || "").toLowerCase() === "submitted") {
-              const rid = found.id ?? found.Id;
-              const conf = window.confirm("Bản đánh giá này đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
-              if (!conf) return;
-
-              withdrawMut.mutate(rid, {
-                onSuccess: () => {
-                  toast.success("Yêu cầu rút đánh giá đã gửi. Bạn có thể chỉnh sửa sau khi hệ thống xử lý.");
-                  navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
-                },
-                onError: (err: any) => {
-                  toast.error(err?.message || "Rút đánh giá thất bại");
-                },
-              });
-              return;
-            }
-
-            // If other statuses (e.g., InProgress/Completed), we'll still continue to check
+            withdrawMut.mutate(rid, {
+              onSuccess: () => {
+                toast.success("Yêu cầu rút đánh giá đã gửi. Bạn có thể chỉnh sửa sau khi hệ thống xử lý.");
+                navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
+              },
+              onError: (err: any) => {
+                toast.error(err?.message || "Rút đánh giá thất bại");
+              },
+            });
+            return;
           }
 
-          // If no found draft/submitted, call API to list reviews to double-check
-          const list = await getReviewsByAssignment(assignmentId);
-          if (Array.isArray(list) && list.length > 0) {
-            const draft = list.find((r) => String(r.status || "").toLowerCase() === "draft");
-            if (draft) {
-              const rid = draft.id ?? draft.Id;
-              navigate(
-                `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(String(rid))}`
-              );
-              return;
-            }
-            const submitted = list.find((r) => String(r.status || "").toLowerCase() === "submitted");
-            if (submitted) {
-              const rid = submitted.id ?? submitted.Id;
-              const conf2 = window.confirm("Bản đánh giá đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
-              if (!conf2) return;
-              withdrawMut.mutate(rid, {
-                onSuccess: () => {
-                  toast.success("Yêu cầu rút đánh giá đã gửi. Bạn có thể chỉnh sửa sau khi hệ thống xử lý.");
-                  navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
-                },
-                onError: (err: any) => {
-                  toast.error(err?.message || "Rút đánh giá thất bại");
-                },
-              });
-              return;
-            }
+          // Other statuses: fall through to further checks
+        }
+
+        let list: any[] = [];
+        try {
+          list = (await getReviewsByAssignment(assignmentId)) ?? [];
+        } catch (err: any) {
+          console.warn("getReviewsByAssignment failed", err);
+          list = [];
+        }
+
+        if (Array.isArray(list) && list.length > 0) {
+          const draft = list.find((r) => String(r.status || "").toLowerCase() === "draft");
+          if (draft) {
+            const rid = draft.id ?? draft.Id;
+            navigate(
+              `/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}&reviewId=${encodeURIComponent(String(rid))}`
+            );
+            return;
           }
 
-          // Determine if we should allow starting a review:
-          const statusKey = String(row.status || "").trim();
-          const now = new Date();
+          const submitted = list.find((r) => String(r.status || "").toLowerCase() === "submitted");
+          if (submitted) {
+            const rid = submitted.id ?? submitted.Id;
+            const conf2 = window.confirm("Bản đánh giá đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
+            if (!conf2) return;
+            withdrawMut.mutate(rid, {
+              onSuccess: () => {
+                toast.success("Yêu cầu rút đánh giá đã gửi. Bạn có thể chỉnh sửa sau khi hệ thống xử lý.");
+                navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
+              },
+              onError: (err: any) => {
+                toast.error(err?.message || "Rút đánh giá thất bại");
+              },
+            });
+            return;
+          }
+        }
 
-          const isStatus = (val?: unknown, expect?: string) =>
-            String(val ?? "").toLowerCase() === String(expect ?? "").toLowerCase();
+        // Decide whether starting a new review is allowed:
+        const statusKey = String(row.status ?? "").trim();
+        const now = new Date();
 
-          let allowStart = false;
+        const isStatusEquals = (val?: unknown, expect?: string) =>
+          String(val ?? "").toLowerCase() === String(expect ?? "").toLowerCase();
 
-          // Allow if backend status is Assigned
-          if (isStatus(statusKey, STATUS.ASSIGNED)) {
-            allowStart = true;
-          } else {
-            // If there is a deadline field and it's still in the future, allow start even if status isn't "Assigned".
-            const maybeDeadline =
-              (row as any).submissionDeadline ??
-              (row as any).deadline ??
-              (row as any).dueDate ??
-              (row as any).submissionDueDate ??
-              null;
+        let allowStart = false;
+        if (isStatusEquals(statusKey, STATUS.ASSIGNED)) {
+          allowStart = true;
+        } else {
+          // If there's a deadline/ due date and it's not overdue -> allow
+          const maybeDeadline =
+            (row as any).submissionDeadline ??
+            (row as any).deadline ??
+            (row as any).dueDate ??
+            (row as any).submissionDueDate ??
+            null;
 
-            if (maybeDeadline) {
-              const dd = new Date(maybeDeadline);
-              if (!isNaN(dd.getTime()) && dd >= now) {
-                allowStart = true;
-              }
-            }
-
-            // If no existing review found at all, allow start as fallback
-            if (!allowStart && !found) {
+          if (maybeDeadline) {
+            const dd = new Date(maybeDeadline);
+            if (!isNaN(dd.getTime()) && dd >= now) {
               allowStart = true;
             }
           }
 
-          if (allowStart) {
-            startReviewMut.mutate(assignmentId, {
-              onSuccess: () => {
-                navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
-              },
-              onError: (e: any) => {
-                toast.error(e?.message || "Không thể bắt đầu phiên đánh giá");
-              },
-            });
-          } else {
-            toast.info("Không có bản nháp để chỉnh sửa; trạng thái hiện tại không cho phép mở đánh giá.");
+          if (!allowStart && !found && (!statusKey || statusKey.length === 0)) {
+            allowStart = true;
           }
-        } catch (e: any) {
-          toast.error(e?.message || "Lỗi khi mở đánh giá");
         }
-      },
 
-      onWithdrawReview: async (row: ReviewerAssignmentResponseDTO) => {
-        const assignmentId = row.id ?? row.assignmentId;
-        if (!assignmentId) {
-          toast.error("Assignment ID không hợp lệ");
+        if (allowStart) {
+          if (startReviewMut.isLoading) {
+            toast.info("Đang bắt đầu phiên đánh giá — vui lòng chờ.");
+            return;
+          }
+          startReviewMut.mutate(assignmentId, {
+            onSuccess: () => {
+              navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(assignmentId))}`);
+            },
+            onError: (e: any) => {
+              toast.error(e?.message || "Không thể bắt đầu phiên đánh giá");
+            },
+          });
+        } else {
+          toast.info("Không có bản nháp để chỉnh sửa; trạng thái hiện tại không cho phép bắt đầu đánh giá.");
+        }
+      } catch (e: any) {
+        console.error("Error in onOpenReview", e);
+        toast.error(e?.message || "Lỗi khi mở đánh giá");
+      }
+    },
+    [navigate, reviewByAssignment, withdrawMut, startReviewMut]
+  );
+
+  const onWithdrawReview = useCallback(
+    async (row: ReviewerAssignmentResponseDTO) => {
+      const assignmentId = row.id ?? row.assignmentId;
+      if (!assignmentId) {
+        toast.error("Assignment ID không hợp lệ");
+        return;
+      }
+
+      try {
+        const found = reviewByAssignment.get(assignmentId);
+        let rid = found ? (found.id ?? found.Id) : null;
+
+        if (!rid) {
+          const list = await getReviewsByAssignment(assignmentId);
+          if (Array.isArray(list) && list.length > 0) {
+            const pick = list.find((r) => r.status === "Submitted") ?? list[0];
+            rid = pick?.id ?? pick?.Id ?? null;
+          }
+        }
+
+        if (!rid) {
+          toast.info("Chưa tìm thấy review để rút lại.");
           return;
         }
 
-        try {
-          const found = reviewByAssignment.get(assignmentId);
-          let rid = found ? (found.id ?? found.Id) : null;
+        const ok = window.confirm("Bạn có chắc muốn rút lại đánh giá này?");
+        if (!ok) return;
 
-          if (!rid) {
-            const list = await getReviewsByAssignment(assignmentId);
-            if (Array.isArray(list) && list.length > 0) {
-              const pick = list.find((r) => r.status === "Submitted") ?? list[0];
-              rid = pick?.id ?? pick?.Id ?? null;
-            }
-          }
+        withdrawMut.mutate(rid, {
+          onSuccess: () => {
+            toast.success("Yêu cầu rút đánh giá đã gửi.");
+          },
+          onError: (err: any) => {
+            toast.error(err?.message || "Rút đánh giá thất bại");
+          },
+        });
+      } catch (e: any) {
+        console.error("onWithdrawReview error", e);
+        toast.error(e?.message || "Lỗi khi rút đánh giá");
+      }
+    },
+    [reviewByAssignment, withdrawMut]
+  );
 
-          if (!rid) {
-            toast.info("Chưa tìm thấy review để rút lại.");
-            return;
-          }
-
-          const ok = window.confirm("Bạn có chắc muốn rút lại đánh giá này?");
-          if (!ok) return;
-
-          withdrawMut.mutate(rid, {
-            onSuccess: () => {
-              toast.success("Yêu cầu rút đánh giá đã gửi.");
-            },
-            onError: (err: any) => {
-              toast.error(err?.message || "Rút đánh giá thất bại");
-            },
-          });
-        } catch (e: any) {
-          toast.error(e?.message || "Lỗi khi rút đánh giá");
-        }
-      },
-
+  const handlersObject = useMemo(
+    () => ({
+      onViewSubmission: handlers.onViewSubmission,
+      onOpenReview,
+      onWithdrawReview,
       canWithdrawFromStatus: (status: unknown) => {
         const k = String(status || "");
         return k === STATUS.INPROGRESS || k === STATUS.COMPLETED;
       },
     }),
-    [navigate, startReviewMut, withdrawMut, reviewByAssignment]
+    [handlers, onOpenReview, onWithdrawReview]
   );
 
-  const columns = useMemo(() => createColumns(handlers), [handlers]);
+  const columns = useMemo(() => createColumns(handlersObject), [handlersObject]);
 
   const filtered: any[] = useMemo(() => {
-    const q = (search || "").trim().toLowerCase();
+    const q = debouncedSearch;
     const arr = enrichedAssignments;
     return arr.filter((x: any) => {
-      const statusKey = String(x.status || "");
+      const statusKey = String(x.status ?? "");
       const okStatus = statusFilter === STATUS.ALL ? true : statusKey === statusFilter;
       if (!okStatus) return false;
       if (!q) return true;
-      const haystack = `${x.id} ${x.submissionId} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""}`.toLowerCase();
+      const haystack = `${x.id ?? ""} ${x.submissionId ?? ""} ${x.submissionTitle ?? ""} ${x.topicTitle ?? ""} ${x.reviewerName ?? ""}`.toLowerCase();
       return haystack.includes(q);
     });
-  }, [enrichedAssignments, search, statusFilter]);
+  }, [enrichedAssignments, debouncedSearch, statusFilter]);
 
   if (isLoading || statsLoading) return <LoadingPage />;
   if (error) return <div className="p-6 text-red-600">Lỗi tải danh sách: {error.message}</div>;
@@ -310,6 +341,7 @@ export default function ReviewerAssignedList() {
             placeholder="Mã phân công / submission / tiêu đề..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Tìm kiếm phân công"
           />
         </div>
 
@@ -337,7 +369,6 @@ export default function ReviewerAssignedList() {
         data={filtered}
         columns={columns as any}
         visibility={DEFAULT_VISIBILITY as any}
-        /* remove the search prop here — we already have the top search box */
         placeholder="Tìm theo đề tài, submission..."
       />
     </div>

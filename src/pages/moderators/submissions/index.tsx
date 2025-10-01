@@ -18,7 +18,6 @@ export default function SubmittedTopicsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | "">("");
   const [statusFilter, setStatusFilter] = useState<string | "">("");
 
-  // loadingTopicId: id của topic đang fetch detail -> dùng để disable nút View tương ứng
   const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -81,22 +80,19 @@ export default function SubmittedTopicsPage() {
     }
   };
 
-  // NEW: when user clicks View on a topic -> fetch topic detail via react-query and navigate to latest submission if exists
   const handleViewSubmission = async (topic: TopicListItem) => {
     setLoadingTopicId(topic.id);
     try {
-      // TanStack Query v4 fetchQuery syntax (object) with typing
       const detail = await qc.fetchQuery<TopicDetailResponse>({
         queryKey: ["topicDetail", topic.id],
         queryFn: () => getTopicDetail(topic.id),
       });
 
-      // ensure cache has this data (fetchQuery already sets it)
       qc.setQueryData<TopicDetailResponse>(["topicDetail", topic.id], detail);
 
       const subs = Array.isArray(detail?.submissions) ? detail.submissions.slice() : [];
       if (subs.length > 0) {
-        // pick latest by submittedAt (fall back to array order)
+        // pick latest by submittedAt 
         subs.sort((a, b) => {
           const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
           const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
@@ -105,7 +101,6 @@ export default function SubmittedTopicsPage() {
         const latest = subs[0];
         navigate(`/moderators/submissions/${latest.id}`, { state: { topicId: topic.id, topicDetail: detail } });
       } else {
-        // fallback to topic detail page
         navigate(`/topics/${topic.id}`, { state: { topicDetail: detail } });
       }
     } catch (err: any) {

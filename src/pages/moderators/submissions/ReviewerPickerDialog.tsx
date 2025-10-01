@@ -25,7 +25,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   submissionId?: IdLike;
-  onConfirm: (payload: any) => Promise<any> | any; // expects payload { assignments: [...] } ideally
+  onConfirm: (payload: any) => Promise<any> | any; 
   onAssignedSuccess?: () => void;
   availableReviewers?: any[];
   loading?: boolean;
@@ -113,7 +113,6 @@ export default function ReviewerPickerDialog({
 
   const canConfirm = selected.length > 0 && !isListLoading && !confirmDisabled && remaining > 0 && !!globalDeadline;
 
-  // now dialog builds the assignments payload (with deadline) and delegates to parent
   const handleConfirm = async () => {
     if (!submissionId) {
       toast.error("Thiếu submissionId");
@@ -146,11 +145,9 @@ export default function ReviewerPickerDialog({
     }));
 
     try {
-      // parent handles API call; expects payload { assignments: [...] } ideally
       await onConfirm({ assignments });
       onAssignedSuccess?.();
     } catch (err: any) {
-      // parent may throw or return rejection
       toast.error(err?.message ?? "Phân công reviewer thất bại");
       return;
     } finally {

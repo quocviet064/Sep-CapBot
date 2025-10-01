@@ -92,7 +92,7 @@ function LoginPage() {
         Supervisor: "/supervisors/topics/ai-agent",
         Administrator: "/admins/dashboard/overview",
         Moderator: "/moderators/dashboard",
-        Reviewer: "/reviewers/dashboard/assigned-count",
+        Reviewer: "/reviewers/dashboard",
       };
       const prof = await tryGetMyUserProfile();
       if (prof) {

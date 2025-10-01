@@ -73,7 +73,6 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     if (!dateStr) return undefined;
     try {
       const d = new Date(dateStr);
-      // keep date-only -> set time to 23:59:59 to be safe
       return d.toISOString();
     } catch {
       return undefined;

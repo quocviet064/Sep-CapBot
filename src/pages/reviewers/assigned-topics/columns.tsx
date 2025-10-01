@@ -15,7 +15,8 @@ const statusLabel = (s?: unknown) => {
   const k = toLower(s);
   if (!k) return "--";
   if (k.includes("assigned")) return "Đã phân công";
-  if (k.includes("inprogress") || k.includes("in_progress") || k.includes("in progress")) return "Đang đánh giá";
+  if (k.includes("inprogress") || k.includes("in_progress") || k.includes("in progress"))
+    return "Đang đánh giá";
   if (k.includes("completed")) return "Hoàn thành";
   if (k.includes("overdue")) return "Quá hạn";
   return "--";
@@ -35,7 +36,6 @@ const typeLabel = (t?: unknown) => {
   }
 };
 
-/** Bật/tắt cột mặc định */
 export const DEFAULT_VISIBILITY = {
   assignedBy: false,
   startedAt: false,
@@ -48,7 +48,7 @@ export const DEFAULT_VISIBILITY = {
 
 export type ColumnHandlers = {
   onViewSubmission: (submissionId: IdLike) => void;
-  onOpenReview: (row: ReviewerAssignmentResponseDTO) => void;
+  onOpenReview: (row: ReviewerAssignmentResponseDTO, reviewId?: IdLike) => void;
   onWithdrawReview: (row: ReviewerAssignmentResponseDTO) => void;
   canWithdrawFromStatus: (status: unknown) => boolean;
 };
@@ -112,7 +112,8 @@ export function createColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Loại" />
       ),
-      cell: ({ row }) => typeLabel(row.original.assignmentType ?? (row.original as any).type),
+      cell: ({ row }) =>
+        typeLabel(row.original.assignmentType ?? (row.original as any).type),
     },
     {
       accessorKey: "status",
@@ -121,7 +122,6 @@ export function createColumns(
         <DataTableColumnHeader column={column} title="Trạng thái" />
       ),
       cell: ({ row }) => {
-        // tolerate different field names for status
         const s =
           row.original.status ??
           (row.original as any).assignmentStatus ??
@@ -150,7 +150,6 @@ export function createColumns(
         <DataTableColumnHeader column={column} title="Deadline" />
       ),
       cell: ({ row }) => {
-        // tolerate various deadline field names
         const d =
           row.original.deadline ??
           (row.original as any).submissionDeadline ??
@@ -168,19 +167,13 @@ export function createColumns(
       cell: ({ row }) => {
         const a = row.original as any;
 
-        // enriched review fields
         const reviewStatus = (a.reviewStatus ?? a.review?.status) as string | null;
         const reviewId = a.reviewId ?? a.review?.id ?? null;
 
-        // status detection (tolerant)
         const statusKey =
-          a.status ??
-          a.assignmentStatus ??
-          a.statusName ??
-          ""; // may be empty
+          a.status ?? a.assignmentStatus ?? a.statusName ?? "";
         const statusKeyNorm = toLower(statusKey);
 
-        // deadline detection
         const maybeDeadline =
           a.deadline ?? a.submissionDeadline ?? a.dueDate ?? a.submissionDueDate ?? null;
         const deadlineDate = maybeDeadline ? new Date(maybeDeadline) : null;
@@ -188,16 +181,16 @@ export function createColumns(
 
         const hasAssignedStatus = statusKeyNorm.includes("assigned");
         const hasReview = !!reviewStatus;
-        const deadlineInFuture = deadlineDate ? deadlineDate.getTime() >= now.getTime() : false;
+        const deadlineInFuture = deadlineDate ? deadlineDate >= now : false;
 
-        const canEvaluateByAssignment =
+        const canEvaluate =
           hasAssignedStatus || (!hasReview && (deadlineInFuture || !statusKeyNorm));
 
-        const canWithdrawByAssignment = handlers.canWithdrawFromStatus(statusKey);
+        const canWithdraw = handlers.canWithdrawFromStatus(statusKey);
 
         return (
           <div className="flex items-center justify-center gap-2">
-            {/* Nút xem chi tiết submission */}
+            {/* Xem chi tiết submission */}
             <button
               title="Xem chi tiết submission"
               onClick={() => handlers.onViewSubmission(a.submissionId)}
@@ -215,17 +208,12 @@ export function createColumns(
                 >
                   Chỉnh sửa
                 </button>
-
                 <button
-                  title={
-                    canWithdrawByAssignment
-                      ? "Rút lại đánh giá"
-                      : "Không thể rút ở trạng thái này"
-                  }
+                  title="Rút lại đánh giá"
                   onClick={() => handlers.onWithdrawReview(a)}
-                  disabled={!canWithdrawByAssignment}
+                  disabled={!canWithdraw}
                   className={`px-2 py-1 rounded-md text-sm ${
-                    canWithdrawByAssignment
+                    canWithdraw
                       ? "bg-red-600 text-white"
                       : "bg-slate-100 text-slate-400 cursor-not-allowed"
                   }`}
@@ -242,7 +230,6 @@ export function createColumns(
                 >
                   Xem
                 </button>
-
                 <button
                   title="Rút lại đánh giá"
                   onClick={() => handlers.onWithdrawReview(a)}
@@ -252,24 +239,22 @@ export function createColumns(
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  title={
-                    canEvaluateByAssignment
-                      ? "Mở trang đánh giá"
-                      : "Không thể đánh giá với trạng thái hiện tại"
-                  }
-                  onClick={() => handlers.onOpenReview(a)}
-                  disabled={!canEvaluateByAssignment}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    canEvaluateByAssignment
-                      ? "bg-indigo-600 text-white"
-                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  }`}
-                >
-                  Đánh giá
-                </button>
-              </>
+              <button
+                title={
+                  canEvaluate
+                    ? "Mở trang đánh giá"
+                    : "Không thể đánh giá với trạng thái hiện tại"
+                }
+                onClick={() => handlers.onOpenReview(a)}
+                disabled={!canEvaluate}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  canEvaluate
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                Đánh giá
+              </button>
             )}
           </div>
         );

@@ -23,16 +23,6 @@ function scoreColorSmall(score?: number) {
   if (score >= 60) return "text-amber-600";
   return "text-rose-600";
 }
-function fmtDate(d?: string | null) {
-  if (!d) return "—";
-  try {
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return d;
-    return dt.toLocaleString();
-  } catch {
-    return d;
-  }
-}
 
 export default function AICheckSection({ submissionDetail }: Props) {
   const [expandedCriteria, setExpandedCriteria] = useState<Record<string, boolean>>({});
