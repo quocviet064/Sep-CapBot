@@ -5,7 +5,7 @@ import { BookOpen } from "lucide-react";
 
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
-import TopicAnalysis from "@/pages/moderators/topic-approval/TopicAnalysis";
+import TopicAnalysis from "../TopicAnalysis";
 
 import { fetchAllTopics, type TopicListItem } from "@/services/topicService";
 import { createTopicListColumns } from "./ColumnsTopicList";

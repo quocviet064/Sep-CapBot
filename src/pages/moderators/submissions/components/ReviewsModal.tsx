@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import ReviewItem from "./ReviewItem";
+import { useSubmissionReviewSummary } from "@/hooks/useSubmissionReview";
 
 function getFirst(obj: any, keys: string[]) {
   if (!obj) return undefined;
@@ -12,8 +13,7 @@ function getFirst(obj: any, keys: string[]) {
   return undefined;
 }
 
-/** map recommendation */
-function mapRecommendationToText(val: unknown): string | null {
+function mapRecommendationToText(val: unknown): string | null { /* same as before */ 
   if (val == null) return null;
   if (typeof val === "number" && Number.isFinite(val)) {
     const n = Number(val);
@@ -84,7 +84,6 @@ function normalizeSummary(raw: any) {
     recommendationsCount = counts;
   }
 
-  // attach recommendationText onto each review so ReviewItem can show text
   const reviewsWithText = safeReviews.map((r: any, i: number) => {
     const parsedObj = parsedRecommendations[i];
     const recText = parsedObj?.parsedText ?? null;
@@ -97,27 +96,35 @@ function normalizeSummary(raw: any) {
 type Props = {
   open: boolean;
   onClose: () => void;
+  submissionId?: number | string;
   summary?: any | null;
-  loading?: boolean;
+  loading?: boolean | null;
   onOpenRefetch?: () => Promise<any>;
 };
 
-export default function ReviewsModal({ open, onClose, summary, loading, onOpenRefetch }: Props) {
+export default function ReviewsModal({ open, onClose, submissionId, summary: parentSummary, loading: parentLoading, onOpenRefetch }: Props) {
+  const hook = useSubmissionReviewSummary(submissionId as any);
+  const summaryFromHook = hook?.data ?? null;
+  const loadingFromHook = hook?.isLoading ?? false;
+
+  const usingHook = submissionId != null;
+  const rawSummary = usingHook ? summaryFromHook : parentSummary;
+  const loading = usingHook ? loadingFromHook : Boolean(parentLoading);
+
   useEffect(() => {
     if (!open) return;
-    // try refetch once when opened
-    if (onOpenRefetch) {
+    if (!usingHook && onOpenRefetch) {
       onOpenRefetch().catch(() => {});
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose, onOpenRefetch]);
+  }, [open, onClose, onOpenRefetch, usingHook]);
 
   if (typeof document === "undefined") return null;
   if (!open) return null;
 
-  const { reviews, totalReviews, averageScore, recommendationsCount } = normalizeSummary(summary);
+  const { reviews, totalReviews, averageScore, recommendationsCount } = normalizeSummary(rawSummary);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">

@@ -48,7 +48,6 @@ export default function ReviewerReviewEditor() {
             submissionDetail={finalSubmissionDetail}
             topicDetail={topicDetail}
           />
-          <AICheckSection submissionDetail={finalSubmissionDetail} />
         </div>
 
         {/* Right: review form */}
