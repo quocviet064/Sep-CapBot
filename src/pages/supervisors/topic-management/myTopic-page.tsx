@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import LoadingPage from "@/pages/loading-page";
+import { fetchAllMyTopics } from "@/hooks/useTopic";
 import { createMyTopicColumns } from "./columnsMyTopics";
-import TopicAnalysis from "../TopicAnalysis";
-import { fetchAllMyTopics, useMyTopics } from "@/hooks/useTopic";
+import type { TopicListItem } from "@/services/topicService";
 import { motion } from "framer-motion";
 import { BookOpen } from "lucide-react";
+import TopicAnalysisWithFilters, {
+  StatusValue,
+} from "./TopicAnalysisWithFiltersMy";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -16,27 +19,30 @@ const DEFAULT_VISIBILITY = {
   supervisorName: true,
   categoryName: true,
   semesterName: true,
-  description: true,
+  description: false,
   problem: false,
   context: false,
   content: true,
   maxStudents: false,
-  currentStatus: true,
-  currentVersionNumber: false,
-  isApproved: true,
+  hasSubmitted: true,
+  latestSubmissionStatus: true,
+  currentVersionNumber: true,
+  isApproved: false,
   isLegacy: false,
   createdAt: true,
 };
 
 function MyTopicPage() {
-  const [semesterId] = useState<number | undefined>(undefined);
-  const [categoryId] = useState<number | undefined>(undefined);
+  const [semesterId, setSemesterId] = useState<number | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<
-    "all" | "approved" | "pending" | "rejecting"
-  >("all");
+  const [filterStatus, setFilterStatus] = useState<StatusValue>("all");
+
+  const [allTopics, setAllTopics] = useState<TopicListItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const columns = useMemo(
@@ -47,79 +53,143 @@ function MyTopicPage() {
     [navigate],
   );
 
-  const { data, isLoading, error } = useMyTopics(
-    semesterId,
-    categoryId,
-    pageNumber,
-    pageSize,
-    searchTerm.trim() ? searchTerm.trim() : undefined,
-    undefined,
-  );
-
-  const [stats, setStats] = useState({
-    approved: 0,
-    pending: 0,
-    rejecting: 0,
-    total: 0,
-  });
-
   useEffect(() => {
     let mounted = true;
-    const loadStats = async () => {
+    const loadAll = async () => {
       try {
+        setLoading(true);
+        setLoadErr(null);
         const all = await fetchAllMyTopics(
-          semesterId,
-          categoryId,
+          undefined,
+          undefined,
           searchTerm.trim() ? searchTerm.trim() : undefined,
         );
         if (!mounted) return;
-        const approved = all.filter((t) => t.isApproved === true).length;
-        const pending = all.filter(
-          (t) => t.isApproved === false || t.isApproved === null,
-        ).length;
-        const rejecting = all.filter((t) =>
-          String(t.currentStatus).toLowerCase().includes("reject"),
-        ).length;
-        setStats({ approved, pending, rejecting, total: all.length });
+        setAllTopics(all);
       } catch (e: unknown) {
-        void e;
+        if (!mounted) return;
+        const msg = e instanceof Error ? e.message : String(e);
+        setLoadErr(msg);
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
-    loadStats();
+    loadAll();
     return () => {
       mounted = false;
     };
-  }, [semesterId, categoryId, searchTerm]);
+  }, [searchTerm]);
+
+  const semesterOptions = useMemo(() => {
+    const names = Array.from(
+      new Set((allTopics || []).map((t) => t.semesterName).filter(Boolean)),
+    );
+    return names.map((name, idx) => ({ id: idx + 1, name }));
+  }, [allTopics]);
+
+  const categoryOptions = useMemo(() => {
+    const names = Array.from(
+      new Set((allTopics || []).map((t) => t.categoryName).filter(Boolean)),
+    );
+    return names.map((name, idx) => ({ id: idx + 1, name }));
+  }, [allTopics]);
+
+  const selectedSemesterName = useMemo(() => {
+    if (semesterId == null) return undefined;
+    return semesterOptions.find((o) => o.id === semesterId)?.name;
+  }, [semesterId, semesterOptions]);
+
+  const selectedCategoryName = useMemo(() => {
+    if (categoryId == null) return undefined;
+    return categoryOptions.find((o) => o.id === categoryId)?.name;
+  }, [categoryId, categoryOptions]);
+
+  const listAfterSC = useMemo(() => {
+    let list = allTopics.slice();
+    if (selectedSemesterName) {
+      list = list.filter((t) => t.semesterName === selectedSemesterName);
+    }
+    if (selectedCategoryName) {
+      list = list.filter((t) => t.categoryName === selectedCategoryName);
+    }
+    return list;
+  }, [allTopics, selectedSemesterName, selectedCategoryName]);
+
+  const normalizeStatus = (s: unknown): Exclude<StatusValue, "all"> => {
+    const v = String(s ?? "")
+      .trim()
+      .toLowerCase();
+    if (v === "approved") return "Approved";
+    if (v === "rejected") return "Rejected";
+    if (v === "completed" || v === "complete" || v === "done")
+      return "Completed";
+    if (v === "underreview" || v === "under_review" || v === "under review")
+      return "UnderReview";
+    if (v === "duplicate") return "Duplicate";
+    if (v === "revisionrequired" || v === "revision_required")
+      return "RevisionRequired";
+    if (v === "escalatedtomoderator" || v === "escalated_to_moderator")
+      return "EscalatedToModerator";
+    return "Pending";
+  };
+
+  const statusCountMap = useMemo(() => {
+    const map: Record<Exclude<StatusValue, "all">, number> = {
+      Pending: 0,
+      UnderReview: 0,
+      Duplicate: 0,
+      Completed: 0,
+      RevisionRequired: 0,
+      EscalatedToModerator: 0,
+      Approved: 0,
+      Rejected: 0,
+    };
+    listAfterSC.forEach((t) => {
+      const key = normalizeStatus(t.latestSubmissionStatus);
+      map[key] += 1;
+    });
+    return map;
+  }, [listAfterSC]);
+
+  const stats = useMemo(() => {
+    const total = listAfterSC.length;
+    const approved = statusCountMap.Approved;
+    const rejecting = statusCountMap.Rejected;
+    const pending = total - approved - rejecting;
+    return { approved, pending, rejecting, total };
+  }, [listAfterSC.length, statusCountMap]);
 
   useEffect(() => {
     setPageNumber(1);
   }, [pageSize, searchTerm, filterStatus, semesterId, categoryId]);
 
-  if (isLoading) return <LoadingPage />;
-  if (error)
+  const filteredByStatus = useMemo(() => {
+    if (filterStatus === "all") return listAfterSC;
+    return listAfterSC.filter(
+      (t) => normalizeStatus(t.latestSubmissionStatus) === filterStatus,
+    );
+  }, [listAfterSC, filterStatus]);
+
+  const totalPagesLocal = Math.max(
+    1,
+    Math.ceil(filteredByStatus.length / pageSize),
+  );
+
+  const currentPageData = useMemo(() => {
+    const start = (pageNumber - 1) * pageSize;
+    const end = start + pageSize;
+    return filteredByStatus.slice(start, end);
+  }, [filteredByStatus, pageNumber, pageSize]);
+
+  if (loading) return <LoadingPage />;
+  if (loadErr)
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="rounded-2xl border border-red-200/60 bg-red-50/70 px-6 py-4 text-red-700 shadow-sm">
-          Lỗi: {error.message}
+          Lỗi: {loadErr}
         </div>
       </div>
     );
-
-  const serverPage = data?.listObjects ?? [];
-  const totalPagesFromServer = data?.totalPages ?? 1;
-
-  const pageAfterStatusFilter =
-    filterStatus === "approved"
-      ? serverPage.filter((t) => t.isApproved === true)
-      : filterStatus === "pending"
-        ? serverPage.filter(
-            (t) => t.isApproved === false || t.isApproved === null,
-          )
-        : filterStatus === "rejecting"
-          ? serverPage.filter((t) =>
-              String(t.currentStatus).toLowerCase().includes("reject"),
-            )
-          : serverPage;
 
   return (
     <div className="relative space-y-6">
@@ -139,7 +209,7 @@ function MyTopicPage() {
             </span>
           </h2>
           <p className="text-sm text-slate-500">
-            Xem, lọc trạng thái và tra cứu nhanh các đề tài của bạn
+            Lọc theo trạng thái, học kỳ, danh mục hoặc tìm kiếm bằng từ khóa
           </p>
         </div>
       </div>
@@ -159,7 +229,7 @@ function MyTopicPage() {
               Đề tài của tôi
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Lọc theo trạng thái hoặc tìm kiếm bằng từ khóa
+              Lọc theo trạng thái, học kỳ, danh mục hoặc tìm kiếm bằng từ khóa
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -172,16 +242,33 @@ function MyTopicPage() {
           </div>
         </div>
 
-        <TopicAnalysis data={stats} onFilterClick={setFilterStatus} />
+        <TopicAnalysisWithFilters
+          data={stats}
+          semesters={semesterOptions}
+          categories={categoryOptions}
+          selectedSemesterId={semesterId}
+          selectedCategoryId={categoryId}
+          selectedStatus={filterStatus}
+          onSelectSemester={(id) => setSemesterId(id)}
+          onSelectCategory={(id) => setCategoryId(id)}
+          onSelectStatus={(s) => {
+            if (s === "all") {
+              setSemesterId(undefined);
+              setCategoryId(undefined);
+            }
+            setFilterStatus(s);
+          }}
+          statusCountMap={statusCountMap}
+        />
 
         <div className="mt-6">
           <DataTable
-            data={pageAfterStatusFilter}
+            data={currentPageData}
             columns={columns}
             visibility={DEFAULT_VISIBILITY}
             page={pageNumber}
             setPage={setPageNumber}
-            totalPages={totalPagesFromServer}
+            totalPages={totalPagesLocal}
             limit={pageSize}
             setLimit={setPageSize}
           />

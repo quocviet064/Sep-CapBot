@@ -4,6 +4,7 @@ import {
   createCriteria,
   updateCriteria,
   getCriteriaForCurrentSemester,
+  getCriteriaBySemester,
   type GetCriteriaQuery,
   type CriteriaPagedResponse,
   type EvaluationCriteriaDTO,
@@ -55,6 +56,7 @@ export function useUpdateCriteria() {
     },
   });
 }
+
 export const useCriteriaDetail = (id?: number | string) =>
   useQuery<EvaluationCriteriaDTO, Error>({
     queryKey: ["criteria-detail", String(id ?? "")],
@@ -68,6 +70,15 @@ export function useCurrentSemesterCriteria() {
     queryKey: ["criteria-current-semester"],
     queryFn: () => getCriteriaForCurrentSemester(),
     placeholderData: (prev) => prev,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useCriteriaBySemester(semesterId?: number) {
+  return useQuery<EvaluationCriteriaDTO[], Error>({
+    queryKey: ["criteria-by-semester", semesterId ?? 0],
+    queryFn: () => getCriteriaBySemester(Number(semesterId)),
+    enabled: typeof semesterId === "number" && semesterId > 0,
     staleTime: 1000 * 60 * 5,
   });
 }

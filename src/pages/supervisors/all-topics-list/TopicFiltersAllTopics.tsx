@@ -1,65 +1,32 @@
 import {
-  ChevronDown,
-  CalendarDays,
-  FolderOpen,
-  Filter,
-  List,
-  Check,
-} from "lucide-react";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/globals/atoms/dropdown-menu";
-
-export type TopicStats = {
-  pending: number;
-  approved: number;
-  rejecting: number;
-  total: number;
-};
+import {
+  ChevronDown,
+  CalendarDays,
+  FolderOpen,
+  List,
+  User2,
+  Check,
+} from "lucide-react";
 
 export type SimpleOption = { id: number; name: string };
 
-export type StatusValue =
-  | "all"
-  | "Pending"
-  | "UnderReview"
-  | "Duplicate"
-  | "RevisionRequired"
-  | "EscalatedToModerator"
-  | "Approved"
-  | "Rejected";
-
-export type StatusOption = { value: StatusValue; label: string };
-
-type StatusCountMap = Partial<Record<Exclude<StatusValue, "all">, number>>;
-
 type Props = {
-  data: TopicStats;
+  total: number;
   semesters: SimpleOption[];
   categories: SimpleOption[];
-  statusOptions?: StatusOption[];
+  creators: SimpleOption[];
   selectedSemesterId?: number;
   selectedCategoryId?: number;
-  selectedStatus?: StatusValue;
+  selectedCreatorId?: number;
   onSelectSemester: (semesterId?: number) => void;
   onSelectCategory: (categoryId?: number) => void;
-  onSelectStatus: (status: StatusValue) => void;
-  statusCountMap?: StatusCountMap;
+  onSelectCreator: (creatorId?: number) => void;
 };
-
-const defaultStatusOptions: StatusOption[] = [
-  { value: "all", label: "Tất cả" },
-  { value: "Pending", label: "Chờ xử lý" },
-  { value: "UnderReview", label: "Đang xét duyệt" },
-  { value: "Duplicate", label: "Trùng lặp" },
-  { value: "RevisionRequired", label: "Yêu cầu chỉnh sửa" },
-  { value: "EscalatedToModerator", label: "Chuyển điều phối" },
-  { value: "Approved", label: "Đã phê duyệt" },
-  { value: "Rejected", label: "Từ chối" },
-];
 
 const fmt = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
 
@@ -147,44 +114,38 @@ function SelectCard({
   );
 }
 
-export default function TopicAnalysisWithFilters({
-  data,
+export default function TopicFiltersAllTopics({
+  total,
   semesters,
   categories,
-  statusOptions = defaultStatusOptions,
+  creators,
   selectedSemesterId,
   selectedCategoryId,
-  selectedStatus = "all",
+  selectedCreatorId,
   onSelectSemester,
   onSelectCategory,
-  onSelectStatus,
-  statusCountMap,
+  onSelectCreator,
 }: Props) {
   const semesterLabel =
     semesters.find((s) => s.id === selectedSemesterId)?.name || "Tất cả";
   const categoryLabel =
     categories.find((c) => c.id === selectedCategoryId)?.name || "Tất cả";
-  const statusLabel =
-    statusOptions.find((s) => s.value === selectedStatus)?.label || "Tất cả";
-
-  const totalForCurrentStatus =
-    selectedStatus === "all"
-      ? data.total
-      : (statusCountMap?.[selectedStatus as Exclude<StatusValue, "all">] ?? 0);
+  const creatorLabel =
+    creators.find((u) => u.id === selectedCreatorId)?.name || "Tất cả";
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
       <KpiCard
         active={
-          selectedStatus === "all" && !selectedSemesterId && !selectedCategoryId
+          !selectedSemesterId && !selectedCategoryId && !selectedCreatorId
         }
         icon={<List size={18} />}
         title="Tất cả đề tài"
-        value={fmt(totalForCurrentStatus)}
+        value={fmt(total)}
         onClick={() => {
           onSelectSemester(undefined);
           onSelectCategory(undefined);
-          onSelectStatus("all");
+          onSelectCreator(undefined);
         }}
       />
 
@@ -233,19 +194,22 @@ export default function TopicAnalysisWithFilters({
       </SelectCard>
 
       <SelectCard
-        active={selectedStatus !== "all"}
-        icon={<Filter size={18} />}
-        title="Trạng thái"
-        subtitle={statusLabel}
+        active={!!selectedCreatorId}
+        icon={<User2 size={18} />}
+        title="Người tạo"
+        subtitle={creatorLabel}
       >
-        {statusOptions.map((opt) => (
-          <DropdownMenuItem
-            key={opt.value}
-            onClick={() => onSelectStatus(opt.value)}
-          >
+        <DropdownMenuItem onClick={() => onSelectCreator(undefined)}>
+          <div className="flex w-full items-center justify-between">
+            <span>Tất cả</span>
+            {!selectedCreatorId && <Check size={16} />}
+          </div>
+        </DropdownMenuItem>
+        {creators.map((u) => (
+          <DropdownMenuItem key={u.id} onClick={() => onSelectCreator(u.id)}>
             <div className="flex w-full items-center justify-between">
-              <span>{opt.label}</span>
-              {selectedStatus === opt.value && <Check size={16} />}
+              <span className="truncate">{u.name}</span>
+              {selectedCreatorId === u.id && <Check size={16} />}
             </div>
           </DropdownMenuItem>
         ))}

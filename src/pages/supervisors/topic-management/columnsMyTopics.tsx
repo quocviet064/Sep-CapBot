@@ -11,7 +11,6 @@ import {
 import { Copy, Eye, MoreHorizontal } from "lucide-react";
 import DataTableColumnHeader from "@/components/globals/molecules/data-table-column-header";
 import DataTableDate from "@/components/globals/molecules/data-table-date";
-
 import DataTableCellDescription from "@/components/globals/molecules/data-table-description-cell";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import type { TopicListItem } from "@/services/topicService";
@@ -44,6 +43,60 @@ const TwoLines = ({
     <div className="line-clamp-2 break-words whitespace-normal">{children}</div>
   </div>
 );
+
+type StatusKey =
+  | "Pending"
+  | "UnderReview"
+  | "Duplicate"
+  | "Completed"
+  | "RevisionRequired"
+  | "EscalatedToModerator"
+  | "Approved"
+  | "Rejected";
+
+const STATUS_BY_NUM: Record<number, StatusKey> = {
+  1: "Pending",
+  2: "UnderReview",
+  3: "Duplicate",
+  4: "Completed",
+  5: "RevisionRequired",
+  6: "EscalatedToModerator",
+  7: "Approved",
+  8: "Rejected",
+};
+
+const STATUS_META: Record<StatusKey, { vi: string; color: string }> = {
+  Pending: { vi: "Chờ xử lý", color: "orange" },
+  UnderReview: { vi: "Đang xét duyệt", color: "dodgerblue" },
+  Duplicate: { vi: "Trùng lặp", color: "orchid" },
+  Completed: { vi: "Hoàn tất", color: "teal" },
+  RevisionRequired: { vi: "Yêu cầu chỉnh sửa", color: "goldenrod" },
+  EscalatedToModerator: { vi: "Chuyển điều phối", color: "mediumpurple" },
+  Approved: { vi: "Đã phê duyệt", color: "green" },
+  Rejected: { vi: "Từ chối", color: "red" },
+};
+
+function normalizeLatestStatus(v: unknown): StatusKey | null {
+  if (typeof v === "number" && STATUS_BY_NUM[v]) return STATUS_BY_NUM[v];
+  if (typeof v === "string") {
+    const s = v
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
+    if (s === "pending") return "Pending";
+    if (s === "underreview" || s === "review") return "UnderReview";
+    if (s === "duplicate") return "Duplicate";
+    if (s === "completed" || s === "done" || s === "finished")
+      return "Completed";
+    if (s === "revisionrequired" || s === "requirerevision")
+      return "RevisionRequired";
+    if (s === "escalatedtomoderator" || s === "escalated")
+      return "EscalatedToModerator";
+    if (s === "approved") return "Approved";
+    if (s.includes("reject")) return "Rejected";
+  }
+  return null;
+}
 
 export const createMyTopicColumns = (
   handlers: ColumnActionsHandlers,
@@ -124,7 +177,6 @@ export const createMyTopicColumns = (
     size: 380,
     maxSize: 420,
   },
-
   {
     accessorKey: "abbreviation",
     meta: { title: "Viết tắt" },
@@ -239,6 +291,31 @@ export const createMyTopicColumns = (
     maxSize: 420,
   },
   {
+    accessorKey: "currentVersionNumber",
+    meta: { title: "Phiên bản" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Phiên bản" center />
+    ),
+    cell: ({ row }) => {
+      const num = row.original.currentVersionNumber;
+      return (
+        <div className="flex justify-center pr-4">
+          {num == null ? (
+            <Badge className="bg-slate-500 whitespace-nowrap text-white">
+              Bản gốc
+            </Badge>
+          ) : (
+            <Badge className="bg-indigo-600 whitespace-nowrap text-white">
+              {num} Phiên bản
+            </Badge>
+          )}
+        </div>
+      );
+    },
+    size: 140,
+    maxSize: 160,
+  },
+  {
     accessorKey: "maxStudents",
     meta: { title: "SV tối đa" },
     header: ({ column }) => (
@@ -267,61 +344,30 @@ export const createMyTopicColumns = (
     maxSize: 180,
   },
   {
-    accessorKey: "currentVersionNumber",
-    meta: { title: "Version" },
+    accessorKey: "latestSubmissionStatus",
+    meta: { title: "Trạng thái" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Version" center />
+      <DataTableColumnHeader column={column} title="Trạng thái" center />
     ),
-    cell: ({ row }) => (
-      <div className="flex justify-center pr-4">
-        <OneLine width="max-w-[80px]">
-          {row.original.currentVersionNumber ?? "-"}
-        </OneLine>
-      </div>
-    ),
-    size: 120,
-    maxSize: 140,
+    cell: ({ row }) => {
+      const key = normalizeLatestStatus(row.original.latestSubmissionStatus);
+      const label = key ? STATUS_META[key].vi : "Chưa nộp";
+      const color = key ? STATUS_META[key].color : "slategray";
+      return (
+        <div className="flex justify-center pr-4">
+          <Badge
+            className="whitespace-nowrap text-white"
+            style={{ backgroundColor: color }}
+          >
+            {label}
+          </Badge>
+        </div>
+      );
+    },
+    size: 150,
+    maxSize: 170,
   },
-  {
-    accessorKey: "isLegacy",
-    meta: { title: "Legacy" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Legacy" center />
-    ),
-    cell: ({ row }) => (
-      <div className="flex justify-center pr-4">
-        <Badge
-          className="whitespace-nowrap text-white"
-          style={{ backgroundColor: row.original.isLegacy ? "green" : "red" }}
-        >
-          {row.original.isLegacy ? "Có" : "Không"}
-        </Badge>
-      </div>
-    ),
-    size: 120,
-    maxSize: 140,
-  },
-  {
-    accessorKey: "isApproved",
-    meta: { title: "Duyệt" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Duyệt" center />
-    ),
-    cell: ({ row }) => (
-      <div className="flex justify-center pr-4">
-        <Badge
-          className="whitespace-nowrap text-white"
-          style={{
-            backgroundColor: row.original.isApproved ? "green" : "orange",
-          }}
-        >
-          {row.original.isApproved ? "Đã duyệt" : "Chưa duyệt"}
-        </Badge>
-      </div>
-    ),
-    size: 130,
-    maxSize: 150,
-  },
+
   {
     accessorKey: "createdAt",
     meta: { title: "Ngày tạo" },
@@ -369,7 +415,7 @@ export const createMyTopicColumns = (
         </div>
       );
     },
-    size: 120,
-    maxSize: 140,
+    size: 140,
+    maxSize: 160,
   },
 ];

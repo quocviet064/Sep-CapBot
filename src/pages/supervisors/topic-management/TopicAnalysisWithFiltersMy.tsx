@@ -27,6 +27,7 @@ export type StatusValue =
   | "Pending"
   | "UnderReview"
   | "Duplicate"
+  | "Completed"
   | "RevisionRequired"
   | "EscalatedToModerator"
   | "Approved"
@@ -55,6 +56,7 @@ const defaultStatusOptions: StatusOption[] = [
   { value: "Pending", label: "Chờ xử lý" },
   { value: "UnderReview", label: "Đang xét duyệt" },
   { value: "Duplicate", label: "Trùng lặp" },
+  { value: "Completed", label: "Hoàn tất" },
   { value: "RevisionRequired", label: "Yêu cầu chỉnh sửa" },
   { value: "EscalatedToModerator", label: "Chuyển điều phối" },
   { value: "Approved", label: "Đã phê duyệt" },
