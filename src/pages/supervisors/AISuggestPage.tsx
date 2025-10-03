@@ -33,11 +33,13 @@ const STORAGE_NS = "AISuggestPage:v4";
 const AI_IMG = "/assets/ai-mascot.png";
 const CACHE_MAX_AGE_MS = 10 * 60 * 1000;
 
+type AppWindow = Window & { __APP_USER_ID__?: string | number };
+
 function getScopedKey() {
   const uid =
-    (typeof window !== "undefined" &&
-      (window as any).__APP_USER_ID__?.toString()) ||
-    "anon";
+    typeof window !== "undefined"
+      ? String((window as AppWindow).__APP_USER_ID__ ?? "anon")
+      : "anon";
   return `${STORAGE_NS}:${uid}`;
 }
 

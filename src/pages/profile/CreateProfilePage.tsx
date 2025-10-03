@@ -191,8 +191,9 @@ export default function CreateProfilePage() {
     try {
       let avatarFinal = (data.avatarUrl || "").trim();
       let coverFinal = (data.coverUrl || "").trim();
-      if (avatarFile) avatarFinal = await uploadFileToUrl(avatarFile, "image");
-      if (coverFile) coverFinal = await uploadFileToUrl(coverFile, "image");
+      if (avatarFile) avatarFinal = await uploadFileToUrl(avatarFile);
+      if (coverFile) coverFinal = await uploadFileToUrl(coverFile);
+
       await createUserProfile({
         userId,
         fullName: data.fullName,

@@ -82,16 +82,11 @@ export const updateLecturerSkill = async (
       "/lecturer-skills",
       payload,
     );
-    const { success, data, message } = res.data;
-    if (!success) throw new Error(message || "Cập nhật kỹ năng thất bại");
-    toast.success(message || "Cập nhật kỹ năng thành công");
+    const { success, data } = res.data;
+    if (!success) throw new Error("Cập nhật kỹ năng thất bại");
     return data;
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? error.response?.data?.message || "Cập nhật kỹ năng thất bại"
-      : "Lỗi không xác định";
-    toast.error(msg);
-    throw new Error(msg);
+  } catch {
+    throw new Error("Cập nhật kỹ năng thất bại");
   }
 };
 
@@ -175,14 +170,49 @@ export const deleteLecturerSkill = async (id: number): Promise<void> => {
     const res = await capBotAPI.delete<ApiResponse<null>>(
       `/lecturer-skills/${id}`,
     );
-    const { success, message } = res.data;
-    if (!success) throw new Error(message || "Xóa kỹ năng thất bại");
-    toast.success(message || "Xóa kỹ năng thành công");
-  } catch (error) {
-    const msg = axios.isAxiosError(error)
-      ? error.response?.data?.message || "Xóa kỹ năng thất bại"
-      : "Lỗi không xác định";
-    toast.error(msg);
-    throw new Error(msg);
+    const { success } = res.data;
+    if (!success) throw new Error("Xóa kỹ năng thất bại");
+  } catch {
+    throw new Error("Xóa kỹ năng thất bại");
   }
+};
+
+export interface BulkUpdateResult {
+  ok: LecturerSkill[];
+  failed: Array<{
+    item: UpdateLecturerSkillPayload;
+    status?: number;
+    message: string;
+  }>;
+}
+
+export const bulkUpdateLecturerSkills = async (
+  items: UpdateLecturerSkillPayload[],
+): Promise<BulkUpdateResult> => {
+  const results = await Promise.allSettled(
+    items.map((p) => updateLecturerSkill(p)),
+  );
+
+  const ok: LecturerSkill[] = [];
+  const failed: BulkUpdateResult["failed"] = [];
+
+  results.forEach((r, i) => {
+    const item = items[i];
+    if (r.status === "fulfilled") {
+      ok.push(r.value);
+    } else {
+      const err = r.reason;
+      const isAxios = axios.isAxiosError(err);
+      failed.push({
+        item,
+        status: isAxios ? err.response?.status : undefined,
+        message:
+          (isAxios && (err.response?.data?.message as string)) ||
+          err?.message ||
+          "Cập nhật thất bại",
+      });
+    }
+  });
+
+  return { ok, failed };
 };
