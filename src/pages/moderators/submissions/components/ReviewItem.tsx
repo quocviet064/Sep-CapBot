@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
-import capBotAPI from "@/lib/CapBotApi";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
+
+import { useScoreBoard } from "@/hooks/useReview";
 
 type ReviewSummary = any;
 
@@ -64,67 +64,31 @@ function RecommendationBadge({
 
 export default function ReviewItem({ review, recommendationText }: { review: ReviewSummary; recommendationText?: string | null }) {
   const [expanded, setExpanded] = useState(false);
-  const [scoresPayload, setScoresPayload] = useState<any | null>(null);
-  const [loadingScores, setLoadingScores] = useState(false);
-  const [errorScores, setErrorScores] = useState<string | null>(null);
-
-  // to avoid state update after unmount
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
 
   const reviewId = review?.reviewId ?? review?.id ?? review?.review?.id ?? null;
 
-  const fetchScores = async (rid: string | number) => {
-    const ridStr = String(rid);
-    if (loadingScores) return;
-    setLoadingScores(true);
-    setErrorScores(null);
+  // fetch scoreboard only when expanded (lazy)
+  const { data: scoreboard, isLoading: loadingScores, error: scoresError } = useScoreBoard(expanded ? (reviewId ?? undefined) : undefined);
+
+  // If hook/service throws, getScoreBoard already toasts; but we still prepare a user-friendly message
+  const errorMsg = useMemo(() => {
+    if (!scoresError) return null;
     try {
-      const res = await capBotAPI.get<any>(`/reviews/${encodeURIComponent(ridStr)}/scores`);
-      const payloadWrapper = res?.data;
-      let payloadData: any = null;
-
-      if (payloadWrapper == null) payloadData = null;
-      else if (payloadWrapper.data !== undefined) payloadData = payloadWrapper.data;
-      else payloadData = payloadWrapper;
-
-      if (!payloadData) {
-        if (mountedRef.current) {
-          setErrorScores("Không có dữ liệu điểm chi tiết");
-          setScoresPayload(null);
-        }
-      } else {
-        if (mountedRef.current) {
-          setScoresPayload(payloadData);
-        }
-      }
-    } catch (err: any) {
-      const msg = (err?.response?.data?.message as string) ?? err?.message ?? "Lỗi khi tải chi tiết điểm";
-      if (mountedRef.current) {
-        setErrorScores(msg);
-      }
-      toast.error(msg);
-    } finally {
-      if (mountedRef.current) setLoadingScores(false);
+      // @ts-ignore
+      return scoresError?.message ?? JSON.stringify(scoresError);
+    } catch {
+      return "Lỗi khi tải chi tiết điểm";
     }
-  };
+  }, [scoresError]);
 
-  const onToggle = async () => {
-    const willExpand = !expanded;
-    setExpanded(willExpand);
-    if (willExpand && !scoresPayload && reviewId != null) {
-      await fetchScores(reviewId);
-    }
+  const onToggle = () => {
+    setExpanded((v) => !v);
   };
 
   const renderScoreDetails = (payload: any) => {
     if (!payload) return <div className="text-sm text-slate-500">Không có chi tiết điểm.</div>;
 
+    // payload shape from getScoreBoard: { reviewId, overallScore, criteriaScores: [...] }
     const overall = payload.overallScore ?? payload.overall_score ?? null;
     const criteria = payload.criteriaScores ?? payload.criteria_scores ?? payload.criteria ?? [];
 
@@ -210,12 +174,12 @@ export default function ReviewItem({ review, recommendationText }: { review: Rev
         <div className="mt-3 p-3 rounded bg-white border">
           {loadingScores ? (
             <div className="text-sm text-slate-500">Đang tải chi tiết điểm...</div>
-          ) : errorScores ? (
-            <div className="text-sm text-rose-600">Lỗi: {errorScores}</div>
-          ) : scoresPayload ? (
+          ) : errorMsg ? (
+            <div className="text-sm text-rose-600">Lỗi: {errorMsg}</div>
+          ) : scoreboard ? (
             <>
               <div className="text-sm font-semibold mb-2">Chi tiết điểm</div>
-              {renderScoreDetails(scoresPayload)}
+              {renderScoreDetails(scoreboard)}
             </>
           ) : (
             <div className="text-sm text-slate-500">Không có dữ liệu chi tiết điểm.</div>

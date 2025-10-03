@@ -17,6 +17,7 @@ type Props = {
   reviewSummary?: any | null;
   isAssignDisabled?: boolean;
   isEscalated?: boolean;
+  onOpenReviewForSubmission?: (submissionId?: number | string) => void;
 };
 
 function initials(name?: string) {
@@ -29,10 +30,12 @@ function initials(name?: string) {
 
 function statusBadgeStyle(status?: unknown) {
   const s = String(status ?? "").toLowerCase();
-  if (!s) return {
-    background: "#f8fafc",
-    color: "#0f172a",
-  };
+  if (!s) {
+    return {
+      background: "#f8fafc",
+      color: "#0f172a",
+    };
+  }
   if (s.includes("assigned") || s.includes("active")) return { background: "#ecfdf5", color: "#166534" };
   if (s.includes("pending")) return { background: "#fff7ed", color: "#92400e" };
   if (s.includes("completed")) return { background: "#ecfdf5", color: "#166534" };
@@ -67,7 +70,7 @@ function mapRecommendationToText(val: unknown): string | null {
         const t = mapRecommendationToText(c);
         if (t) return t;
       }
-    } catch { }
+    } catch {}
   }
   return null;
 }
@@ -134,9 +137,11 @@ export default function SidebarActions({
   reviewSummary,
   isAssignDisabled = false,
   isEscalated = false,
+  onOpenReviewForSubmission,
 }: Props) {
   const [open, setOpen] = useState(true);
 
+  // assignments may be either "raw assignments" or "assignmentsWithDisplay" (which include displayTopic/displayTopicSource)
   const assigned = assignments ?? [];
   const assignedCount = assigned.length;
   const recommendationMap = useMemo(() => buildRecommendationMap(reviewSummary), [reviewSummary]);
@@ -148,6 +153,17 @@ export default function SidebarActions({
       onRemoveAssignment(assignmentId);
     } else {
       console.warn("onRemoveAssignment not provided, cannot remove assignment", assignmentId);
+    }
+  };
+
+  const handleOpenReviewClick = (assignment: Assignment) => {
+    // Prefer to open review for the assignment's submission (if provided)
+    const sidForAssign = assignment?.submissionId ?? assignment?.submission?.id ?? null;
+    if (typeof onOpenReviewForSubmission === "function") {
+      onOpenReviewForSubmission(sidForAssign ?? undefined);
+    } else {
+      // fallback: toggle the review panel (client should already be on the intended submission)
+      toggleShowReviews();
     }
   };
 
@@ -196,12 +212,40 @@ export default function SidebarActions({
           ) : assigned.length > 0 ? (
             <div className="flex flex-col gap-2" style={{ maxHeight: 360, overflowY: "auto", paddingRight: 6 }}>
               {assigned.map((a: Assignment) => {
+                // Support both shapes:
+                // - new shape: a.displayTopic (normalized), a.displayTopicSource, a.isCurrent, a.topicVersionId, a.submissionId
+                // - old shape: a.topic, a.topicVersion, a.reviewer, a.reviewerId, a.submissionId
+                const displayTopic =
+                  a.displayTopic ??
+                  (a.topic
+                    ? {
+                        id: a.topic.id,
+                        eN_Title: a.topic.eN_Title ?? a.topic.eNTitle ?? a.topic.title,
+                        vN_title: a.topic.vN_title ?? a.topic.vNTitle ?? a.topic.vNTitle,
+                        description: a.topic.description,
+                        documentUrl: a.topic.documentUrl ?? a.topic.document_url,
+                      }
+                    : a.topicVersion
+                    ? {
+                        id: a.topicVersion.id,
+                        eN_Title: a.topicVersion.eN_Title ?? a.topicVersion.title,
+                        vN_title: a.topicVersion.vN_title,
+                        description: a.topicVersion.description,
+                        documentUrl: a.topicVersion.documentUrl ?? a.topicVersion.document_url,
+                      }
+                    : null);
+
+                const displayTopicSource = a.displayTopicSource ?? (a.topicVersion ? "topicVersion" : "topic");
                 const name = a.reviewer?.userName ?? a.reviewerName ?? `#${a.reviewerId ?? ""}`;
                 const reviewerIdKey = a.reviewer?.id ?? a.reviewerId ?? a.reviewer?.reviewerId ?? null;
                 const badge = statusBadgeStyle(a.status);
-
                 const recText = reviewerIdKey != null ? recommendationMap[String(reviewerIdKey)] ?? null : null;
                 const recBadge = recBadgeForText(recText);
+
+                // determine if this assignment belongs to current submission
+                const isForCurrentSubmission = submissionId != null && String(a.submissionId ?? a.submission?.id ?? "") === String(submissionId);
+                // if the caller precomputed `isCurrent`, prefer it
+                const isCurrent = typeof a.isCurrent === "boolean" ? a.isCurrent : isForCurrentSubmission;
 
                 return (
                   <div
@@ -217,14 +261,54 @@ export default function SidebarActions({
                       <div className="min-w-0">
                         <div className="font-medium truncate flex items-center gap-2">
                           <span>{name}</span>
+
                           {/* recommendation small badge */}
-                          <span style={{ display: "inline-flex", alignItems: "center", padding: "4px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700, ...recBadge.style }}>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              ...recBadge.style,
+                            }}
+                          >
                             {recBadge.label}
                           </span>
+
+                          {/* if displayTopicSource indicates version, show small chip */}
+                          {displayTopicSource === "topicVersion" && (
+                            <span
+                              style={{
+                                marginLeft: 6,
+                                display: "inline-block",
+                                padding: "2px 8px",
+                                borderRadius: 6,
+                                fontSize: 11,
+                                background: "#eef2ff",
+                                color: "#3730a3",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Topic version
+                            </span>
+                          )}
                         </div>
+
                         <div className="text-xs text-slate-500 mt-1">
-                          {a.deadline ? ` Deadline: ${formatDateTime(a.deadline)}` : ""}
+                          {a.deadline ? `Deadline: ${formatDateTime(a.deadline)}` : ""}
+                          {/* show topic title or submission title if available */}
+                          {displayTopic?.eN_Title ? ` • ${displayTopic.eN_Title}` : a.submissionTitle ? ` • ${a.submissionTitle}` : ""}
                         </div>
+
+                        {/* If assignment not for current submission, show indicator */}
+                        {!isCurrent && a.submissionId != null && (
+                          <div className="mt-1 text-xs text-amber-600">Review belongs to submission #{a.submissionId}</div>
+                        )}
+                        {!isCurrent && !a.submissionId && a.topicVersionId && (
+                          <div className="mt-1 text-xs text-amber-600">Review belongs to topic version #{a.topicVersionId}</div>
+                        )}
                       </div>
                     </div>
 
@@ -244,12 +328,22 @@ export default function SidebarActions({
                           ? a.status === 1
                             ? "Assigned"
                             : a.status === 2
-                              ? "In progress"
-                              : a.status === 3
-                                ? "Completed"
-                                : "Overdue"
+                            ? "In progress"
+                            : a.status === 3
+                            ? "Completed"
+                            : "Overdue"
                           : a.status ?? "—"}
                       </span>
+
+                      {/* view review: open reviews for the assignment's submission */}
+                      <button
+                        type="button"
+                        title="View review for this assignment"
+                        onClick={() => handleOpenReviewClick(a)}
+                        className="inline-flex items-center justify-center px-3 py-1 rounded border text-sm"
+                      >
+                        View review
+                      </button>
 
                       {/* remove icon/button */}
                       {a.id != null && onRemoveAssignment ? (
@@ -280,30 +374,21 @@ export default function SidebarActions({
       <div className="bg-white border rounded-md p-4">
         <div className="text-sm font-semibold mb-2">Quick actions</div>
         <div className="flex flex-col gap-2">
-          <button
-            className="rounded border px-3 py-2 text-sm text-left"
-            onClick={toggleShowReviews}
-            type="button"
-          >
+          <button className="rounded border px-3 py-2 text-sm text-left" onClick={toggleShowReviews} type="button">
             {showReviews ? "Hide review" : "Open review"}
           </button>
 
           <button
             className="rounded border px-3 py-2 text-sm text-left"
             onClick={onOpenPicker}
-            disabled={!submissionId || Boolean(isAssignDisabled)}
-            title={!submissionId ? "Vui lòng mở chi tiết submission trước" : (isAssignDisabled ? "Đã đủ reviewer, không thể phân công thêm" : "Phân công reviewer")}
+            // disabled={!submissionId || Boolean(isAssignDisabled)}
+            title={!submissionId ? "Vui lòng mở chi tiết submission trước" : isAssignDisabled ? "Đã đủ reviewer, không thể phân công thêm" : "Phân công reviewer"}
             type="button"
           >
             Assign reviewers
           </button>
 
-          <button
-            className="rounded border px-3 py-2 text-sm text-left"
-            onClick={onOpenSuggestions}
-            disabled={!submissionId}
-            type="button"
-          >
+          <button className="rounded border px-3 py-2 text-sm text-left" onClick={onOpenSuggestions} disabled={!submissionId} type="button">
             Suggestion reviewer (AI)
           </button>
 
@@ -321,11 +406,7 @@ export default function SidebarActions({
             }}
             disabled={!submissionId || !isEscalated}
             title={
-              !submissionId
-                ? "Vui lòng mở chi tiết submission trước"
-                : !isEscalated
-                  ? "Chỉ khả dụng khi submission ở trạng thái EscalatedToModerator"
-                  : "Quyết định cuối (Moderator)"
+              !submissionId ? "Vui lòng mở chi tiết submission trước" : !isEscalated ? "Chỉ khả dụng khi submission ở trạng thái EscalatedToModerator" : "Quyết định cuối (Moderator)"
             }
             type="button"
           >

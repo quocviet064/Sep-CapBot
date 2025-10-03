@@ -25,6 +25,7 @@ export default function SubmittedTopicsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // PASS filters to useTopics (server-side). If your useTopics signature differs adjust params.
   const { data, isLoading, refetch, isFetching } = useTopics(
     undefined,
     undefined,
@@ -32,9 +33,11 @@ export default function SubmittedTopicsPage() {
     pageSize,
     debouncedSearch || undefined,
     undefined,
+    categoryFilter || undefined,
+    statusFilter || undefined
   );
 
-  const topics = Array.isArray(data?.listObjects) ? data!.listObjects : [];
+  const topics = data?.listObjects ?? [];
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -52,25 +55,22 @@ export default function SubmittedTopicsPage() {
     return Array.from(set).sort();
   }, [topics]);
 
+  // If you're using server-side filtering/paging, filtered = topics (server already filtered).
+  // Otherwise, keep client-side filtering here.
   const filtered = useMemo<TopicListItem[]>(() => {
-    return topics
-      .filter((t) => !!t.hasSubmitted)
-      .filter((t) => (categoryFilter ? t.categoryName === categoryFilter : true))
-      .filter((t) => (statusFilter ? (t.latestSubmissionStatus ?? "") === statusFilter : true))
-      .filter((t) => {
-        if (!debouncedSearch) return true;
-        const kw = debouncedSearch.toLowerCase();
-        return (
-          (t.abbreviation ?? "").toLowerCase().includes(kw) ||
-          (t.eN_Title ?? "").toLowerCase().includes(kw) ||
-          (t.vN_title ?? "").toLowerCase().includes(kw) ||
-          (t.supervisorName ?? "").toLowerCase().includes(kw)
-        );
-      });
-  }, [topics, debouncedSearch, categoryFilter, statusFilter]);
+    return topics.filter((t) => !!t.hasSubmitted);
+  }, [topics]);
 
   const totalPages = Math.max(1, data?.totalPages ?? 1);
   const totalRecords = data?.paging?.totalRecord ?? null;
+
+  // clamp page if totalPages decreased
+  useEffect(() => {
+    if (!data) return;
+    const tp = Math.max(1, data.totalPages ?? 1);
+    setPage((p) => Math.min(p, tp));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.totalPages]);
 
   const handleRefresh = async () => {
     try {
@@ -80,35 +80,76 @@ export default function SubmittedTopicsPage() {
     }
   };
 
+  /**
+   * handleViewSubmission:
+   * - fetch topic detail
+   * - if topic.currentVersionStatus === "Submitted", prefer submissions that have topicVersionId (these are version-submissions)
+   * - pick newest submission among matching set (by submittedAt)
+   * - navigate to submission detail route and include state { topicId, topicDetail, submissionId, topicVersionId? }
+   *
+   * This allows the detail page to detect state.topicVersionId and load topic version data instead of main topic when needed.
+   */
   const handleViewSubmission = async (topic: TopicListItem) => {
     setLoadingTopicId(topic.id);
     try {
       const detail = await qc.fetchQuery<TopicDetailResponse>({
         queryKey: ["topicDetail", topic.id],
         queryFn: () => getTopicDetail(topic.id),
+        staleTime: 1000 * 60 * 5,
       });
 
       qc.setQueryData<TopicDetailResponse>(["topicDetail", topic.id], detail);
 
       const subs = Array.isArray(detail?.submissions) ? detail.submissions.slice() : [];
-      if (subs.length > 0) {
-        // pick latest by submittedAt 
-        subs.sort((a, b) => {
-          const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
-          const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
-          return tb - ta;
-        });
-        const latest = subs[0];
-        navigate(`/moderators/submissions/${latest.id}`, { state: { topicId: topic.id, topicDetail: detail } });
-      } else {
+      if (subs.length === 0) {
+        // no submissions -> go to topic page
         navigate(`/topics/${topic.id}`, { state: { topicDetail: detail } });
+        return;
       }
+
+      // Prefer version-submissions when:
+      // 1) topic.currentVersionStatus indicates a submitted version, OR
+      // 2) there exists any submission with topicVersionId (fallback rule)
+      const topicCurVerStatus = (topic as any)?.currentVersionStatus ?? detail?.currentVersionStatus;
+      const curVerSubmitted = typeof topicCurVerStatus === "string" && topicCurVerStatus.trim().toLowerCase().includes("submitted");
+
+      let candidates = subs;
+      if (curVerSubmitted) {
+        const withVersion = subs.filter((s) => s.topicVersionId !== null && s.topicVersionId !== undefined);
+        if (withVersion.length > 0) {
+          candidates = withVersion;
+        }
+      } else {
+        // If currentVersionStatus not set but there are submissions that reference topicVersionId,
+        // it's safer to prefer those (covers edge cases where list doesn't show currentVersionStatus).
+        const withVersionAny = subs.filter((s) => s.topicVersionId !== null && s.topicVersionId !== undefined);
+        if (withVersionAny.length > 0) {
+          candidates = withVersionAny;
+        }
+      }
+
+      // pick latest by submittedAt (fall back to assigned timestamps if needed)
+      candidates.sort((a, b) => {
+        const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return tb - ta;
+      });
+      const latest = candidates[0];
+
+      const navState: any = { topicId: topic.id, topicDetail: detail, submissionId: latest.id };
+      if (latest.topicVersionId !== null && latest.topicVersionId !== undefined) {
+        navState.topicVersionId = latest.topicVersionId;
+      }
+
+      navigate(`/moderators/submissions/${latest.id}`, { state: navState });
     } catch (err: any) {
-      toast.error(err?.message ?? "Không thể lấy chi tiết đề tài");
+      const msg = err?.message ?? (typeof err === "string" ? err : JSON.stringify(err)) ?? "Không thể lấy chi tiết đề tài";
+      toast.error(msg);
     } finally {
       setLoadingTopicId(null);
     }
   };
+
 
   return (
     <div className="w-full px-4 py-4">
@@ -119,8 +160,8 @@ export default function SubmittedTopicsPage() {
             {isFetching
               ? "Đang tải…"
               : totalRecords != null
-              ? `${totalRecords} kết quả • Trang ${page} / ${totalPages}`
-              : "Đang tải…"}
+                ? `${totalRecords} kết quả • Trang ${page} / ${totalPages}`
+                : "Đang tải…"}
           </div>
         </div>
 
@@ -129,6 +170,7 @@ export default function SubmittedTopicsPage() {
             className="px-3 py-2 rounded-md bg-teal-500 text-white text-sm"
             id="refreshBtn"
             onClick={handleRefresh}
+            disabled={isFetching}
           >
             Refresh
           </button>
@@ -208,6 +250,7 @@ export default function SubmittedTopicsPage() {
           pageSize={pageSize}
           setPageSize={setPageSize}
           totalPages={totalPages}
+          totalRecords={totalRecords ?? undefined}
           onViewSubmission={handleViewSubmission}
           loadingTopicId={loadingTopicId}
         />
@@ -217,7 +260,7 @@ export default function SubmittedTopicsPage() {
             id="prevBtn"
             className="px-3 py-2 rounded-md border text-sm"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
+            disabled={page <= 1 || isFetching}
           >
             Prev
           </button>
@@ -230,7 +273,7 @@ export default function SubmittedTopicsPage() {
             id="nextBtn"
             className="px-3 py-2 rounded-md border text-sm"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
+            disabled={page >= totalPages || isFetching}
           >
             Next
           </button>

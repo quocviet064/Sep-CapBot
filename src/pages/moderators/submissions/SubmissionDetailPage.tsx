@@ -41,6 +41,7 @@ type RouteState = {
   topicId?: number;
   row?: SubmissionListItem;
   topicDetail?: TopicDetailResponse;
+  topicVersionId?: number;
 } | undefined;
 
 export default function SubmissionDetailPage() {
@@ -54,19 +55,22 @@ export default function SubmissionDetailPage() {
   const sid: number | undefined = submissionId ? Number(submissionId) : undefined;
 
   const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [reviewsModalSubmissionId, setReviewsModalSubmissionId] = useState<number | string | null>(null);
+
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
   const { data: submissionDetailShort } = useSubmissionDetail(sid);
+
   const topicIdFromState = typedState?.topicId ?? (submissionDetailShort as any)?.topicId ?? undefined;
   const topicId: number | undefined = topicIdFromState ? Number(topicIdFromState) : undefined;
 
   const { data: topicDetailResponse, refetch: refetchTopicDetail } = useTopicDetail(topicId);
   const topicDetail = topicDetailResponse as TopicDetailResponse | undefined;
 
+  // summary for current submission (quick info)
   const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } = useSubmissionReviewSummary(sid);
 
   const selectedSubmission = useMemo<SubmissionDTO | undefined>(() => {
@@ -93,10 +97,37 @@ export default function SubmissionDetailPage() {
     }
   }, [qc, selectedSubmission]);
 
+  // assignments for the current submission (hook uses key "assignmentsBySubmission")
   const { data: assignments, isLoading: loadingAssignments } = useAssignmentsBySubmission(sid);
   const { data: availableReviewers, isLoading: loadingAvailable } = useAvailableReviewers(isPickerOpen ? sid : undefined);
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
+
+  // ------------ detect topicVersionId and compute displayedTopic --------------
+  const topicVersionIdFromState = typedState?.topicVersionId ?? undefined;
+  const topicVersionIdFromSubmission = (selectedSubmission as any)?.topicVersionId ?? undefined;
+  const topicVersionId: number | undefined =
+    (topicVersionIdFromState ?? topicVersionIdFromSubmission) != null ? Number(topicVersionIdFromState ?? topicVersionIdFromSubmission) : undefined;
+
+  const displayedTopic = useMemo<any>(() => {
+    if (!topicDetail) return undefined;
+    if (!topicVersionId) return topicDetail;
+
+    const possibleLists = [
+      (topicDetail as any).versions,
+      (topicDetail as any).topicVersions,
+      (topicDetail as any).versionList,
+      (topicDetail as any).topicVersionList,
+    ].filter(Boolean) as any[];
+
+    for (const list of possibleLists) {
+      if (!Array.isArray(list)) continue;
+      const found = list.find((v: any) => Number(v.id) === Number(topicVersionId));
+      if (found) return found;
+    }
+
+    return topicDetail;
+  }, [topicDetail, topicVersionId]);
 
   const requiredReviewers = topicDetail?.requiredReviewers ?? 2;
   const assignedCount = (assignments ?? []).length;
@@ -114,20 +145,83 @@ export default function SubmissionDetailPage() {
     return false;
   })();
 
-  // handlers
-  const openReviews = async () => {
+  // ---------- help to pick topic/version from assignment ----------
+  function normalizeTopicLike(t: any) {
+    if (!t) return null;
+    return {
+      id: t.id ?? t.topicId,
+      eN_Title: t.eN_Title ?? t.title ?? t.name ?? null,
+      vN_title: t.vN_title ?? t.vNTitle ?? null,
+      description: t.description ?? t.desc ?? null,
+      documentUrl: t.documentUrl ?? t.document_url ?? t.fileUrl ?? null,
+      maxStudents: t.maxStudents ?? t.max_students ?? t.max ?? null,
+      categoryName: t.categoryName ?? t.category ?? null,
+      semesterName: t.semesterName ?? t.semester ?? null,
+      supervisorName: t.supervisorName ?? t.supervisor ?? null,
+      __raw: t,
+    };
+  }
+
+  function pickDisplayedTopicFromAssignment(assignment: any) {
+    const tv = assignment?.topicVersion ?? null;
+    const t = assignment?.topic ?? null;
+
+    if (tv && typeof tv === "object") {
+      const st = (tv.status ?? tv.Status ?? "").toString().toLowerCase();
+      if (st === "submitted" || st.includes("submitted")) {
+        return { displayTopic: normalizeTopicLike(tv), displayTopicSource: "topicVersion" };
+      }
+      if (!t) {
+        return { displayTopic: normalizeTopicLike(tv), displayTopicSource: "topicVersion" };
+      }
+    }
+
+    if (t) {
+      return { displayTopic: normalizeTopicLike(t), displayTopicSource: "topic" };
+    }
+
+    if (tv) return { displayTopic: normalizeTopicLike(tv), displayTopicSource: "topicVersion" };
+
+    return { displayTopic: null, displayTopicSource: "none" };
+  }
+
+  const assignmentsWithDisplay = useMemo(() => {
+    return (assignments ?? []).map((a: any) => {
+      const picked = pickDisplayedTopicFromAssignment(a);
+      return {
+        ...a,
+        displayTopic: picked.displayTopic,
+        displayTopicSource: picked.displayTopicSource,
+      };
+    });
+  }, [assignments]);
+
+  // ---------- reviews modal handlers ----------
+  const openReviewsForSubmission = async (submissionToOpen?: number | string | null) => {
+    const target = submissionToOpen ?? sid ?? null;
+    if (!target) {
+      toast.error("Submission ID không hợp lệ để xem review");
+      return;
+    }
+    setReviewsModalSubmissionId(target);
     setShowReviewsModal(true);
-    try {
-      await refetchSummary?.();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Không thể tải review summary");
+
+    if (String(target) === String(sid)) {
+      try {
+        await refetchSummary?.();
+      } catch {
+        // ignore
+      }
     }
   };
-  const closeReviews = () => setShowReviewsModal(false);
+
+  const closeReviews = () => {
+    setShowReviewsModal(false);
+    setReviewsModalSubmissionId(null);
+  };
+
   const openPicker = () => (sid ? setIsPickerOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closePicker = () => setIsPickerOpen(false);
-  const openAssignments = () => (sid ? setIsAssignmentsOpen(true) : toast.error("Submission ID không hợp lệ"));
-  const closeAssignments = () => setIsAssignmentsOpen(false);
   const openSuggestions = () => (sid ? setIsSuggestionOpen(true) : toast.error("Submission ID không hợp lệ"));
   const closeSuggestions = () => setIsSuggestionOpen(false);
   const openFinalReview = () => (sid ? setIsFinalReviewOpen(true) : toast.error("Submission ID không hợp lệ"));
@@ -185,9 +279,9 @@ export default function SubmissionDetailPage() {
       } else {
         toast.success("Phân công reviewer thành công");
         if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
-        qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
-        qc.invalidateQueries({ queryKey: ["assignments", sid] });
-        qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+        qc.invalidateQueries({ queryKey: ["submission-review-summary", String(sid)] });
+        qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", String(sid)] });
+        qc.invalidateQueries({ queryKey: ["submission-detail", String(sid)] });
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? err?.message ?? "Phân công reviewer thất bại");
@@ -208,9 +302,9 @@ export default function SubmissionDetailPage() {
       onSuccess: () => {
         toast.success("Đã huỷ phân công reviewer");
         if (sid) {
-          qc.invalidateQueries({ queryKey: ["assignments", sid] });
-          qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
-          qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+          qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", String(sid)] });
+          qc.invalidateQueries({ queryKey: ["submission-detail", String(sid)] });
+          qc.invalidateQueries({ queryKey: ["submission-review-summary", String(sid)] });
         }
       },
       onError: (err: any) => {
@@ -232,67 +326,65 @@ export default function SubmissionDetailPage() {
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <div className="mt-6 grid gap-6 md:grid-cols-3">
-            {/* Left */}
             <div className="md:col-span-2 space-y-4 min-w-0">
-              {/* Topic info card */}
               <div className="bg-white border rounded-md p-4 w-full">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">Topic</div>
-                    <div className="text-xl font-bold mt-1 truncate">{topicDetail?.eN_Title ?? topicDetail?.vN_title ?? "—"}</div>
-                    <div className="text-sm text-slate-600 mt-2 line-clamp-3">{topicDetail?.description ?? "—"}</div>
+                    <div className="text-xl font-bold mt-1 truncate">{(displayedTopic as any)?.eN_Title ?? (displayedTopic as any)?.vN_title ?? "—"}</div>
+                    <div className="text-sm text-slate-600 mt-2 line-clamp-3">{(displayedTopic as any)?.description ?? "—"}</div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {(topicDetail?.tags ?? []).slice(0, 6).map((t: string, i: number) => (
+                      {(((displayedTopic as any)?.tags ?? []) as string[]).slice(0, 6).map((t: string, i: number) => (
                         <span key={i} className="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-[#ecfeff] text-[#0ea5a0] border" >
                           {t}
                         </span>
                       ))}
-                      {Array.isArray(topicDetail?.tags) && topicDetail.tags.length > 6 && (
-                        <span className="text-xs text-slate-500">+{topicDetail.tags.length - 6} more</span>
+                      {Array.isArray((displayedTopic as any)?.tags) && (displayedTopic as any).tags.length > 6 && (
+                        <span className="text-xs text-slate-500">+{(displayedTopic as any).tags.length - 6} more</span>
                       )}
                     </div>
 
-                    {(topicDetail?.keywords || topicDetail?.keywordsList) && (
+                    {(((displayedTopic as any)?.keywords ?? (displayedTopic as any)?.keywordsList) ?? "") && (
                       <div className="mt-3 text-xs text-slate-500">
                         <strong>Keywords:</strong>{" "}
-                        {(topicDetail.keywords ?? (topicDetail.keywordsList?.join?.(", ") ?? ""))}
+                        {(displayedTopic as any).keywords ?? ((displayedTopic as any).keywordsList?.join?.(", ") ?? "")}
                       </div>
                     )}
                   </div>
 
                   <div className="text-sm text-right min-w-[180px]">
                     <div className="mb-2">
-                      <div className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass(topicDetail?.latestSubmissionStatus ?? "")}`}>
-                        {topicDetail?.latestSubmissionStatus ?? "—"}
+                      <div className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusColorClass((topicDetail as any)?.latestSubmissionStatus ?? "")}`}>
+                        {(topicDetail as any)?.latestSubmissionStatus ?? "—"}
                       </div>
                     </div>
 
                     <div className="text-xs text-slate-500">Max students</div>
-                    <div className="font-medium mb-2">{topicDetail?.maxStudents ?? "—"}</div>
+                    <div className="font-medium mb-2">{(displayedTopic as any)?.maxStudents ?? "—"}</div>
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-700">
                   <div>
                     <div className="text-xs text-slate-500">Category</div>
-                    <div className="font-medium">{topicDetail?.categoryName ?? "—"}</div>
+                    <div className="font-medium">{(displayedTopic as any)?.categoryName ?? "—"}</div>
                   </div>
 
                   <div>
                     <div className="text-xs text-slate-500">Semester</div>
-                    <div className="font-medium">{topicDetail?.semesterName ?? "—"}</div>
+                    <div className="font-medium">{(displayedTopic as any)?.semesterName ?? "—"}</div>
                   </div>
 
                   <div>
                     <div className="text-xs text-slate-500">Supervisor</div>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-semibold text-sm">
-                        {(topicDetail?.supervisorName ?? "U").split(" ").map((p: string) => p[0]?.toUpperCase()).slice(0, 2).join("")}
+                        {(((displayedTopic as any)?.supervisorName ?? "U") as string).split(" ").map((p: string) => p[0]?.toUpperCase()).slice(0, 2).join("")}
                       </div>
                       <div>
-                        <div className="font-medium">{topicDetail?.supervisorName ?? "—"}</div>
-                        <div className="text-xs text-slate-500">{topicDetail?.supervisorEmail ?? ""}</div>
+                        <div className="font-medium">{(displayedTopic as any)?.supervisorName ?? "—"}</div>
+                        <div className="text-xs text-slate-500">{(displayedTopic as any)?.supervisorEmail ?? ""}</div>
                       </div>
                     </div>
                   </div>
@@ -300,8 +392,8 @@ export default function SubmissionDetailPage() {
                   <div>
                     <div className="text-xs text-slate-500">Document</div>
                     <div className="font-medium">
-                      {topicDetail?.documentUrl ? (
-                        <a href={topicDetail.documentUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">
+                      {(displayedTopic as any)?.documentUrl ? (
+                        <a href={(displayedTopic as any).documentUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">
                           Download document
                         </a>
                       ) : "—"}
@@ -313,30 +405,30 @@ export default function SubmissionDetailPage() {
               <AICheckSection submissionDetail={selectedSubmission} />
             </div>
 
-            {/* Right */}
             <aside className="space-y-4 min-w-0">
               <SidebarActions
-                assignments={assignments}
+                assignments={assignmentsWithDisplay}
                 loadingAssignments={loadingAssignments}
                 showReviews={!!showReviewsModal}
-                toggleShowReviews={() => (!showReviewsModal ? openReviews() : closeReviews())}
+                toggleShowReviews={() => (!showReviewsModal ? openReviewsForSubmission() : closeReviews())}
                 onOpenPicker={openPicker}
                 onOpenSuggestions={openSuggestions}
-                onOpenAssignments={openAssignments}
+                onOpenAssignments={() => {
+                  if (sid) qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", String(sid)] });
+                }}
                 onOpenFinalReview={openFinalReview}
                 submissionId={sid}
-                onRefreshTopicDetail={refreshTopicDetail}
                 onRemoveAssignment={handleRemoveAssignment}
                 reviewSummary={summary}
                 isAssignDisabled={isAssignDisabled}
                 isEscalated={isEscalated}
+                onOpenReviewForSubmission={(submissionToOpen) => openReviewsForSubmission(submissionToOpen)}
               />
             </aside>
           </div>
         </div>
       </div>
 
-      {/* dialogs */}
       {isPickerOpen && sid && (
         <ReviewerPickerDialog
           isOpen={isPickerOpen}
@@ -355,15 +447,12 @@ export default function SubmissionDetailPage() {
         <ReviewerSuggestionDialog submissionId={sid} open={isSuggestionOpen} onClose={closeSuggestions} />
       )}
 
-      {isAssignmentsOpen && sid && (
-        <SubmissionAssignmentsDialog isOpen={isAssignmentsOpen} submissionId={sid} onClose={closeAssignments} />
-      )}
-
       <ReviewsModal
         open={showReviewsModal}
         onClose={closeReviews}
-        summary={summary as SubmissionReviewSummaryDTO | undefined}
-        loading={loadingSummary}
+        submissionId={reviewsModalSubmissionId ?? undefined}
+        summary={String(reviewsModalSubmissionId ?? "") === String(sid ?? "") ? (summary as SubmissionReviewSummaryDTO | undefined) : undefined}
+        loading={String(reviewsModalSubmissionId ?? "") === String(sid ?? "") ? loadingSummary : undefined}
         onOpenRefetch={async () => {
           try {
             await refetchSummary?.();
