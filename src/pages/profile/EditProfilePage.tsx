@@ -159,8 +159,8 @@ export default function EditProfilePage() {
       let coverFinal =
         (formData.coverUrl || "").trim() || data.coverImage || "";
 
-      if (avatarFile) avatarFinal = await uploadFileToUrl(avatarFile, "image");
-      if (coverFile) coverFinal = await uploadFileToUrl(coverFile, "image");
+      if (avatarFile) avatarFinal = await uploadFileToUrl(avatarFile);
+      if (coverFile) coverFinal = await uploadFileToUrl(coverFile);
 
       avatarFinal = toRelativeIfMatches(avatarFinal);
       coverFinal = toRelativeIfMatches(coverFinal);

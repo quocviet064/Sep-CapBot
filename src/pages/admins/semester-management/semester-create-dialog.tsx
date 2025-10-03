@@ -8,7 +8,14 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/globals/atoms/dialog";
-import { CalendarRange, Loader2, Save, X } from "lucide-react";
+import {
+  CalendarRange,
+  Loader2,
+  Save,
+  X,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useCreateSemester } from "@/hooks/useSemester";
 import type { CreateSemesterDTO } from "@/services/semesterService";
@@ -32,6 +39,20 @@ function FieldTextarea(
 ) {
   return (
     <textarea
+      {...props}
+      className={[
+        "w-full rounded-xl border px-3.5 py-2.5 text-sm",
+        "border-neutral-200 bg-white shadow-inner outline-none",
+        "focus:border-indigo-400 focus:ring-4 focus:ring-indigo-200/60",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
+
+function FieldSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
       {...props}
       className={[
         "w-full rounded-xl border px-3.5 py-2.5 text-sm",
@@ -67,10 +88,16 @@ interface SemesterCreateDialogProps {
   onClose: () => void;
 }
 
+type TermType = "Summer" | "Fall" | "Spring";
+
 export default function SemesterCreateDialog({
   isOpen,
   onClose,
 }: SemesterCreateDialogProps) {
+  const currentYear = String(new Date().getFullYear());
+  const [term, setTerm] = useState<TermType>("Summer");
+  const [year, setYear] = useState<string>(currentYear);
+
   const [form, setForm] = useState<CreateSemesterDTO>({
     name: "",
     startDate: "",
@@ -84,21 +111,27 @@ export default function SemesterCreateDialog({
     isSuccess,
   } = useCreateSemester();
 
+  useEffect(() => {
+    setForm((p) => ({ ...p, name: `${term} ${year}`.trim() }));
+  }, [term, year]);
+
   const canSave = useMemo(() => {
-    return (
-      !!form.name.trim() &&
+    const nameOk = /^\w+\s\d{4}$/.test(form.name.trim());
+    const datesOk =
       !!form.startDate &&
       !!form.endDate &&
-      !!form.description.trim() &&
-      new Date(form.startDate) <= new Date(form.endDate)
-    );
+      new Date(form.startDate) <= new Date(form.endDate);
+    const descOk = !!form.description.trim();
+    return nameOk && datesOk && descOk;
   }, [form]);
 
   useEffect(() => {
     if (!isOpen) {
+      setTerm("Summer");
+      setYear(currentYear);
       setForm({ name: "", startDate: "", endDate: "", description: "" });
     }
-  }, [isOpen]);
+  }, [isOpen, currentYear]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -106,6 +139,18 @@ export default function SemesterCreateDialog({
       onClose();
     }
   }, [isSuccess, onClose]);
+
+  const incYear = () => {
+    const y = parseInt(year || currentYear, 10);
+    const next = isNaN(y) ? parseInt(currentYear, 10) + 1 : y + 1;
+    setYear(String(Math.min(9999, next)));
+  };
+
+  const decYear = () => {
+    const y = parseInt(year || currentYear, 10);
+    const next = isNaN(y) ? parseInt(currentYear, 10) - 1 : y - 1;
+    setYear(String(Math.max(0, next)));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -139,15 +184,60 @@ export default function SemesterCreateDialog({
         <div className="space-y-5 bg-neutral-50 px-6 py-6">
           <div className="rounded-2xl border border-neutral-200/70 bg-white/80 px-5 py-4 shadow-sm ring-1 ring-black/5 backdrop-blur">
             <Row label="Tên học kỳ">
-              <FieldInput
-                value={form.name}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, name: e.target.value }))
-                }
-                placeholder="VD: Học kỳ 1/2025"
-                maxLength={200}
-              />
+              <div className="flex flex-nowrap items-center gap-3 whitespace-nowrap">
+                <FieldSelect
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value as TermType)}
+                  className="w-[160px]"
+                >
+                  <option value="Summer">Summer</option>
+                  <option value="Fall">Fall</option>
+                  <option value="Spring">Spring</option>
+                </FieldSelect>
+
+                <div className="relative w-[140px]">
+                  <FieldInput
+                    inputMode="numeric"
+                    value={year}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D+/g, "").slice(0, 4);
+                      setYear(v);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        incYear();
+                      }
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        decYear();
+                      }
+                    }}
+                    placeholder="YYYY"
+                    className="pr-8 text-center"
+                  />
+                  <div className="pointer-events-auto absolute inset-y-0 right-1 flex w-6 flex-col items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      onClick={incYear}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-neutral-100 active:scale-95"
+                      aria-label="Tăng năm"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={decYear}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-neutral-100 active:scale-95"
+                      aria-label="Giảm năm"
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </Row>
+
             <div className="border-t" />
             <Row label="Xu hướng">
               <FieldTextarea

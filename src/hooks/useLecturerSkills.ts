@@ -7,39 +7,50 @@ import {
   fetchMyLecturerSkills,
   getLecturerSkill,
   deleteLecturerSkill,
+  bulkUpdateLecturerSkills,
   type LecturerSkill,
   type CreateLecturerSkillPayload,
   type UpdateLecturerSkillPayload,
   type LecturerSkillListResponse,
+  type BulkUpdateResult,
 } from "@/services/lecturerSkillService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
-// Lấy userId từ token giống MyProfile (nameid | sub | id)
-function useCurrentUserId() {
-  const { user } = useAuth();
-  return useMemo<number | undefined>(() => {
-    const u = user as any;
-    const raw = u?.nameid ?? u?.sub ?? u?.id ?? u?.userid ?? undefined;
-    const n = typeof raw === "string" ? Number(raw) : raw;
-    return Number.isFinite(n) ? (n as number) : undefined;
-  }, [user]);
+function pickNumericIdFromUser(u: unknown): number | undefined {
+  if (!u || typeof u !== "object") return undefined;
+  const obj = u as Record<string, unknown>;
+  const keys = ["nameid", "sub", "id", "userid"] as const;
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return undefined;
 }
 
-// Tạo (tự điền lecturerId từ token nếu không truyền)
+function useCurrentUserId() {
+  const { user } = useAuth();
+  return useMemo<number | undefined>(() => pickNumericIdFromUser(user), [user]);
+}
+
 export const useCreateLecturerSkill = () => {
   const qc = useQueryClient();
   const currentUserId = useCurrentUserId();
 
   return useMutation<LecturerSkill, Error, CreateLecturerSkillPayload>({
     mutationFn: (payload) => {
+      const lecturerId = payload.lecturerId ?? currentUserId;
+      if (!lecturerId)
+        throw new Error("Không xác định được lecturerId từ token.");
       const finalPayload: CreateLecturerSkillPayload = {
-        lecturerId: payload.lecturerId ?? currentUserId,
+        lecturerId,
         skillTag: payload.skillTag,
         proficiencyLevel: payload.proficiencyLevel,
       };
-      if (!finalPayload.lecturerId) {
-        throw new Error("Không xác định được lecturerId từ token.");
-      }
       return createLecturerSkill(finalPayload);
     },
     onSuccess: () => {
@@ -72,7 +83,6 @@ export const useDeleteLecturerSkill = () => {
   });
 };
 
-// Danh sách theo lecturerId cụ thể
 export const useLecturerSkills = (
   lecturerId: number | undefined,
   pageNumber: number,
@@ -88,7 +98,6 @@ export const useLecturerSkills = (
   });
 };
 
-// Danh sách của chính mình (/me)
 export const useMyLecturerSkills = (
   pageNumber: number,
   pageSize: number,
@@ -107,5 +116,43 @@ export const useLecturerSkillDetail = (id?: number) => {
     queryFn: () => getLecturerSkill(id as number),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useBulkUpdateLecturerSkills = () => {
+  const qc = useQueryClient();
+  return useMutation<BulkUpdateResult, Error, UpdateLecturerSkillPayload[]>({
+    mutationFn: (items) => bulkUpdateLecturerSkills(items),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["my-lecturer-skills"] });
+      qc.invalidateQueries({ queryKey: ["lecturer-skills"] });
+      if (res.ok.length) toast.success(`Đã cập nhật ${res.ok.length} kỹ năng`);
+      if (res.failed.length) {
+        const dup = res.failed.filter((f) => f.status === 409);
+        const notFound = res.failed.filter((f) => f.status === 404);
+        const others = res.failed.filter(
+          (f) => f.status !== 409 && f.status !== 404,
+        );
+        if (dup.length) {
+          toast.warning(
+            `Bị trùng (${dup.length}) kỹ năng: ${dup.map((f) => f.item.skillTag).join(", ")}`,
+          );
+        }
+        if (notFound.length) {
+          toast.warning(
+            `Không tìm thấy (${notFound.length}) kỹ năng: ${notFound
+              .map((f) => f.item.skillTag)
+              .join(", ")}`,
+          );
+        }
+        if (others.length) {
+          toast.error(
+            `Lỗi cập nhật (${others.length}) kỹ năng: ${others
+              .map((f) => f.item.skillTag)
+              .join(", ")}`,
+          );
+        }
+      }
+    },
   });
 };
