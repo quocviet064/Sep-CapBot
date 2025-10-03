@@ -256,7 +256,7 @@ export const createMyUnsubmittedTopicColumns = (
       <DataTableColumnHeader column={column} title="Trạng thái nộp" center />
     ),
     cell: ({ row }) => {
-      const topic = row.original; // TopicListItem
+      const topic = row.original;
       const latestStatusLc = normalizeStatus(topic.latestSubmissionStatus);
 
       let label: string = "Chưa nộp";
@@ -264,7 +264,7 @@ export const createMyUnsubmittedTopicColumns = (
 
       if (topic.hasSubmitted === true) {
         if (latestStatusLc === "revisionrequired") {
-          label = "Cần sửa";
+          label = "Yêu cầu chỉnh sửa";
           badgeClass = "bg-amber-500 text-white";
         } else {
           label = "Đã nộp";

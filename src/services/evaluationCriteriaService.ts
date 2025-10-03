@@ -38,6 +38,7 @@ export interface EvaluationCriteriaDTO {
   isActive: boolean;
   semesterId?: number;
 }
+
 type ApiResponse<T> = {
   statusCode: string | number;
   success: boolean;
@@ -158,6 +159,7 @@ export async function updateCriteria(
     throw new Error(getAxiosMessage(e, "Cập nhật tiêu chí thất bại"));
   }
 }
+
 export async function getCriteriaDetail(
   id: number,
 ): Promise<EvaluationCriteriaDTO> {
@@ -169,15 +171,38 @@ export async function getCriteriaDetail(
   return res.data.data;
 }
 
-export async function getCriteriaForCurrentSemester(): Promise<EvaluationCriteriaDTO[]> {
+export async function getCriteriaForCurrentSemester(): Promise<
+  EvaluationCriteriaDTO[]
+> {
   try {
     const res = await capBotAPI.get<ApiEnvelope<EvaluationCriteriaDTO[]>>(
       "/evaluation-criteria/current-semester",
     );
     if (!res.data?.success)
-      throw new Error(res.data?.message || "Không lấy được tiêu chí của học kỳ hiện tại");
+      throw new Error(
+        res.data?.message || "Không lấy được tiêu chí của học kỳ hiện tại",
+      );
     return res.data.data ?? [];
   } catch (e) {
-    throw new Error(getAxiosMessage(e, "Không lấy được tiêu chí của học kỳ hiện tại"));
+    throw new Error(
+      getAxiosMessage(e, "Không lấy được tiêu chí của học kỳ hiện tại"),
+    );
+  }
+}
+
+export async function getCriteriaBySemester(
+  semesterId: number,
+): Promise<EvaluationCriteriaDTO[]> {
+  try {
+    const res = await capBotAPI.get<ApiEnvelope<EvaluationCriteriaDTO[]>>(
+      `/evaluation-criteria/by-semester/${semesterId}`,
+    );
+    if (!res.data?.success)
+      throw new Error(
+        res.data?.message || "Không lấy được tiêu chí của học kỳ",
+      );
+    return res.data.data ?? [];
+  } catch (e) {
+    throw new Error(getAxiosMessage(e, "Không lấy được tiêu chí của học kỳ"));
   }
 }

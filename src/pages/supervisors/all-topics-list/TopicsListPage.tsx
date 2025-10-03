@@ -8,7 +8,7 @@ import LoadingPage from "@/pages/loading-page";
 
 import { fetchAllTopics, type TopicListItem } from "@/services/topicService";
 import { createTopicListColumns } from "./ColumnsTopicList";
-import TopicAnalysis from "../TopicAnalysis";
+import TopicFiltersAllTopics, { SimpleOption } from "./TopicFiltersAllTopics";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -18,7 +18,7 @@ const DEFAULT_VISIBILITY = {
   supervisorName: true,
   categoryName: true,
   semesterName: true,
-  description: true,
+  description: false,
   problem: false,
   context: false,
   content: true,
@@ -27,33 +27,35 @@ const DEFAULT_VISIBILITY = {
   currentVersionStatus: true,
   latestSubmissionStatus: true,
   latestSubmittedAt: true,
-  currentVersionNumber: false,
+  currentVersionNumber: true,
   isApproved: true,
   isLegacy: false,
   createdAt: false,
+  createdBy: true,
 };
 
 const isSubmissionApproved = (t: TopicListItem) =>
   (t.latestSubmissionStatus ?? "").toString().toLowerCase() === "approved";
 
-export default function TopicsListApprovedPage() {
-  const [semesterId] = useState<number | undefined>(undefined);
-  const [categoryId] = useState<number | undefined>(undefined);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+type TopicWithCreator = TopicListItem & {
+  createdByName?: string | null;
+  createdBy?: string | null;
+  supervisorName?: string | null;
+};
 
+const creatorNameOf = (t: TopicWithCreator) =>
+  (t.createdByName ?? t.createdBy ?? t.supervisorName ?? "").toString();
+
+export default function TopicsListApprovedPage() {
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
-
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [approvedList, setApprovedList] = useState<TopicListItem[]>([]);
-
-  const [stats, setStats] = useState({
-    approved: 0,
-    pending: 0,
-    rejecting: 0,
-    total: 0,
-  });
+  const [semesterId, setSemesterId] = useState<number | undefined>(undefined);
+  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [creatorId, setCreatorId] = useState<number | undefined>(undefined);
 
   const navigate = useNavigate();
   const columns = useMemo(
@@ -71,21 +73,18 @@ export default function TopicsListApprovedPage() {
       try {
         setLoading(true);
         setLoadErr(null);
-
         const first = await fetchAllTopics(
-          semesterId,
-          categoryId,
+          undefined,
+          undefined,
           1,
           100,
           searchTerm.trim() ? searchTerm.trim() : undefined,
         );
-
         const all: TopicListItem[] = [...(first.listObjects ?? [])];
-
         for (let p = 2; p <= (first.totalPages ?? 1); p++) {
           const res = await fetchAllTopics(
-            semesterId,
-            categoryId,
+            undefined,
+            undefined,
             p,
             100,
             searchTerm.trim() ? searchTerm.trim() : undefined,
@@ -94,20 +93,7 @@ export default function TopicsListApprovedPage() {
             all.push(...res.listObjects);
           }
         }
-
         if (!mounted) return;
-
-        const submitted = all.filter((t) => t.hasSubmitted === true);
-        const approved = submitted.filter(isSubmissionApproved).length;
-        const rejecting = submitted.filter((t) =>
-          (t.latestSubmissionStatus ?? "")
-            .toString()
-            .toLowerCase()
-            .includes("reject"),
-        ).length;
-        const pending = submitted.length - approved - rejecting;
-        setStats({ approved, pending, rejecting, total: submitted.length });
-
         setApprovedList(all.filter(isSubmissionApproved));
         setPageNumber(1);
       } catch (e) {
@@ -121,17 +107,82 @@ export default function TopicsListApprovedPage() {
     return () => {
       mounted = false;
     };
-  }, [semesterId, categoryId, searchTerm]);
+  }, [searchTerm]);
+
+  const semesterOptions: SimpleOption[] = useMemo(() => {
+    const names = Array.from(
+      new Set((approvedList || []).map((t) => t.semesterName).filter(Boolean)),
+    );
+    return names.map((name, idx) => ({ id: idx + 1, name: name as string }));
+  }, [approvedList]);
+
+  const categoryOptions: SimpleOption[] = useMemo(() => {
+    const names = Array.from(
+      new Set((approvedList || []).map((t) => t.categoryName).filter(Boolean)),
+    );
+    return names.map((name, idx) => ({ id: idx + 1, name: name as string }));
+  }, [approvedList]);
+
+  const creatorOptions: SimpleOption[] = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        (approvedList || [])
+          .map((t) => creatorNameOf(t as TopicWithCreator))
+          .filter((x) => typeof x === "string" && x.trim().length > 0),
+      ),
+    );
+    return names.map((name, idx) => ({ id: idx + 1, name }));
+  }, [approvedList]);
+
+  const selectedSemesterName = useMemo(() => {
+    if (semesterId == null) return undefined;
+    return semesterOptions.find((o) => o.id === semesterId)?.name;
+  }, [semesterId, semesterOptions]);
+
+  const selectedCategoryName = useMemo(() => {
+    if (categoryId == null) return undefined;
+    return categoryOptions.find((o) => o.id === categoryId)?.name;
+  }, [categoryId, categoryOptions]);
+
+  const selectedCreatorName = useMemo(() => {
+    if (creatorId == null) return undefined;
+    return creatorOptions.find((o) => o.id === creatorId)?.name;
+  }, [creatorId, creatorOptions]);
+
+  const filteredList = useMemo(() => {
+    let list = approvedList.slice();
+    if (selectedSemesterName) {
+      list = list.filter((t) => t.semesterName === selectedSemesterName);
+    }
+    if (selectedCategoryName) {
+      list = list.filter((t) => t.categoryName === selectedCategoryName);
+    }
+    if (selectedCreatorName) {
+      list = list.filter(
+        (t) => creatorNameOf(t as TopicWithCreator) === selectedCreatorName,
+      );
+    }
+    return list;
+  }, [
+    approvedList,
+    selectedSemesterName,
+    selectedCategoryName,
+    selectedCreatorName,
+  ]);
+
+  useEffect(() => {
+    setPageNumber(1);
+  }, [pageSize, searchTerm, semesterId, categoryId, creatorId]);
 
   const totalPagesLocal = Math.max(
     1,
-    Math.ceil(approvedList.length / pageSize),
+    Math.ceil(filteredList.length / pageSize),
   );
   const currentPageData = useMemo(() => {
     const start = (pageNumber - 1) * pageSize;
     const end = start + pageSize;
-    return approvedList.slice(start, end);
-  }, [approvedList, pageNumber, pageSize]);
+    return filteredList.slice(start, end);
+  }, [filteredList, pageNumber, pageSize]);
 
   if (loading) return <LoadingPage />;
   if (loadErr)
@@ -160,7 +211,7 @@ export default function TopicsListApprovedPage() {
               Danh sách chủ đề trong hệ thống
             </span>
           </h2>
-          <p className="text-sm text-slate-500">Tất cả đề tài</p>
+          <p className="text-sm text-slate-500">Tất cả đề tài đã duyệt</p>
         </div>
       </div>
 
@@ -192,7 +243,18 @@ export default function TopicsListApprovedPage() {
           </div>
         </div>
 
-        <TopicAnalysis data={stats} onFilterClick={() => {}} />
+        <TopicFiltersAllTopics
+          total={approvedList.length}
+          semesters={semesterOptions}
+          categories={categoryOptions}
+          creators={creatorOptions}
+          selectedSemesterId={semesterId}
+          selectedCategoryId={categoryId}
+          selectedCreatorId={creatorId}
+          onSelectSemester={(id) => setSemesterId(id)}
+          onSelectCategory={(id) => setCategoryId(id)}
+          onSelectCreator={(id) => setCreatorId(id)}
+        />
 
         <div className="mt-6">
           <DataTable

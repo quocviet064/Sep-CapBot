@@ -1,4 +1,3 @@
-// AllSubmittedTopicPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/globals/atoms/data-table";
@@ -20,7 +19,7 @@ const DEFAULT_VISIBILITY = {
   supervisorName: true,
   categoryName: true,
   semesterName: true,
-  description: true,
+  description: false,
   problem: false,
   context: false,
   content: true,
@@ -29,7 +28,7 @@ const DEFAULT_VISIBILITY = {
   currentVersionStatus: true,
   latestSubmissionStatus: true,
   latestSubmittedAt: true,
-  currentVersionNumber: false,
+  currentVersionNumber: true,
   isApproved: true,
   isLegacy: false,
   createdAt: false,

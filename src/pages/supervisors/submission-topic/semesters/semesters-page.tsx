@@ -17,6 +17,19 @@ function SemestersPage() {
       </div>
     );
 
+  const now = new Date();
+
+  const filtered = semesterData
+    ?.filter((s) => {
+      const end = new Date(s.endDate);
+      return end >= now;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    )
+    .slice(0, 4);
+
   return (
     <div className="relative space-y-6">
       <div className="pointer-events-none absolute inset-0 -z-10">
@@ -60,12 +73,12 @@ function SemestersPage() {
           </div>
         </div>
 
-        {semesterData?.length === 0 ? (
+        {!filtered || filtered.length === 0 ? (
           <div className="grid min-h-[420px] place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70">
             <div className="text-center">
               <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-slate-200" />
               <p className="text-base font-medium text-slate-700">
-                Không có học kỳ nào được tìm thấy
+                Không có học kỳ nào khả dụng
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 Vui lòng kiểm tra lại cấu hình học kỳ
@@ -77,12 +90,8 @@ function SemestersPage() {
             layout
             className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           >
-            {semesterData?.map((semester) => (
-              <SemestersCard
-                key={semester.id}
-                id={semester.id}
-                name={semester.name}
-              />
+            {filtered.map((semester) => (
+              <SemestersCard key={semester.id} {...semester} />
             ))}
           </motion.div>
         )}

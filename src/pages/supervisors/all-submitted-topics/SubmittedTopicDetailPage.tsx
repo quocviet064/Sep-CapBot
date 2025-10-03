@@ -194,21 +194,6 @@ function TopicDetailPage({
               </InfoBlock>
               <InfoBlock label="Danh mục">{data.categoryName}</InfoBlock>
               <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
-
-              <InfoBlock label="Trạng thái duyệt">
-                {data.isApproved ? (
-                  <Badge className="bg-green-600 text-white">Đã duyệt</Badge>
-                ) : (
-                  <Badge className="bg-orange-500 text-white">Chưa duyệt</Badge>
-                )}
-              </InfoBlock>
-              <InfoBlock label="Legacy">
-                {data.isLegacy ? (
-                  <Badge className="bg-green-600 text-white">Có</Badge>
-                ) : (
-                  <Badge className="bg-red-600 text-white">Không</Badge>
-                )}
-              </InfoBlock>
             </div>
           </SectionCard>
 
@@ -313,9 +298,7 @@ function TopicDetailPage({
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Người Nộp</span>
-                <span className="font-medium">
-                  {data.lastModifiedBy || "—"}
-                </span>
+                <span className="font-medium">{data.createdBy || "—"}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Thời gian nộp</span>

@@ -292,13 +292,6 @@ export default function MyTopicDetailPage() {
               <InfoBlock label="SV tối đa">
                 {String(data.maxStudents)}
               </InfoBlock>
-              <InfoBlock label="Trạng thái duyệt">
-                {data.isApproved ? (
-                  <Badge className="bg-green-600 text-white">Đã duyệt</Badge>
-                ) : (
-                  <Badge className="bg-orange-500 text-white">Chưa duyệt</Badge>
-                )}
-              </InfoBlock>
             </div>
           </SectionCard>
 
