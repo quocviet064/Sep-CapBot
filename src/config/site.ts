@@ -1,5 +1,4 @@
 import {
-  AlignEndHorizontal,
   BarChart3,
   Bot,
   CalendarDays,
@@ -13,6 +12,11 @@ import {
 } from "lucide-react";
 
 export const siteSupervisor = [
+  {
+    title: "Dashboard",
+    url: "/supervisors/dashboard",
+    icon: Bot,
+  },
   {
     title: "Quản lý đề tài",
     url: "#",
@@ -33,13 +37,13 @@ export const siteSupervisor = [
       },
     ],
   },
+  // {
+  //   title: "Tạo đề tài mới",
+  //   url: "/supervisors/topics/create-new",
+  //   icon: Bot,
+  // },
   {
-    title: "Tạo đề tài mới",
-    url: "/supervisors/topics/create-new",
-    icon: Bot,
-  },
-  {
-    title: "Gợi ý AI",
+    title: "Tạo đề tài và gợi ý AI",
     url: "/supervisors/topics/ai-agent",
     icon: Bot,
   },
@@ -49,15 +53,15 @@ export const siteSupervisor = [
     icon: Bot,
   },
   {
-    title: "Kì học",
+    title: "Thông tin học kỳ và tiêu chí",
     url: "/supervisors/semester",
     icon: CalendarSearch,
   },
-  {
-    title: "Danh mục đề tài",
-    url: "/supervisors/category",
-    icon: AlignEndHorizontal,
-  },
+  // {
+  //   title: "Danh mục đề tài",
+  //   url: "/supervisors/category",
+  //   icon: AlignEndHorizontal,
+  // },
 ];
 
 export const siteAdmin = [

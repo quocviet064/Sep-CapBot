@@ -243,6 +243,32 @@ export const createTopicListColumns = (
     maxSize: 420,
   },
   {
+    accessorKey: "currentVersionNumber",
+    meta: { title: "Phiên bản" },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Phiên bản" center />
+    ),
+    cell: ({ row }) => {
+      const num = row.original.currentVersionNumber;
+      return (
+        <div className="flex justify-center pr-4">
+          {num == null ? (
+            <Badge className="bg-slate-500 whitespace-nowrap text-white">
+              Bản gốc
+            </Badge>
+          ) : (
+            <Badge className="bg-indigo-600 whitespace-nowrap text-white">
+              Phiên bản mới
+            </Badge>
+          )}
+        </div>
+      );
+    },
+    size: 140,
+    maxSize: 160,
+  },
+
+  {
     accessorKey: "maxStudents",
     meta: { title: "SV tối đa" },
     header: ({ column }) => (
@@ -293,15 +319,15 @@ export const createTopicListColumns = (
     maxSize: 170,
   },
   {
-    accessorKey: "currentVersionNumber",
-    meta: { title: "Version" },
+    accessorKey: "supervisorName",
+    meta: { title: "Người nộp" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Version" center />
+      <DataTableColumnHeader column={column} title="Người nộp" center />
     ),
     cell: ({ row }) => (
       <div className="flex justify-center pr-4">
         <OneLine width="max-w-[80px]">
-          {row.original.currentVersionNumber ?? "-"}
+          {row.original.supervisorName ?? "-"}
         </OneLine>
       </div>
     ),

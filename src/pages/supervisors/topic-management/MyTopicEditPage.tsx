@@ -28,7 +28,6 @@ import { normalizeAssetUrl } from "@/utils/assetUrl";
 import { uploadFileReturnId } from "@/services/fileService";
 import {
   checkDuplicateAdvanced,
-  type AdvancedDuplicateResponse,
   type AdvancedDuplicatePayload,
 } from "@/services/aiDuplicateAdvancedService";
 import { formatDateTime } from "@/utils/formatter";
@@ -376,11 +375,12 @@ export default function MyTopicEditPage() {
         ),
       ) as AdvancedDuplicatePayload;
 
-      const payload: AdvancedDuplicatePayload & { fileId?: number } =
-        uploadedFileId ? { ...body, fileId: uploadedFileId } : body;
+      const payload: AdvancedDuplicatePayload =
+        typeof uploadedFileId === "number"
+          ? { ...body, fileId: uploadedFileId }
+          : body;
 
-      const result: AdvancedDuplicateResponse =
-        await checkDuplicateAdvanced(payload);
+      const result = await checkDuplicateAdvanced(payload);
 
       toast.success("Hoàn tất kiểm tra", { id: tId });
 

@@ -133,7 +133,9 @@ export default function CreateTopicNewPage() {
   useEffect(() => {
     try {
       sessionStorage.removeItem(DRAFT_KEY);
-    } catch {}
+    } catch {
+      //aa
+    }
   }, []);
 
   const [catQuery, setCatQuery] = useState("");
@@ -172,7 +174,9 @@ export default function CreateTopicNewPage() {
   useEffect(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify(form));
-    } catch {}
+    } catch {
+      //aa
+    }
   }, [form]);
 
   useEffect(() => {
@@ -319,7 +323,9 @@ export default function CreateTopicNewPage() {
   const clearDraft = () => {
     try {
       sessionStorage.removeItem(DRAFT_KEY);
-    } catch {}
+    } catch {
+      //aa
+    }
   };
 
   const resetForm = () => {

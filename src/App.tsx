@@ -17,6 +17,7 @@ import TopicVersionCreateBackPage from "./pages/supervisors/topic-version/TopicV
 import TopicCreateConfirmPage from "./pages/supervisors/topic-version/TopicVersionCreateConfirmPage";
 import WelcomeCreateTopicPage from "./pages/supervisors/WelcomeCreateTopicPage";
 import AISuggestPage from "./pages/supervisors/AISuggestPage";
+import MyTopicsDashboard from "./pages/supervisors/my-topics-dashboard";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -240,6 +241,10 @@ function App() {
           <Route
             path="/supervisors/topics/create-version-confirm"
             element={<TopicCreateConfirmPage />}
+          />
+          <Route
+            path="/supervisors/dashboard"
+            element={<MyTopicsDashboard />}
           />
           <Route
             path="/submitted/topics/:id"

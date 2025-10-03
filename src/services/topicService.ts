@@ -80,6 +80,7 @@ export interface TopicListItem {
   supervisorName: string;
   categoryName: string;
   semesterName: string;
+  createdBy: string;
   maxStudents: number;
   latestSubmissionStatus: SubmissionStatus | null;
   isApproved: boolean;

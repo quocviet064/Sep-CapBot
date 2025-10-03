@@ -114,7 +114,7 @@ export async function checkDuplicateAdvanced(
 }
 
 export type TopicSuggestionsV2Params = {
-  semester_id: number; // required
+  semester_id: number;
   category_preference?: string;
   keywords?: string[];
   supervisor_expertise?: string[];
@@ -152,7 +152,7 @@ export type TopicSuggestionsV2Response = {
 export async function getTopicSuggestionsV2(
   params: TopicSuggestionsV2Params,
 ): Promise<TopicSuggestionsV2Response> {
-  const entries = Object.entries(params).filter(([_, v]) => {
+  const entries = Object.entries(params).filter(([, v]) => {
     if (v == null) return false;
     if (Array.isArray(v)) return v.length > 0;
     return true;
