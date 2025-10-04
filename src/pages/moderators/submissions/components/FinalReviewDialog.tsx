@@ -24,12 +24,12 @@ export default function FinalReviewDialog({
   onClose,
   submissionId,
   onSuccess,
-}: Props) {
+}: Readonly<Props>) {
   const [decision, setDecision] = useState<Decision>("");
   const [notes, setNotes] = useState<string>("");
   const [revisionDeadline, setRevisionDeadline] = useState<string>(""); // yyyy-mm-dd
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // derived score from decision
   const scoreFor = (d: Decision) => {
     if (d === "approve") return 10;
     if (d === "revision") return 5;
@@ -42,27 +42,30 @@ export default function FinalReviewDialog({
       setDecision("");
       setNotes("");
       setRevisionDeadline("");
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
-  const mut = useMutation({
-    mutationFn: async (payload: any) =>
-      moderatorFinalReview(payload as any),
+  const mutation = useMutation({
+    mutationFn: async (payload: unknown) => moderatorFinalReview(payload as any),
     onSuccess: () => {
       toast.success("Đã lưu quyết định của Moderator");
       onClose();
       onSuccess?.();
     },
     onError: (err: any) => {
-      const msg = (err?.response?.data?.message as string) ?? (err?.message as string) ?? "Lỗi khi gửi quyết định";
+      const msg =
+        (err?.response?.data?.message as string) ??
+        (err?.message as string) ??
+        "Lỗi khi gửi quyết định";
       toast.error(msg);
     },
   });
 
   function mapDecisionToNumber(d: Decision): 1 | 2 | 4 {
-    if (d === "approve") return 1; // approve
-    if (d === "revision") return 2; // minor/major combined -> use 2
-    return 4; // reject
+    if (d === "approve") return 1;
+    if (d === "revision") return 2; 
+    return 4;
   }
 
   const handleSubmit = async () => {
@@ -98,7 +101,14 @@ export default function FinalReviewDialog({
       }
     }
 
-    mut.mutate(payload);
+    setIsSubmitting(true);
+    try {
+      await mutation.mutateAsync(payload);
+    } catch {
+      // error handled in onError
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -107,7 +117,7 @@ export default function FinalReviewDialog({
     <Dialog
       open={isOpen}
       onOpenChange={() => {
-        if (!mut.isLoading) onClose();
+        if (!isSubmitting) onClose();
       }}
     >
       <DialogContent className="max-w-lg">
@@ -117,66 +127,81 @@ export default function FinalReviewDialog({
 
         <div className="space-y-4 px-4 pb-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Kết luận</label>
-            <div className="flex flex-col gap-2">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="final-decision"
-                  value="approve"
-                  checked={decision === "approve"}
-                  onChange={() => setDecision("approve")}
-                />
-                <span className="ml-1">Approve (Duyệt)</span>
-              </label>
+            <fieldset>
+              <legend className="block text-sm font-medium mb-2">Kết luận</legend>
 
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="final-decision"
-                  value="revision"
-                  checked={decision === "revision"}
-                  onChange={() => setDecision("revision")}
-                />
-                <span className="ml-1">Revision (Sửa — minor/major gộp)</span>
-              </label>
+              <div className="flex flex-col gap-2" role="radiogroup" aria-label="Kết luận">
+                <label htmlFor="final-decision-approve" className="inline-flex items-center gap-2">
+                  <input
+                    id="final-decision-approve"
+                    type="radio"
+                    name="final-decision"
+                    value="approve"
+                    checked={decision === "approve"}
+                    onChange={() => setDecision("approve")}
+                    disabled={isSubmitting}
+                  />
+                  <span className="ml-1">Approve (Duyệt)</span>
+                </label>
 
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="final-decision"
-                  value="reject"
-                  checked={decision === "reject"}
-                  onChange={() => setDecision("reject")}
-                />
-                <span className="ml-1">Reject (Từ chối)</span>
-              </label>
-            </div>
+                <label htmlFor="final-decision-revision" className="inline-flex items-center gap-2">
+                  <input
+                    id="final-decision-revision"
+                    type="radio"
+                    name="final-decision"
+                    value="revision"
+                    checked={decision === "revision"}
+                    onChange={() => setDecision("revision")}
+                    disabled={isSubmitting}
+                  />
+                  <span className="ml-1">Revision (Sửa — minor/major gộp)</span>
+                </label>
+
+                <label htmlFor="final-decision-reject" className="inline-flex items-center gap-2">
+                  <input
+                    id="final-decision-reject"
+                    type="radio"
+                    name="final-decision"
+                    value="reject"
+                    checked={decision === "reject"}
+                    onChange={() => setDecision("reject")}
+                    disabled={isSubmitting}
+                  />
+                  <span className="ml-1">Reject (Từ chối)</span>
+                </label>
+              </div>
+            </fieldset>
           </div>
 
           {decision === "revision" && (
             <div>
-              <label className="block text-sm font-medium mb-1">Revision deadline (bắt buộc)</label>
+              <label htmlFor="revision-deadline" className="block text-sm font-medium mb-1">
+                Revision deadline (bắt buộc)
+              </label>
               <input
+                id="revision-deadline"
                 type="date"
                 value={revisionDeadline}
                 onChange={(e) => setRevisionDeadline(e.target.value)}
                 className="w-full border rounded px-2 py-1 text-sm"
+                disabled={isSubmitting}
               />
-              <div className="text-xs text-slate-500 mt-1">
-                Chọn deadline để người nộp sửa bài.
-              </div>
+              <div className="text-xs text-slate-500 mt-1">Chọn deadline để người nộp sửa bài.</div>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Ghi chú của Moderator (tuỳ chọn)</label>
+            <label htmlFor="moderator-notes" className="block text-sm font-medium mb-1">
+              Ghi chú của Moderator (tuỳ chọn)
+            </label>
             <textarea
+              id="moderator-notes"
               rows={4}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Ghi chú (ví dụ: cần sửa phần phương pháp, ...)"
               className="w-full border rounded px-2 py-1 text-sm"
+              disabled={isSubmitting}
             />
           </div>
 
@@ -184,19 +209,14 @@ export default function FinalReviewDialog({
             <Button
               variant="outline"
               onClick={() => {
-                if (!mut.isLoading) onClose();
+                if (!isSubmitting) onClose();
               }}
-              disabled={mut.isLoading}
+              disabled={isSubmitting}
             >
               Hủy
             </Button>
-            <Button
-              onClick={() => {
-                handleSubmit();
-              }}
-              disabled={mut.isLoading}
-            >
-              {mut.isLoading ? "Đang gửi..." : "Xác nhận quyết định"}
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Đang gửi..." : "Xác nhận quyết định"}
             </Button>
           </div>
         </div>

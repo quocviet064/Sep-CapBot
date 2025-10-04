@@ -1,3 +1,4 @@
+// ReviewerSuggestionDialog.tsx
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
   const [autoAssignOnServer, setAutoAssignOnServer] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [globalDeadline, setGlobalDeadline] = useState<string>("");
-  const [maxSuggestions, setMaxSuggestions] = useState<number>(2); 
+  const [maxSuggestions, setMaxSuggestions] = useState<number>(2);
 
   const suggestMut = useMutation({
     mutationFn: (vars: { input: ReviewerSuggestionBySubmissionInputDTO; assign?: boolean }) =>
@@ -44,6 +45,10 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
       toast.error("Phân công thất bại");
     },
   });
+
+  // read isLoading via any cast to avoid TS mismatch in some react-query versions
+  const suggestLoading = Boolean((suggestMut as any).isLoading);
+  const assignLoading = Boolean((assignMut as any).isLoading);
 
   const output: ReviewerSuggestionOutputDTO | undefined = useMemo(() => {
     return (suggestMut.data as ReviewerSuggestionOutputDTO | undefined) ?? undefined;
@@ -120,14 +125,11 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     }
   };
 
-  // format as percent 
   const formatPercent = (val: any) => {
     if (val === null || val === undefined || val === "-") return "-";
     const num = Number(val);
     if (Number.isNaN(num)) return String(val);
-    // chuyển đổi số từ 0 đến 1 thành phần trăm
     if (num >= 0 && num <= 1) return `${(num * 100).toFixed(1)}%`;
-    // chuyển đổi số lớn hơn 1 thành phần trăm
     if (num > 1 && num <= 100) return `${num.toFixed(1)}%`;
     return `${num.toFixed(1)}%`;
   };
@@ -136,6 +138,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     const fieldScores = (s as any).skillMatchFieldScores ?? (s as any).SkillMatchFieldScores ?? null;
     if (!fieldScores || typeof fieldScores !== "object") return null;
     const keys = Object.keys(fieldScores);
+    if (keys.length === 0) return null;
     return (
       <div className="mt-2 border rounded bg-slate-50 p-2 text-sm">
         <div className="font-medium mb-1">Field match scores</div>
@@ -151,12 +154,36 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     );
   };
 
-  // Render matched skills: if array [] show "Không tìm thấy kỹ năng phù hợp"
+  const renderTopTokens = (s: ReviewerSuggestionDTO) => {
+    const tokens = (s as any).skillMatchTopTokens ?? (s as any).SkillMatchTopTokens ?? null;
+    if (!tokens || typeof tokens !== "object") return null;
+    const keys = Object.keys(tokens);
+    if (keys.length === 0) return null;
+
+    return (
+      <div className="mt-2 text-sm">
+        <div className="font-medium mb-1">Top tokens</div>
+        <div className="space-y-2">
+          {keys.map((k) => {
+            const v = tokens[k];
+            const display = Array.isArray(v) ? v.slice(0, 8).join(", ") : String(v ?? "");
+            return (
+              <div key={`${String(s.reviewerId)}-token-${k}`} className="mb-1">
+                <div className="text-xs text-slate-600">{k}</div>
+                <div className="text-sm">{display || <span className="text-neutral-400">—</span>}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderMatchedSkills = (s: ReviewerSuggestionDTO) => {
     const matchedSkills = (s as any).matchedSkills ?? [];
     if (!Array.isArray(matchedSkills) || matchedSkills.length === 0) {
       return (
-        <div className="mt-2 text-sm text-amber-700">Reviewer skill do not match with this type of topic</div>
+        <div className="mt-2 text-sm text-amber-700">Không tìm thấy kỹ năng phù hợp</div>
       );
     }
 
@@ -164,8 +191,8 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
       <div className="mt-2">
         <div className="font-medium">Kỹ năng phù hợp</div>
         <ul className="list-disc ml-5 text-sm">
-          {matchedSkills.map((skill: string, idx: number) => (
-            <li key={idx}>{skill}</li>
+          {matchedSkills.map((skill: string) => (
+            <li key={String(skill)}>{skill}</li>
           ))}
         </ul>
       </div>
@@ -179,12 +206,12 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
       <div
         className="absolute inset-0 bg-black/40"
         onClick={() => {
-          if (!suggestMut.isLoading && !assignMut.isLoading) onClose();
+          if (!suggestLoading && !assignLoading) onClose();
         }}
       />
 
       <div className="relative z-10 w-full max-w-6xl bg-white rounded shadow-lg overflow-hidden min-w-[640px] min-h-[320px]">
-        {suggestMut.isLoading && (
+        {suggestLoading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70">
             <div className="flex flex-col items-center gap-2">
               <svg className="animate-spin h-10 w-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -200,13 +227,13 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
           <h3 className="text-lg font-semibold">Gợi ý reviewer (AI)</h3>
 
           <div className="flex items-center gap-2 ml-4">
-            <label className={`flex items-center gap-2 text-sm ${suggestMut.isLoading ? "opacity-50" : ""}`}>
+            <label className={`flex items-center gap-2 text-sm ${suggestLoading ? "opacity-50" : ""}`}>
               <input
                 type="checkbox"
                 checked={autoAssignOnServer}
                 onChange={(e) => setAutoAssignOnServer(e.target.checked)}
                 className="w-4 h-4"
-                disabled={suggestMut.isLoading}
+                disabled={suggestLoading}
               />
               <span>Auto-create assignments on server</span>
             </label>
@@ -218,11 +245,10 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
               onChange={(e) => setGlobalDeadline(e.target.value)}
               className="border rounded px-2 py-1 text-sm"
               title="Deadline áp dụng cho hành động Assign / Assign all (bắt buộc)"
-              disabled={suggestMut.isLoading || assignMut.isLoading}
+              disabled={suggestLoading || assignLoading}
             />
 
-            {/* number input for suggestions */}
-            <label className={`text-sm flex items-center gap-2 ${suggestMut.isLoading ? "opacity-50" : ""}`}>
+            <label className={`text-sm flex items-center gap-2 ${suggestLoading ? "opacity-50" : ""}`}>
               <span>Số lượng</span>
               <input
                 type="number"
@@ -236,7 +262,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                 }}
                 className="w-16 border rounded px-2 py-1 text-sm"
                 title="Số lượng reviewer AI sẽ đề xuất"
-                disabled={suggestMut.isLoading}
+                disabled={suggestLoading}
               />
             </label>
 
@@ -253,10 +279,10 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                   assign: autoAssignOnServer,
                 })
               }
-              disabled={suggestMut.isLoading}
-              title={suggestMut.isLoading ? "Đang gợi ý..." : "Gợi ý reviewer"}
+              disabled={suggestLoading}
+              title={suggestLoading ? "Đang gợi ý..." : "Gợi ý reviewer"}
             >
-              {suggestMut.isLoading ? (
+              {suggestLoading ? (
                 <>
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -272,7 +298,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
             <button
               className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
               onClick={onAssignAllEligible}
-              disabled={assignMut.isLoading || !(suggestions && suggestions.some((s) => s.isEligible)) || !globalDeadline || suggestMut.isLoading}
+              disabled={assignLoading || !(suggestions && suggestions.some((s) => s.isEligible)) || !globalDeadline || suggestLoading}
               title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : undefined}
             >
               Phân công tất cả hợp lệ
@@ -281,7 +307,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
             <button
               className="px-3 py-1 rounded border text-sm"
               onClick={() => {
-                if (!suggestMut.isLoading && !assignMut.isLoading) onClose();
+                if (!suggestLoading && !assignLoading) onClose();
               }}
             >
               Đóng
@@ -298,7 +324,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                   <pre className="text-sm whitespace-pre-wrap">{aiExplanation}</pre>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button onClick={copyAiExplanation} className="px-2 py-1 rounded border text-sm" disabled={suggestMut.isLoading}>
+                  <button onClick={copyAiExplanation} className="px-2 py-1 rounded border text-sm" disabled={suggestLoading}>
                     Copy
                   </button>
                 </div>
@@ -328,7 +354,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
             </div>
           )}
 
-          {(!suggestions || suggestions.length === 0) && !suggestMut.isLoading && (
+          {(!suggestions || suggestions.length === 0) && !suggestLoading && (
             <div className="text-sm text-slate-500">Không có gợi ý</div>
           )}
 
@@ -348,7 +374,23 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         {" • "}Active: <span className="font-semibold">{s.currentActiveAssignments ?? 0}</span>
                       </div>
 
+                      {/* matched skills + top tokens + field scores */}
                       {renderMatchedSkills(s)}
+                      {renderTopTokens(s)}
+                      {renderFieldScores(s)}
+
+                      {s.reviewerSkills && (
+                        <div className="mt-2">
+                          <div className="font-medium">Reviewer skills (profile)</div>
+                          <ul className="list-disc ml-5 text-sm">
+                            {Object.entries(s.reviewerSkills).map(([skill, level]) => (
+                              <li key={`${String(s.reviewerId)}-skill-${skill}`}>
+                                {skill}: <span className="font-semibold">{String(level)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {s.isEligible === false && (
                         <div className="mt-1 text-sm text-rose-600">Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}</div>
@@ -362,14 +404,14 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         <button
                           onClick={() => onAssign(s)}
                           className={`px-3 py-1 rounded text-sm ${s.isEligible ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 cursor-not-allowed"}`}
-                          disabled={!s.isEligible || assignMut.isLoading || !globalDeadline || suggestMut.isLoading}
+                          disabled={!s.isEligible || assignLoading || !globalDeadline || suggestLoading}
                           title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : !s.isEligible ? "Reviewer không hợp lệ" : "Assign reviewer"}
                         >
                           Assign
                         </button>
                       </div>
 
-                      <button onClick={() => toggleExpand(key)} className="text-xs text-slate-500 underline" disabled={suggestMut.isLoading}>
+                      <button onClick={() => toggleExpand(key)} className="text-xs text-slate-500 underline" disabled={suggestLoading}>
                         {expanded[key] ? "Hide details" : "Show details"}
                       </button>
                     </div>
@@ -384,7 +426,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                           <div className="font-medium">Reviewer skills</div>
                           <ul className="list-disc ml-5">
                             {Object.entries(s.reviewerSkills).map(([skill, level]) => (
-                              <li key={skill}>
+                              <li key={`${key}-profile-${skill}`}>
                                 {skill}: <span className="font-semibold">{String(level)}</span>
                               </li>
                             ))}
@@ -399,6 +441,8 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         <div>Quality rating: <span className="font-semibold">{s.qualityRating === null || s.qualityRating === undefined ? "-" : formatPercent(s.qualityRating)}</span></div>
                         <div>Performance: <span className="font-semibold">{s.performanceScore === null || s.performanceScore === undefined ? "-" : formatPercent(s.performanceScore)}</span></div>
                       </div>
+
+                      {renderTopTokens(s)}
                     </div>
                   )}
                 </div>

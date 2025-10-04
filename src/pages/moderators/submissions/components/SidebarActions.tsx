@@ -276,30 +276,10 @@ export default function SidebarActions({
                           >
                             {recBadge.label}
                           </span>
-
-                          {/* if displayTopicSource indicates version, show small chip */}
-                          {displayTopicSource === "topicVersion" && (
-                            <span
-                              style={{
-                                marginLeft: 6,
-                                display: "inline-block",
-                                padding: "2px 8px",
-                                borderRadius: 6,
-                                fontSize: 11,
-                                background: "#eef2ff",
-                                color: "#3730a3",
-                                fontWeight: 600,
-                              }}
-                            >
-                              Topic version
-                            </span>
-                          )}
                         </div>
 
                         <div className="text-xs text-slate-500 mt-1">
                           {a.deadline ? `Deadline: ${formatDateTime(a.deadline)}` : ""}
-                          {/* show topic title or submission title if available */}
-                          {displayTopic?.eN_Title ? ` • ${displayTopic.eN_Title}` : a.submissionTitle ? ` • ${a.submissionTitle}` : ""}
                         </div>
 
                         {/* If assignment not for current submission, show indicator */}
@@ -334,16 +314,6 @@ export default function SidebarActions({
                             : "Overdue"
                           : a.status ?? "—"}
                       </span>
-
-                      {/* view review: open reviews for the assignment's submission */}
-                      <button
-                        type="button"
-                        title="View review for this assignment"
-                        onClick={() => handleOpenReviewClick(a)}
-                        className="inline-flex items-center justify-center px-3 py-1 rounded border text-sm"
-                      >
-                        View review
-                      </button>
 
                       {/* remove icon/button */}
                       {a.id != null && onRemoveAssignment ? (
