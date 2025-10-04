@@ -101,11 +101,6 @@ export default function ReviewerDashboard() {
           <h1 className="text-2xl font-semibold">Reviewer Dashboard</h1>
           <p className="text-sm text-muted-foreground">Tóm tắt nhanh các phân công và review của bạn</p>
         </div>
-
-        <div className="flex gap-2 items-center">
-          <Button size="sm" variant="secondary" onClick={() => navigate("/reviewers/assigned-topics")}>Danh sách phân công</Button>
-          <Button size="sm" variant="secondary" onClick={() => navigate("/reviewers/evaluate-topics")}>Bắt đầu đánh giá</Button>
-        </div>
       </div>
 
       {/* Summary cards */}
@@ -204,32 +199,11 @@ export default function ReviewerDashboard() {
                     </div>
 
                     <Button size="sm" onClick={() => navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(r.assignmentId))}&reviewId=${encodeURIComponent(String(r.id))}`)}>Mở</Button>
-
-                    {r.status === "Submitted" ? (
-                      <Button size="sm" variant="destructive" onClick={() => {
-                        const ok = window.confirm("Bạn có chắc muốn rút lại đánh giá này?");
-                        if (!ok) return;
-                        withdrawMut.mutate(r.id, {
-                          onSuccess: () => alert("Yêu cầu rút đánh giá đã gửi."),
-                          onError: (e: any) => alert(e?.message || "Rút thất bại"),
-                        });
-                      }}>Rút</Button>
-                    ) : null}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* quick actions */}
-      <div className="bg-white border rounded-lg p-4 shadow-sm">
-        <h3 className="text-sm font-medium mb-2">Hành động nhanh</h3>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => navigate("/reviewers/assigned-topics")}>Danh sách phân công</Button>
-          <Button size="sm" onClick={() => navigate("/reviewers/evaluate-topics")}>Bắt đầu đánh giá</Button>
-          <Button size="sm" variant="secondary" onClick={() => navigate("/reviewers/reviews")}>Quản lý reviews</Button>
         </div>
       </div>
     </div>

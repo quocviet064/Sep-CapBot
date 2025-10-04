@@ -12,6 +12,14 @@ type ApiResponse<T> = {
   message: string | null;
 };
 
+export type ModeratorFinalPayload = {
+  submissionId: number;
+  finalRecommendation: number | string;
+  finalScore?: number | null;
+  moderatorNotes?: string | null;
+  revisionDeadline?: string | null;
+};
+
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError(e)) {
     const data = e.response?.data as any;
@@ -21,7 +29,7 @@ const getAxiosMessage = (e: unknown, fallback: string) => {
   return fallback;
 };
 
-export type ReviewerRecommendation = 1 | 2 | 3 | 4; // 1 Approve, 2 Minor, 3 Major, 4 Reject
+export type ReviewerRecommendation = 1 | 2 | 3 | 4; // Approve, Revision, Reject
 
 export type SubmissionReviewSummaryDTO = {
   submissionId: IdLike;
@@ -182,21 +190,21 @@ export const getSubmissionReviewSummary = async (
 };
 
 /** POST /api/submission-reviews/moderator-final-review */
-export const moderatorFinalReview = async (payload: {
-  submissionId: IdLike;
-  finalRecommendation: ReviewerRecommendation; // approve, revision, reject
-  finalScore?: number;
-  moderatorNotes?: string;
-  revisionDeadline?: string;
-}): Promise<void> => {
+export const moderatorFinalReview = async (payload: ModeratorFinalPayload) => {
   try {
+    const payloadForApi = {
+      SubmissionId: Number(payload.submissionId),
+      FinalRecommendation: Number(payload.finalRecommendation), 
+      FinalScore: payload.finalScore ?? null,
+      ModeratorNotes: payload.moderatorNotes ?? null,
+      RevisionDeadline: payload.revisionDeadline ?? null,
+    };
+
     const res = await capBotAPI.post<ApiResponse<null>>(
       `/submission-reviews/moderator-final-review`,
-      payload
+      payloadForApi
     );
-    if (!res.data.success)
-      throw new Error(res.data.message || "Không lưu được quyết định");
-    toast.success("Đã lưu quyết định của Moderator");
+    if (!res.data.success) throw new Error(res.data.message || "Không lưu được quyết định");
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lưu được quyết định");
     toast.error(msg);

@@ -365,9 +365,9 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                     <div className="min-w-0">
                       <div className="font-medium">{s.reviewerName ?? `Reviewer ${s.reviewerId}`}</div>
                       <div className="text-sm text-slate-600">
-                        Score: <span className="font-semibold">{formatPercent(s.skillMatchScore ?? s.overallScore ?? 0)}</span>
+                        Match Score: <span className="font-semibold">{formatPercent(s.skillMatchScore ?? s.overallScore ?? 0)}</span>
                         {" • "}Overall: <span className="font-semibold">{formatPercent(s.overallScore ?? 0)}</span>
-                        {" • "}Workload: <span className="font-semibold">{s.workloadScore ?? 0}</span>
+                        {/* {" • "}Workload: <span className="font-semibold">{s.workloadScore ?? 0}</span> */}
                         {" • "}Active: <span className="font-semibold">{s.currentActiveAssignments ?? 0}</span>
                       </div>
 

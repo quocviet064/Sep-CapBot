@@ -50,10 +50,10 @@ function RecommendationBadge({
     return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-emerald-100 text-emerald-700">Approve</span>;
   }
   if (rec.includes("minor")) {
-    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700">Minor</span>;
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-amber-100 text-amber-700">Revision</span>;
   }
   if (rec.includes("major")) {
-    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700">Major</span>;
+    return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700">Revision</span>;
   }
   if (rec.includes("reject") || rec.includes("decline") || rec.includes("từ chối")) {
     return <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-rose-100 text-rose-700">Reject</span>;

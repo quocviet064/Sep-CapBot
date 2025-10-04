@@ -18,17 +18,14 @@ function statusColorClass(status?: string) {
   return "bg-slate-100 text-slate-700";
 }
 
-// 🔹 Hàm hợp nhất dữ liệu topic và topicVersion
 function mergeTopicData(topicDetail?: any) {
   if (!topicDetail) return null;
   const topicVersion =
     topicDetail?.topicVersion ?? topicDetail?.currentVersion ?? null;
   const baseTopic = topicDetail?.topic ?? topicDetail;
 
-  // Nếu không có version thì trả về topic
   if (!topicVersion) return baseTopic;
 
-  // Merge dữ liệu: ưu tiên field từ topicVersion
   const merged: Record<string, any> = { ...baseTopic };
   for (const key in topicVersion) {
     if (topicVersion[key] !== null && topicVersion[key] !== undefined) {
@@ -43,7 +40,6 @@ const TopicSummaryCard: React.FC<TopicSummaryCardProps> = ({ topicDetail }) => {
   if (!topicDetail)
     return <div className="text-sm text-slate-500">Không có thông tin đề tài</div>;
 
-  // 🔹 Dùng merge logic ở đây
   const displayedTopic = mergeTopicData(topicDetail);
 
   return (

@@ -12,7 +12,11 @@ import { Input } from "@/components/globals/atoms/input";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import { toast } from "sonner";
 import type { IdLike } from "@/services/reviewerAssignmentService";
-import { useAvailableReviewers as useAvailableReviewersHook } from "@/hooks/useReviewerAssignment";
+import {
+  useAvailableReviewers as useAvailableReviewersHook,
+  useBulkAssignReviewers,
+  useAssignReviewer,
+} from "@/hooks/useReviewerAssignment";
 
 type RowVM = {
   id: number | string;
@@ -25,13 +29,14 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   submissionId?: IdLike;
-  onConfirm: (payload: any) => Promise<any> | any; 
+  onConfirm?: (payload: any) => Promise<any> | any; // optional backward-compat
   onAssignedSuccess?: () => void;
   availableReviewers?: any[];
   loading?: boolean;
   confirmDisabled?: boolean;
   assignedCount?: number;
   requiredReviewers?: number;
+  remainingSlots?: number; // authoritative number slots allowed by parent
 }
 
 export default function ReviewerPickerDialog({
@@ -45,6 +50,7 @@ export default function ReviewerPickerDialog({
   confirmDisabled,
   assignedCount = 0,
   requiredReviewers = 2,
+  remainingSlots: propRemainingSlots,
 }: Props) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<(string | number)[]>([]);
@@ -55,8 +61,13 @@ export default function ReviewerPickerDialog({
   const hookData = availableHook.data ?? [];
   const hookLoading = availableHook.isLoading ?? false;
 
+  const bulkAssign = useBulkAssignReviewers();
+  const singleAssign = useAssignReviewer();
+
   const list = Array.isArray(availableReviewers) ? availableReviewers : hookData;
   const isListLoading = typeof loading === "boolean" ? loading : hookLoading;
+  const isMutating = bulkAssign.isPending || singleAssign.isPending;
+  const globalLoading = isListLoading || isMutating;
 
   useEffect(() => {
     if (!isOpen) {
@@ -85,7 +96,10 @@ export default function ReviewerPickerDialog({
     );
   }, [allNormalized, search]);
 
-  const remaining = Math.max(0, (requiredReviewers ?? 2) - (assignedCount ?? 0));
+  // authoritative remaining: if parent provided remainingSlots use it; otherwise compute from requiredReviewers - assignedCount
+  const remaining = typeof propRemainingSlots === "number"
+    ? Math.max(0, propRemainingSlots)
+    : Math.max(0, (requiredReviewers ?? 2) - (assignedCount ?? 0));
 
   const toggle = (id: string | number, checked: boolean) => {
     setSelected((prev) => {
@@ -111,7 +125,7 @@ export default function ReviewerPickerDialog({
     }
   };
 
-  const canConfirm = selected.length > 0 && !isListLoading && !confirmDisabled && remaining > 0 && !!globalDeadline;
+  const canConfirm = selected.length > 0 && !globalLoading && !confirmDisabled && remaining > 0 && !!globalDeadline;
 
   const handleConfirm = async () => {
     if (!submissionId) {
@@ -137,21 +151,60 @@ export default function ReviewerPickerDialog({
       return;
     }
 
+    const sid = typeof submissionId === "string" ? Number(submissionId) : submissionId;
+
+    // nếu chọn 1 reviewer -> gọi API single
+    if (selected.length === 1) {
+      const payload = {
+        submissionId: sid,
+        reviewerId: selected[0],
+        assignmentType,
+        deadline: isoDeadline,
+      };
+
+      try {
+        await singleAssign.mutateAsync(payload);
+
+        // optional parent callback (post-success)
+        if (onConfirm) {
+          try {
+            await onConfirm(payload);
+          } catch (e) {
+            console.warn("onConfirm callback error", e);
+          }
+        }
+        onAssignedSuccess?.();
+        onClose();
+        return;
+      } catch {
+        return;
+      }
+    }
+
+    // nếu chọn >1 reviewers -> gọi bulk API
     const assignments = selected.map((rid) => ({
-      submissionId,
+      submissionId: sid,
       reviewerId: rid,
       assignmentType,
       deadline: isoDeadline,
     }));
 
+    const bulkPayload = { assignments };
+
     try {
-      await onConfirm({ assignments });
+      await bulkAssign.mutateAsync(bulkPayload);
+
+      if (onConfirm) {
+        try {
+          await onConfirm(bulkPayload);
+        } catch (e) {
+          console.warn("onConfirm callback error", e);
+        }
+      }
       onAssignedSuccess?.();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Phân công reviewer thất bại");
-      return;
-    } finally {
       onClose();
+    } catch {
+      // keep dialog open so mod can retry
     }
   };
 
@@ -163,7 +216,7 @@ export default function ReviewerPickerDialog({
             <DialogTitle>Chọn reviewer</DialogTitle>
             <DialogDescription>
               {submissionId
-                ? `Tick reviewer để phân công cho Submission #${submissionId}. Remaining: ${remaining}`
+                ? `Tick reviewer để phân công cho Submission #${submissionId}. Remaining slots: ${remaining}`
                 : "Vui lòng mở dialog theo 1 submission để dùng tính năng này."}
             </DialogDescription>
           </DialogHeader>
@@ -203,7 +256,7 @@ export default function ReviewerPickerDialog({
 
         <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
           <div className="h-[60vh] overflow-auto rounded-md border">
-            {isListLoading ? (
+            {globalLoading ? (
               <div className="p-4 text-sm text-gray-500">Đang tải reviewer...</div>
             ) : filtered.length === 0 ? (
               <div className="p-4 text-sm text-gray-500">Không có reviewer phù hợp</div>
@@ -251,11 +304,11 @@ export default function ReviewerPickerDialog({
 
         <div className="sticky bottom-0 z-10 border-t bg-white px-6 py-4">
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={onClose} disabled={Boolean(confirmDisabled)}>
+            <Button variant="outline" onClick={onClose} disabled={Boolean(confirmDisabled) || isMutating}>
               Hủy
             </Button>
             <Button onClick={handleConfirm} disabled={!canConfirm}>
-              {loading ? "Đang phân công..." : `Xác nhận (${selected.length})`}
+              {isMutating ? "Đang phân công..." : `Xác nhận (${selected.length})`}
             </Button>
           </DialogFooter>
         </div>

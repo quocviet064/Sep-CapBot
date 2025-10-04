@@ -15,11 +15,27 @@ const DEFAULT_VISIBILITY = COL_VIS;
 
 const STATUS = {
   ALL: "all",
-  ASSIGNED: "Assigned",
-  INPROGRESS: "InProgress",
-  COMPLETED: "Completed",
-  OVERDUE: "Overdue",
+  ASSIGNED: "assigned",
+  INPROGRESS: "inprogress",
+  COMPLETED: "completed",
+  OVERDUE: "overdue",
 } as const;
+
+/** normalize helpers */
+const normalize = (v?: unknown) => String(v ?? "").trim();
+const toLower = (v?: unknown) => normalize(v).toLowerCase();
+
+/** map statuses to canonical lowercase keys */
+const canonicalAssignmentStatus = (s?: unknown) => {
+  const k = toLower(s);
+  if (!k) return "";
+  if (k.includes("assigned")) return "assigned";
+  if (k.includes("inprogress") || k.includes("in_progress") || k.includes("in progress"))
+    return "inprogress";
+  if (k.includes("completed")) return "completed";
+  if (k.includes("overdue")) return "overdue";
+  return k; // fallback (e.g. draft/submitted etc)
+};
 
 export default function ReviewerAssignedList() {
   const navigate = useNavigate();
@@ -30,12 +46,26 @@ export default function ReviewerAssignedList() {
   const { data: reviewStatsResp, isLoading: statsLoading } = useReviewStatistics();
   const reviewList = reviewStatsResp?.listObjects ?? [];
 
+  // build map assignmentId => best review summary (prefer Submitted > Draft > InProgress)
   const reviewByAssignment = useMemo(() => {
     const map = new Map<number | string, any>();
     if (!Array.isArray(reviewList)) return map;
 
+    const prefOrder = (s?: string | null) => {
+      const kk = toLower(s);
+      if (kk === "submitted") return 3;
+      if (kk === "draft") return 2;
+      if (kk === "inprogress" || kk === "in_progress" || kk === "in progress") return 1;
+      return 0;
+    };
+
     for (const rv of reviewList) {
-      const aid = rv.assignmentId ?? (rv as any).AssignmentId ?? (rv as any).assignment?.id ?? null;
+      const aid =
+        rv.assignmentId ??
+        (rv as any).AssignmentId ??
+        (rv as any).assignment?.id ??
+        (rv as any).assignmentId ??
+        null;
       if (aid == null) continue;
 
       const existing = map.get(aid);
@@ -43,9 +73,6 @@ export default function ReviewerAssignedList() {
         map.set(aid, rv);
         continue;
       }
-
-      const prefOrder = (s: string | undefined | null) =>
-        s === "Submitted" ? 3 : s === "Draft" ? 2 : s === "InProgress" ? 1 : 0;
 
       const eScore = prefOrder(existing.status);
       const rScore = prefOrder(rv.status);
@@ -70,17 +97,31 @@ export default function ReviewerAssignedList() {
       const reviewSummary = found
         ? {
           id: found.id ?? (found as any).Id,
-          status: found.status,
+          status: toLower(found.status),
           assignmentId: found.assignmentId,
           submittedAt: found.createdAt ?? null,
         }
         : null;
+      const rawStatus =
+        a.status ??
+        a.assignmentStatus ??
+        a.statusName ??
+        (a as any).assignment?.status ??
+        null;
+
+      const normalizedAssignmentStatus = toLower(rawStatus);
       return {
         ...a,
         review: reviewSummary,
         reviewStatus: reviewSummary?.status ?? null,
         reviewId: reviewSummary?.id ?? null,
-      } as ReviewerAssignmentResponseDTO & { review?: any; reviewStatus?: string | null; reviewId?: any };
+        normalizedStatus: normalizedAssignmentStatus,
+      } as ReviewerAssignmentResponseDTO & {
+        review?: any;
+        reviewStatus?: string | null;
+        reviewId?: any;
+        normalizedStatus?: string;
+      };
     });
   }, [assignments, reviewByAssignment]);
 
@@ -112,7 +153,7 @@ export default function ReviewerAssignedList() {
   // onOpenReview: allow opening draft / start review / withdraw then open
   const onOpenReview = useCallback(
     async (row: ReviewerAssignmentResponseDTO, directReviewId?: number | string) => {
-      const assignmentId = row.id ?? row.id;
+      const assignmentId = (row as any).id ?? (row as any).assignmentId;
       if (!assignmentId) {
         toast.error("Không có assignmentId hợp lệ");
         return;
@@ -132,8 +173,8 @@ export default function ReviewerAssignedList() {
         console.debug("reviewByAssignment found:", found);
 
         if (found) {
-          const st = String(found.status ?? "").toLowerCase();
-          const rid = found.id ?? found.Id ?? found.reviewId;
+          const st = toLower(found.status ?? "");
+          const rid = found.id ?? found.Id ?? (found as any).reviewId;
 
           // Draft -> open
           if (st === "draft") {
@@ -161,6 +202,7 @@ export default function ReviewerAssignedList() {
           }
         }
 
+        // fallback: get reviews by assignment to find draft/submitted
         let list: any[] = [];
         try {
           list = (await getReviewsByAssignment(assignmentId)) ?? [];
@@ -170,7 +212,7 @@ export default function ReviewerAssignedList() {
         }
 
         if (Array.isArray(list) && list.length > 0) {
-          const draft = list.find((r) => String(r.status || "").toLowerCase() === "draft");
+          const draft = list.find((r) => toLower(r.status || "") === "draft");
           if (draft) {
             const rid = draft.id ?? draft.Id;
             navigate(
@@ -179,7 +221,7 @@ export default function ReviewerAssignedList() {
             return;
           }
 
-          const submitted = list.find((r) => String(r.status || "").toLowerCase() === "submitted");
+          const submitted = list.find((r) => toLower(r.status || "") === "submitted");
           if (submitted) {
             const rid = submitted.id ?? submitted.Id;
             const conf2 = window.confirm("Bản đánh giá đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
@@ -198,14 +240,11 @@ export default function ReviewerAssignedList() {
         }
 
         // Decide whether starting a new review is allowed:
-        const statusKey = String(row.status ?? "").trim();
+        const statusKey = toLower((row as any).status ?? (row as any).assignmentStatus ?? (row as any).statusName ?? "");
         const now = new Date();
 
-        const isStatusEquals = (val?: unknown, expect?: string) =>
-          String(val ?? "").toLowerCase() === String(expect ?? "").toLowerCase();
-
         let allowStart = false;
-        if (isStatusEquals(statusKey, STATUS.ASSIGNED)) {
+        if (statusKey === "assigned" || statusKey === "") {
           allowStart = true;
         } else {
           // If there's a deadline/ due date and it's not overdue -> allow
@@ -223,7 +262,9 @@ export default function ReviewerAssignedList() {
             }
           }
 
-          if (!allowStart && !found && (!statusKey || statusKey.length === 0)) {
+          // fallback: if there is no review found and status not present, allow
+          const foundReview = reviewByAssignment.get(assignmentId);
+          if (!allowStart && !foundReview && (!statusKey || statusKey.length === 0)) {
             allowStart = true;
           }
         }
@@ -254,7 +295,7 @@ export default function ReviewerAssignedList() {
 
   const onWithdrawReview = useCallback(
     async (row: ReviewerAssignmentResponseDTO) => {
-      const assignmentId = row.id ?? row.id;
+      const assignmentId = (row as any).id ?? (row as any).assignmentId;
       if (!assignmentId) {
         toast.error("Assignment ID không hợp lệ");
         return;
@@ -267,7 +308,7 @@ export default function ReviewerAssignedList() {
         if (!rid) {
           const list = await getReviewsByAssignment(assignmentId);
           if (Array.isArray(list) && list.length > 0) {
-            const pick = list.find((r) => r.status === "Submitted") ?? list[0];
+            const pick = list.find((r) => toLower(r.status || "") === "submitted") ?? list[0];
             rid = pick?.id ?? null;
           }
         }
@@ -302,8 +343,9 @@ export default function ReviewerAssignedList() {
       onOpenReview,
       onWithdrawReview,
       canWithdrawFromStatus: (status: unknown) => {
-        const k = String(status || "");
-        return k === STATUS.INPROGRESS || k === STATUS.COMPLETED;
+        const k = canonicalAssignmentStatus(status);
+        // allow withdraw if inprogress or completed (backend rules may differ)
+        return k === "inprogress" || k === "completed";
       },
     }),
     [handlers, onOpenReview, onWithdrawReview]
@@ -315,7 +357,7 @@ export default function ReviewerAssignedList() {
     const q = debouncedSearch;
     const arr = enrichedAssignments;
     return arr.filter((x: any) => {
-      const statusKey = String(x.status ?? "");
+      const statusKey = canonicalAssignmentStatus(x.status ?? x.assignmentStatus ?? x.statusName ?? "");
       const okStatus = statusFilter === STATUS.ALL ? true : statusKey === statusFilter;
       if (!okStatus) return false;
       if (!q) return true;

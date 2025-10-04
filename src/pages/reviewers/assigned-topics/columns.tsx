@@ -14,7 +14,7 @@ const toLower = (v?: unknown) => normalize(v).toLowerCase();
 const statusLabel = (s?: unknown) => {
   const k = toLower(s);
   if (!k) return "--";
-  if (k.includes("assigned")) return "Đã phân công";
+  if (k.includes("assigned")) return "Được phân công";
   if (k.includes("inprogress") || k.includes("in_progress") || k.includes("in progress"))
     return "Đang đánh giá";
   if (k.includes("completed")) return "Hoàn thành";
@@ -23,17 +23,13 @@ const statusLabel = (s?: unknown) => {
 };
 
 const typeLabel = (t?: unknown) => {
+  // assignmentType might be numeric or string
   const k = toLower(t);
-  switch (k) {
-    case "primary":
-      return "Primary";
-    case "secondary":
-      return "Secondary";
-    case "additional":
-      return "Additional";
-    default:
-      return "--";
-  }
+  if (!k) return "--";
+  if (k === "primary" || k === "1") return "Primary";
+  if (k === "secondary" || k === "2") return "Secondary";
+  if (k === "additional" || k === "3") return "Additional";
+  return "--";
 };
 
 export const DEFAULT_VISIBILITY = {
@@ -122,12 +118,43 @@ export function createColumns(
         <DataTableColumnHeader column={column} title="Trạng thái" />
       ),
       cell: ({ row }) => {
-        const s =
-          row.original.status ??
-          (row.original as any).assignmentStatus ??
-          (row.original as any).statusName ??
-          "";
-        return statusLabel(s);
+        const raw =
+          (row.original as any).normalizedStatus ??
+          toLower(
+            row.original.status ??
+            (row.original as any).assignmentStatus ??
+            (row.original as any).statusName ??
+            ""
+          );
+
+        if (!raw) return "--";
+        const maybeNum = Number.isNaN(Number(raw)) ? null : Number(raw);
+        const numericStatusMap: Record<number, string> = {
+          0: "Pending",
+          1: "Được phân công",
+          2: "Đang đánh giá",
+          3: "Hoàn thành",
+          4: "Quá hạn",
+          5: "Đã hủy",
+        };
+
+        if (maybeNum !== null) {
+          if (numericStatusMap[maybeNum]) return numericStatusMap[maybeNum];
+          return String(maybeNum);
+        }
+        const normalized = String(raw).toLowerCase();
+        if (normalized.includes("assigned")) return "Được phân công";
+        if (normalized.includes("inprogress") || normalized.includes("in_progress") || normalized.includes("in progress"))
+          return "Đang đánh giá";
+        if (normalized.includes("completed")) return "Hoàn thành";
+        if (normalized.includes("overdue")) return "Quá hạn";
+        if (normalized === "draft") return "Draft";
+        if (normalized === "submitted") return "Submitted";
+        if (normalized === "approved") return "Đã duyệt";
+        if (normalized === "rejected") return "Từ chối";
+        if (normalized === "escalatedtomoderator" || normalized.includes("escalated"))
+          return "EscalatedToModerator";
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1);
       },
     },
     {
@@ -167,7 +194,8 @@ export function createColumns(
       cell: ({ row }) => {
         const a = row.original as any;
 
-        const reviewStatus = (a.reviewStatus ?? a.review?.status) as string | null;
+        // reviewStatus normalized to lowercase if set in enrichedAssignments
+        const reviewStatus = toLower(a.reviewStatus ?? a.review?.status);
         const reviewId = a.reviewId ?? a.review?.id ?? null;
 
         const statusKey =
@@ -183,6 +211,7 @@ export function createColumns(
         const hasReview = !!reviewStatus;
         const deadlineInFuture = deadlineDate ? deadlineDate >= now : false;
 
+        // Allow evaluate if assigned OR no review yet and not overdue or no status
         const canEvaluate =
           hasAssignedStatus || (!hasReview && (deadlineInFuture || !statusKeyNorm));
 
@@ -199,7 +228,7 @@ export function createColumns(
               <Eye className="h-4 w-4 text-slate-700" />
             </button>
 
-            {reviewStatus === "Draft" ? (
+            {reviewStatus === "draft" ? (
               <>
                 <button
                   title="Chỉnh sửa bản nháp"
@@ -212,16 +241,15 @@ export function createColumns(
                   title="Rút lại đánh giá"
                   onClick={() => handlers.onWithdrawReview(a)}
                   disabled={!canWithdraw}
-                  className={`px-2 py-1 rounded-md text-sm ${
-                    canWithdraw
-                      ? "bg-red-600 text-white"
-                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  }`}
+                  className={`px-2 py-1 rounded-md text-sm ${canWithdraw
+                    ? "bg-red-600 text-white"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                    }`}
                 >
                   Rút
                 </button>
               </>
-            ) : reviewStatus === "Submitted" ? (
+            ) : reviewStatus === "submitted" ? (
               <>
                 <button
                   title="Xem chi tiết đánh giá (đã gửi)"
@@ -247,11 +275,10 @@ export function createColumns(
                 }
                 onClick={() => handlers.onOpenReview(a)}
                 disabled={!canEvaluate}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  canEvaluate
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                }`}
+                className={`px-3 py-1 rounded-md text-sm ${canEvaluate
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}
               >
                 Đánh giá
               </button>

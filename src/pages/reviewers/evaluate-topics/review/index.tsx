@@ -1,12 +1,12 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import LoadingPage from "@/pages/loading-page";
 import { useSubmissionDetail } from "@/hooks/useSubmission";
 import { useTopicDetail } from "@/hooks/useTopic";
 import { useMyAssignments } from "@/hooks/useReviewerAssignment";
 import { useCriteria } from "@/hooks/useEvaluationCriteria";
-import TopicSubmissionDetail from "./TopicSubmissionDetail";
 import ReviewForm from "./ReviewForm";
+import ReviewerTopicSummary from "./ReviewerTopicSummary"; 
 
 export default function ReviewerReviewEditor() {
   const [qs] = useSearchParams();
@@ -46,20 +46,20 @@ export default function ReviewerReviewEditor() {
   if (isLoading) return <LoadingPage />;
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
+    <div className="p-3 max-w-[1400px] mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: topic + submission details + AI check */}
+        {/* Left: topic summary + submission details + AI check */}
         <div className="space-y-4">
-          <TopicSubmissionDetail
-            submissionDetail={finalSubmissionDetail}
+          <ReviewerTopicSummary
             topicDetail={topicDetail}
+            submissionDetail={finalSubmissionDetail}
+            showAISection
           />
         </div>
-
         {/* Right: review form */}
         <div>
           <ReviewForm
-            assignmentId={Number(assignmentId)}
+            assignmentId={assignmentId ? Number(assignmentId) : undefined}
             reviewId={reviewId ? Number(reviewId) : undefined}
             criteriaList={criteriaList}
           />

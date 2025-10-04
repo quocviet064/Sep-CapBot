@@ -214,7 +214,6 @@ export const assignReviewer = async (
     };
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể phân công reviewer");
-    toast.error(msg);
     throw new Error(msg);
   }
 };
@@ -238,7 +237,6 @@ export const bulkAssignReviewers = async (
     }));
   } catch (e) {
     const msg = getAxiosMessage(e, "Bulk assign thất bại");
-    toast.error(msg);
     throw new Error(msg);
   }
 };

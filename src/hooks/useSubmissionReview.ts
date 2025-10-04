@@ -19,8 +19,11 @@ export const useModeratorFinalReview = () => {
   return useMutation({
     mutationFn: moderatorFinalReview,
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["submission-review-summary", vars.submissionId] });
-      qc.invalidateQueries({ queryKey: ["submission-reviews", vars.submissionId] });
+      const id = (vars as any).submissionId;
+      qc.invalidateQueries({ queryKey: ["submission-review-summary", id] });
+      qc.invalidateQueries({ queryKey: ["submission-reviews", id] });
+      qc.invalidateQueries({ queryKey: ["submission-detail", id] });
+      qc.invalidateQueries({ queryKey: ["submission-list"] });
     },
   });
 };

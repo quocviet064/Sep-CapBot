@@ -27,7 +27,7 @@ export default function FinalReviewDialog({
 }: Readonly<Props>) {
   const [decision, setDecision] = useState<Decision>("");
   const [notes, setNotes] = useState<string>("");
-  const [revisionDeadline, setRevisionDeadline] = useState<string>(""); // yyyy-mm-dd
+  const [revisionDeadline, setRevisionDeadline] = useState<string>(""); 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const scoreFor = (d: Decision) => {
@@ -49,7 +49,6 @@ export default function FinalReviewDialog({
   const mutation = useMutation({
     mutationFn: async (payload: unknown) => moderatorFinalReview(payload as any),
     onSuccess: () => {
-      toast.success("Đã lưu quyết định của Moderator");
       onClose();
       onSuccess?.();
     },
@@ -141,7 +140,7 @@ export default function FinalReviewDialog({
                     onChange={() => setDecision("approve")}
                     disabled={isSubmitting}
                   />
-                  <span className="ml-1">Approve (Duyệt)</span>
+                  <span className="ml-1">Chấp nhận</span>
                 </label>
 
                 <label htmlFor="final-decision-revision" className="inline-flex items-center gap-2">
@@ -154,7 +153,7 @@ export default function FinalReviewDialog({
                     onChange={() => setDecision("revision")}
                     disabled={isSubmitting}
                   />
-                  <span className="ml-1">Revision (Sửa — minor/major gộp)</span>
+                  <span className="ml-1">Cần sửa</span>
                 </label>
 
                 <label htmlFor="final-decision-reject" className="inline-flex items-center gap-2">
@@ -167,7 +166,7 @@ export default function FinalReviewDialog({
                     onChange={() => setDecision("reject")}
                     disabled={isSubmitting}
                   />
-                  <span className="ml-1">Reject (Từ chối)</span>
+                  <span className="ml-1">Từ chối</span>
                 </label>
               </div>
             </fieldset>
@@ -192,7 +191,7 @@ export default function FinalReviewDialog({
 
           <div>
             <label htmlFor="moderator-notes" className="block text-sm font-medium mb-1">
-              Ghi chú của Moderator (tuỳ chọn)
+              Ghi chú
             </label>
             <textarea
               id="moderator-notes"

@@ -29,7 +29,7 @@ import TopicSummaryCard from "./components/TopicSummaryCard";
 export default function SubmissionDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { submissionId } = useParams<{ submissionId: string }>();
+  const { submissionId: submissionIdParam } = useParams<{ submissionId: string }>();
   const { state } = useLocation();
 
   const typedState = state as
@@ -42,10 +42,10 @@ export default function SubmissionDetailPage() {
     | undefined;
 
   const initialRow = typedState?.row;
-  const sid = submissionId ? Number(submissionId) : undefined;
+  const sid = submissionIdParam ? Number(submissionIdParam) : undefined;
 
   const [showReviewsModal, setShowReviewsModal] = useState(false);
-  const [reviewsModalSubmissionId, setReviewsModalSubmissionId] = useState<number | string | null>(null);
+  const [reviewsModalSubmissionId, setReviewsModalSubmissionId] = useState<number | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
@@ -94,26 +94,53 @@ export default function SubmissionDetailPage() {
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
 
-const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
-  const assignedCount = (assignments ?? []).length;
-  const isAssignDisabled = assignedCount >= requiredReviewers;
+  // ----- Detect escalated state robustly -----
+  const latestSubmissionStatus = (topicDetail as any)?.latestSubmissionStatus;
+  const currentVersionStatus = (topicDetail as any)?.currentVersionStatus;
+  const topStatus = (topicDetail as any)?.status;
 
-  const openReviewsForSubmission = async (submissionToOpen?: number | string | null) => {
+  const anySubmissionEscalated =
+    Array.isArray((topicDetail as any)?.submissions) &&
+    ((topicDetail as any).submissions as any[]).some(
+      (s) => String(s?.status) === "EscalatedToModerator"
+    );
+
+  const isEscalated =
+    String(latestSubmissionStatus) === "EscalatedToModerator" ||
+    String(currentVersionStatus) === "EscalatedToModerator" ||
+    String(topStatus) === "EscalatedToModerator" ||
+    anySubmissionEscalated;
+
+  // business rule: default required reviewers; escalated allows +1 reviewer
+  const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
+  const assignedCount = (assignments ?? []).length;
+  const maxAllowedReviewers = requiredReviewers + (isEscalated ? 1 : 0);
+  const remainingSlots = Math.max(0, maxAllowedReviewers - assignedCount);
+
+  const isAssignDisabled = remainingSlots <= 0;
+
+  const openReviewsForSubmission = async (submissionToOpen?: number | null) => {
     const target = submissionToOpen ?? sid ?? null;
     if (!target) {
       toast.error("Submission ID không hợp lệ để xem review");
       return;
     }
-    setReviewsModalSubmissionId(target);
+    setReviewsModalSubmissionId(Number(target));
     setShowReviewsModal(true);
-    if (String(target) === String(sid)) await refetchSummary?.();
+    if (Number(target) === Number(sid)) {
+      try {
+        await refetchSummary?.();
+      } catch (err: any) {
+        // ignore or show toast
+        toast.error(err?.message ?? "Không thể tải summary");
+      }
+    }
   };
 
   const handleConfirmAssign = async (arg: any) => {
     if (!sid) return toast.error("Submission ID không hợp lệ");
     if (isAssignDisabled)
       return toast.error(`Đã có ${assignedCount} reviewer. Không thể phân công thêm.`);
-
     let payload: any;
     if (Array.isArray(arg)) {
       payload = {
@@ -141,6 +168,8 @@ const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
       if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
       qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", sid] });
+      qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+      qc.invalidateQueries({ queryKey: ["submission-list"] });
     } catch (err: any) {
       toast.error(err?.message ?? "Phân công thất bại");
     } finally {
@@ -197,6 +226,8 @@ const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
                 onRemoveAssignment={handleRemoveAssignment}
                 reviewSummary={summary}
                 isAssignDisabled={isAssignDisabled}
+                remainingSlots={remainingSlots}
+                isEscalated={isEscalated}
               />
             </aside>
           </div>
@@ -214,6 +245,7 @@ const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
           confirmDisabled={isAssignDisabled || assigning}
           assignedCount={assignedCount}
           requiredReviewers={requiredReviewers}
+          remainingSlots={remainingSlots}
         />
       )}
 
@@ -230,12 +262,12 @@ const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
         onClose={() => setShowReviewsModal(false)}
         submissionId={reviewsModalSubmissionId ?? undefined}
         summary={
-          String(reviewsModalSubmissionId ?? "") === String(sid ?? "")
+          reviewsModalSubmissionId !== null && Number(reviewsModalSubmissionId) === Number(sid ?? -1)
             ? (summary as SubmissionReviewSummaryDTO | undefined)
             : undefined
         }
         loading={
-          String(reviewsModalSubmissionId ?? "") === String(sid ?? "")
+          reviewsModalSubmissionId !== null && Number(reviewsModalSubmissionId) === Number(sid ?? -1)
             ? loadingSummary
             : undefined
         }
@@ -254,10 +286,20 @@ const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
           onClose={() => setIsFinalReviewOpen(false)}
           submissionId={sid}
           onSuccess={async () => {
+            // refresh
             try {
+              setIsFinalReviewOpen(false);
+              qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
+              qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+              qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", sid] });
+              qc.invalidateQueries({ queryKey: ["submission-list"] });
               if (topicId) await refetchTopicDetail?.();
               await refetchSummary?.();
-            } catch {}
+
+              toast.success("Lưu quyết định Moderator thành công");
+            } catch (err: any) {
+              toast.error(err?.message ?? "Đã xảy ra lỗi khi cập nhật trang");
+            }
           }}
         />
       )}

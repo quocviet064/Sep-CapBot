@@ -9,6 +9,8 @@ import { getTopicDetail } from "@/services/topicService";
 import type { TopicListItem, TopicDetailResponse } from "@/services/topicService";
 
 import TopicAnalysisWithFilters, { type StatusValue } from "@/pages/supervisors/all-submitted-topics/TopicAnalysisWithFilters";
+import { Button, Input, Tooltip } from "antd";
+import { useIndexApprovedTopics } from "@/hooks/useIndexApprovedTopics";
 
 export default function SubmittedTopicsPage() {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export default function SubmittedTopicsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [semesterFilter, setSemesterFilter] = useState<string>("");
   const [loadingTopicId, setLoadingTopicId] = useState<number | null>(null);
+  const { mutate, isPending } = useIndexApprovedTopics();
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -31,8 +34,8 @@ export default function SubmittedTopicsPage() {
   const { data, isLoading, isFetching } = useTopics(
     undefined,
     undefined,
-    1, 
-    1000, 
+    1,
+    1000,
     debouncedSearch || undefined,
   );
 
@@ -262,24 +265,38 @@ export default function SubmittedTopicsPage() {
   return (
     <div className="w-full px-4 py-6 space-y-4">
       <div className="bg-white border border-slate-200 rounded-md p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Topics đã nộp</h1>
-            <div className="text-sm text-slate-500">
-              {isFetching ? "Đang tải…" : `${totalRecords ?? 0} kết quả • Trang ${page} / ${totalPagesLocal}`}
-            </div>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-bold text-slate-800">Topics đã nộp</h1>
+            <span className="text-sm text-slate-500 mt-1">
+              {isFetching
+                ? "Đang tải…"
+                : `${totalRecords ?? 0} kết quả • Trang ${page} / ${totalPagesLocal}`}
+            </span>
           </div>
-          <input
-            id="search"
-            type="search"
-            placeholder="Tìm theo mã / tiêu đề / GVHD..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="px-3 py-2 rounded-md border border-slate-200 min-w-[220px] text-sm"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              allowClear
+              placeholder="Tìm theo mã / tiêu đề / GVHD..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="min-w-[240px]"
+              size="middle"
+            />
+
+            <Tooltip title="Index lại các topic đã được duyệt trong AI Database">
+              <Button
+                type="primary"
+                loading={isPending}
+                onClick={() => mutate()}
+              >
+                Index đề tài đã duyệt
+              </Button>
+            </Tooltip>
+          </div>
         </div>
 
         <div className="mb-6">

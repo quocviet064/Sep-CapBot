@@ -10,10 +10,11 @@ import {
 import type { IdLike } from "@/services/reviewService";
 
 const CHOICES = [
-  { key: "excellent", label: "Excellent", sub: "8 - 10", value: 90 },
-  { key: "good", label: "Good", sub: "6 - 8", value: 70 },
-  { key: "acceptable", label: "Acceptable", sub: "4 - 6", value: 50 },
-  { key: "fail", label: "Fail", sub: "0 - 4", value: 20 },
+  { key: "excellent", label: "Excellent", value: 100 },
+  { key: "good", label: "Good", value: 75 },
+  { key: "normal", label: "Normal", value: 50 },
+  { key: "acceptable", label: "Acceptable", value: 25 },
+  { key: "fail", label: "Fail", value: 0 },
 ] as const;
 
 const RECOMMENDATIONS = [
@@ -24,7 +25,7 @@ const RECOMMENDATIONS = [
 
 type RowScore = {
   criteriaId: number;
-  choice: "" | "excellent" | "good" | "acceptable" | "fail";
+  choice: "" | "excellent" | "good" | "normal" | "acceptable" | "fail";
   score: number | "";
   comment?: string | null;
 };
@@ -81,13 +82,14 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
           if (!cs) return r;
           const scoreVal = Number(cs.score ?? 0);
           let choiceKey: RowScore["choice"] = "";
-          if (scoreVal >= 80) choiceKey = "excellent";
-          else if (scoreVal >= 60) choiceKey = "good";
-          else if (scoreVal >= 40) choiceKey = "acceptable";
+          if (scoreVal >= 100) choiceKey = "excellent";
+          else if (scoreVal >= 75) choiceKey = "good";
+          else if (scoreVal >= 50) choiceKey = "normal";
+          else if (scoreVal >= 25) choiceKey = "acceptable";
           else choiceKey = "fail";
           return {
             ...r,
-            choice: choiceKey as RowScore["choice"], // ép kiểu chắc chắn
+            choice: choiceKey as RowScore["choice"], 
             score: scoreVal,
             comment: cs.comment ?? null
           };
@@ -236,7 +238,7 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
                   {r.choice ? CHOICES.find((c) => c.key === r.choice)?.label : "--"}
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
                 {CHOICES.map((c) => {
                   const sel = r.choice === c.key;
                   return (
@@ -249,7 +251,6 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
                       onClick={() => setChoice(r.criteriaId, c.key)}
                     >
                       <div className="font-semibold">{c.label}</div>
-                      {/* <div className="text-xs">{c.sub}</div> */}
                     </label>
                   );
                 })}
