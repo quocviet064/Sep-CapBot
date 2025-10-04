@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMyAssignments, useStartReview } from "@/hooks/useReviewerAssignment";
 import { useWithdrawReview, useReviewStatistics } from "@/hooks/useReview";
@@ -35,7 +35,7 @@ export default function ReviewerAssignedList() {
     if (!Array.isArray(reviewList)) return map;
 
     for (const rv of reviewList) {
-      const aid = rv.assignmentId ?? rv.AssignmentId ?? rv.assignment?.id ?? null;
+      const aid = rv.assignmentId ?? (rv as any).AssignmentId ?? (rv as any).assignment?.id ?? null;
       if (aid == null) continue;
 
       const existing = map.get(aid);
@@ -53,8 +53,8 @@ export default function ReviewerAssignedList() {
       if (rScore > eScore) {
         map.set(aid, rv);
       } else if (rScore === eScore) {
-        const eTime = new Date(existing.submittedAt ?? existing.createdDate ?? existing.createdAt ?? 0).getTime();
-        const rTime = new Date(rv.submittedAt ?? rv.createdDate ?? rv.createdAt ?? 0).getTime();
+        const eTime = new Date(existing.createdAt ?? 0).getTime();
+        const rTime = new Date(rv.createdAt ?? 0).getTime();
         if (rTime > eTime) {
           map.set(aid, rv);
         }
@@ -69,11 +69,11 @@ export default function ReviewerAssignedList() {
       const found = reviewByAssignment.get(aid);
       const reviewSummary = found
         ? {
-            id: found.id ?? found.Id,
-            status: found.status,
-            assignmentId: found.assignmentId,
-            submittedAt: found.submittedAt ?? found.createdDate ?? found.createdAt,
-          }
+          id: found.id ?? (found as any).Id,
+          status: found.status,
+          assignmentId: found.assignmentId,
+          submittedAt: found.createdAt ?? null,
+        }
         : null;
       return {
         ...a,
@@ -112,7 +112,7 @@ export default function ReviewerAssignedList() {
   // onOpenReview: allow opening draft / start review / withdraw then open
   const onOpenReview = useCallback(
     async (row: ReviewerAssignmentResponseDTO, directReviewId?: number | string) => {
-      const assignmentId = row.id ?? row.assignmentId;
+      const assignmentId = row.id ?? row.id;
       if (!assignmentId) {
         toast.error("Không có assignmentId hợp lệ");
         return;
@@ -159,8 +159,6 @@ export default function ReviewerAssignedList() {
             });
             return;
           }
-
-          // Other statuses: fall through to further checks
         }
 
         let list: any[] = [];
@@ -231,7 +229,7 @@ export default function ReviewerAssignedList() {
         }
 
         if (allowStart) {
-          if (startReviewMut.isLoading) {
+          if (startReviewMut.isPending) {
             toast.info("Đang bắt đầu phiên đánh giá — vui lòng chờ.");
             return;
           }
@@ -256,7 +254,7 @@ export default function ReviewerAssignedList() {
 
   const onWithdrawReview = useCallback(
     async (row: ReviewerAssignmentResponseDTO) => {
-      const assignmentId = row.id ?? row.assignmentId;
+      const assignmentId = row.id ?? row.id;
       if (!assignmentId) {
         toast.error("Assignment ID không hợp lệ");
         return;
@@ -270,7 +268,7 @@ export default function ReviewerAssignedList() {
           const list = await getReviewsByAssignment(assignmentId);
           if (Array.isArray(list) && list.length > 0) {
             const pick = list.find((r) => r.status === "Submitted") ?? list[0];
-            rid = pick?.id ?? pick?.Id ?? null;
+            rid = pick?.id ?? null;
           }
         }
 
@@ -370,6 +368,11 @@ export default function ReviewerAssignedList() {
         columns={columns as any}
         visibility={DEFAULT_VISIBILITY as any}
         placeholder="Tìm theo đề tài, submission..."
+        page={1}
+        setPage={() => { }}
+        totalPages={1}
+        limit={filtered.length}
+        setLimit={() => { }}
       />
     </div>
   );

@@ -71,7 +71,6 @@ interface ApiResponse<T> {
   message: string | null;
 }
 
-/** Helper: extract friendly message from axios error */
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError(e)) {
     const data = (e.response?.data ?? (e as any).data) as any;

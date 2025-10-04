@@ -162,27 +162,7 @@ export const siteReviewer = [
   },
   {
     title: "Đề tài được phân công",
-    url: "#",
+    url: "/reviewers/assigned-topics/list",
     icon: FileSearch,
-    isActive: false,
-    items: [
-      { title: "Danh sách", url: "/reviewers/assigned-topics/list" },
-      { title: "Xem chi tiết", url: "/reviewers/assigned-topics/detail" },
-    ],
-  },
-  {
-    title: "Lịch sử phản hồi",
-    url: "/reviewers/feedback-history",
-    icon: MessageSquareDiff,
-  },
-  {
-    title: "Kho lưu trữ đề tài",
-    url: "/reviewers/topic-archive",
-    icon: FolderSearch,
-  },
-  {
-    title: "Thống kê đánh giá",
-    url: "/reviewers/evaluation-stats",
-    icon: BarChart3,
   },
 ];

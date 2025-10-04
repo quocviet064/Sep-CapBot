@@ -18,6 +18,7 @@ const CHOICES = [
 
 const RECOMMENDATIONS = [
   { key: "Approve", label: "Approve" },
+  { key: "MinorRevision", label: "Revision" },
   { key: "Reject", label: "Reject" },
 ];
 
@@ -54,9 +55,9 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
     if (!criteriaList) return;
     setRows(criteriaList.map((c: any) => ({
       criteriaId: c.id,
-      choice: "",
-      score: "",
-      comment: "",
+      choice: "" as RowScore["choice"],
+      score: "" as number | "",
+      comment: "" as string | null,
     })));
   }, [criteriaList]);
 
@@ -71,12 +72,12 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
       setRows((prev) => {
         const base = prev.length ? prev : (criteriaList || []).map((c: any) => ({
           criteriaId: c.id,
-          choice: "",
-          score: "",
-          comment: "",
+          choice: "" as RowScore["choice"],
+          score: "" as number | "",
+          comment: "" as string | null,
         }));
         return base.map((r) => {
-          const cs = rv.criteriaScores.find((s: any) => Number(s.criteriaId) === Number(r.criteriaId));
+          const cs = rv.criteriaScores.find((s: any) => Number(s.criteriaId) === r.criteriaId);
           if (!cs) return r;
           const scoreVal = Number(cs.score ?? 0);
           let choiceKey: RowScore["choice"] = "";
@@ -84,7 +85,12 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
           else if (scoreVal >= 60) choiceKey = "good";
           else if (scoreVal >= 40) choiceKey = "acceptable";
           else choiceKey = "fail";
-          return { ...r, choice: choiceKey, score: scoreVal, comment: cs.comment ?? null };
+          return {
+            ...r,
+            choice: choiceKey as RowScore["choice"], // ép kiểu chắc chắn
+            score: scoreVal,
+            comment: cs.comment ?? null
+          };
         });
       });
     }
@@ -115,10 +121,10 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
     overallComment: overallComment || undefined,
     recommendation: recommendation || undefined,
     criteriaScores: rows
-      .filter((r) => r.choice)
+      .filter((r) => r.choice && typeof r.score === "number")
       .map((r) => ({
         criteriaId: r.criteriaId,
-        score: typeof r.score === "number" ? r.score : undefined,
+        score: r.score as number,
         comment: r.comment ?? undefined,
       })),
   });
@@ -156,7 +162,7 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
   };
 
   const computedOverall = useMemo(() => {
-    const chosen = rows.filter((r) => typeof r.score === "number" && r.score !== "");
+    const chosen = rows.filter((r) => typeof r.score === "number");
     if (!chosen.length) return null;
     const sum = chosen.reduce((s, c) => s + Number(c.score || 0), 0);
     const avg = Math.round((sum / chosen.length) * 100) / 100;
@@ -173,7 +179,7 @@ export default function ReviewForm({ assignmentId, reviewId: incomingReviewId, c
           <Button size="sm" onClick={handleSaveDraft}>Lưu nháp</Button>
           <Button
             size="sm"
-            variant="primary"
+            variant="default"
             onClick={handleSubmit}
             disabled={!isSavedDraft}
           >

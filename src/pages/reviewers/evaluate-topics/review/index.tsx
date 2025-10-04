@@ -7,7 +7,6 @@ import { useMyAssignments } from "@/hooks/useReviewerAssignment";
 import { useCriteria } from "@/hooks/useEvaluationCriteria";
 import TopicSubmissionDetail from "./TopicSubmissionDetail";
 import ReviewForm from "./ReviewForm";
-import AICheckSection from "@/pages/moderators/submissions/components/AICheckSection";
 
 export default function ReviewerReviewEditor() {
   const [qs] = useSearchParams();
@@ -27,13 +26,20 @@ export default function ReviewerReviewEditor() {
   }, [assignmentId, myAssignments]);
 
   const effectiveSubmissionId = submissionIdFromQs ?? submissionIdFromAssignment;
-  const { data: submissionDetailFromAssignment, isLoading: subLoading2 } = useSubmissionDetail(effectiveSubmissionId ?? undefined);
-
+  const { data: submissionDetailFromAssignment, isLoading: subLoading2 } =
+    useSubmissionDetail(
+      effectiveSubmissionId ? String(effectiveSubmissionId) : undefined
+    );
   const finalSubmissionDetail = submissionDetail ?? submissionDetailFromAssignment;
   const topicId = finalSubmissionDetail?.topicId ?? undefined;
-  const { data: topicDetail, isLoading: topicLoading } = useTopicDetail(topicId);
-  const { data: criteriaPaged } = useCriteria({ PageNumber: 1, PageSize: 100, Keyword: null });
-  const criteriaList = criteriaPaged?.listObjects ?? [];
+  const { data: topicDetail, isLoading: topicLoading } = useTopicDetail(
+    topicId ? String(topicId) : undefined
+  );
+  const { data: criteriaPaged } = useCriteria({
+    PageNumber: 1,
+    PageSize: 100,
+    Keyword: undefined,
+  }); const criteriaList = criteriaPaged?.listObjects ?? [];
 
   const isLoading = subLoading || subLoading2 || topicLoading;
 
@@ -53,7 +59,7 @@ export default function ReviewerReviewEditor() {
         {/* Right: review form */}
         <div>
           <ReviewForm
-            assignmentId={assignmentId ? Number(assignmentId) : undefined}
+            assignmentId={Number(assignmentId)}
             reviewId={reviewId ? Number(reviewId) : undefined}
             criteriaList={criteriaList}
           />

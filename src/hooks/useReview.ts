@@ -73,7 +73,6 @@ export const useCreateReview = () => {
   return useMutation<ReviewDTO, Error, CreateReviewDTO>({
     mutationFn: (payload: CreateReviewDTO) => createReview(payload),
     onSuccess: (rv) => {
-      // invalidate list + assignment-specific caches + stats
       qc.invalidateQueries({ queryKey: ["reviews"] });
       qc.invalidateQueries({ queryKey: ["reviews-by-assignment", rv.assignmentId] });
       qc.invalidateQueries({ queryKey: ["review-statistics"] });
@@ -127,7 +126,6 @@ export const useWithdrawReview = () => {
   return useMutation<void, Error, IdLike>({
     mutationFn: (id: IdLike) => withdrawReview(id),
     onSuccess: () => {
-      // refresh caches that may show the withdrawn review
       qc.invalidateQueries({ queryKey: ["reviews"] });
       qc.invalidateQueries({ queryKey: ["reviews-by-assignment"] });
       qc.invalidateQueries({ queryKey: ["review-statistics"] });
