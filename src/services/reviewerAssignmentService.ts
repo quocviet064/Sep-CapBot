@@ -309,10 +309,8 @@ export const cancelAssignment = async (assignmentId: IdLike): Promise<void> => {
       `/reviewer-assignments/${id}`
     );
     if (!res.data.success) throw new Error(res.data.message || "Hủy assignment thất bại");
-    toast.success("Hủy assignment thành công");
   } catch (e) {
     const msg = getAxiosMessage(e, "Hủy assignment thất bại");
-    toast.error(msg);
     throw new Error(msg);
   }
 };

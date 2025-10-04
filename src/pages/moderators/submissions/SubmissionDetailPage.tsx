@@ -159,7 +159,7 @@ export default function SubmissionDetailPage() {
           deadline: arg.deadline,
         })),
       };
-    } else return toast.error("Dữ liệu phân công không hợp lệ");
+    } else return ;
 
     setAssigning(true);
     try {

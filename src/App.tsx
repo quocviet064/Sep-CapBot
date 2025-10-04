@@ -18,6 +18,7 @@ import TopicCreateConfirmPage from "./pages/supervisors/topic-version/TopicVersi
 import WelcomeCreateTopicPage from "./pages/supervisors/WelcomeCreateTopicPage";
 import AISuggestPage from "./pages/supervisors/AISuggestPage";
 import MyTopicsDashboard from "./pages/supervisors/my-topics-dashboard";
+import useNotificationHub from "./hooks/useNotificationHub";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -140,6 +141,7 @@ const ModeratorSemesterPhase = lazy(
 const NotFoundPage = lazy(() => import("./pages/not-found-page"));
 
 function App() {
+  useNotificationHub();
   return (
     <Suspense fallback={<LoadingPage />}>
       <Routes>

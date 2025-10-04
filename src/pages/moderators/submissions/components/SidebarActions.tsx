@@ -16,6 +16,7 @@ type Props = {
   onRemoveAssignment?: (assignmentId: number | string) => void;
   reviewSummary?: any | null;
   isAssignDisabled?: boolean;
+  remainingSlots?: number;
   isEscalated?: boolean;
   onOpenReviewForSubmission?: (submissionId?: number | string) => void;
 };
