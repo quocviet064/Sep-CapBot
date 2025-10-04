@@ -46,7 +46,6 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     },
   });
 
-  // read isLoading via any cast to avoid TS mismatch in some react-query versions
   const suggestLoading = Boolean((suggestMut as any).isLoading);
   const assignLoading = Boolean((assignMut as any).isLoading);
 
@@ -138,7 +137,6 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     const fieldScores = (s as any).skillMatchFieldScores ?? (s as any).SkillMatchFieldScores ?? null;
     if (!fieldScores || typeof fieldScores !== "object") return null;
     const keys = Object.keys(fieldScores);
-    if (keys.length === 0) return null;
     return (
       <div className="mt-2 border rounded bg-slate-50 p-2 text-sm">
         <div className="font-medium mb-1">Field match scores</div>
@@ -154,47 +152,46 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     );
   };
 
-  const renderTopTokens = (s: ReviewerSuggestionDTO) => {
-    const tokens = (s as any).skillMatchTopTokens ?? (s as any).SkillMatchTopTokens ?? null;
-    if (!tokens || typeof tokens !== "object") return null;
-    const keys = Object.keys(tokens);
-    if (keys.length === 0) return null;
-
-    return (
-      <div className="mt-2 text-sm">
-        <div className="font-medium mb-1">Top tokens</div>
-        <div className="space-y-2">
-          {keys.map((k) => {
-            const v = tokens[k];
-            const display = Array.isArray(v) ? v.slice(0, 8).join(", ") : String(v ?? "");
-            return (
-              <div key={`${String(s.reviewerId)}-token-${k}`} className="mb-1">
-                <div className="text-xs text-slate-600">{k}</div>
-                <div className="text-sm">{display || <span className="text-neutral-400">—</span>}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
   const renderMatchedSkills = (s: ReviewerSuggestionDTO) => {
     const matchedSkills = (s as any).matchedSkills ?? [];
     if (!Array.isArray(matchedSkills) || matchedSkills.length === 0) {
-      return (
-        <div className="mt-2 text-sm text-amber-700">Không tìm thấy kỹ năng phù hợp</div>
-      );
+      return <div className="mt-2 text-sm text-amber-700">Reviewer skill do not match with this type of topic</div>;
     }
 
     return (
       <div className="mt-2">
         <div className="font-medium">Kỹ năng phù hợp</div>
         <ul className="list-disc ml-5 text-sm">
-          {matchedSkills.map((skill: string) => (
-            <li key={String(skill)}>{skill}</li>
+          {matchedSkills.map((skill: string, idx: number) => (
+            <li key={idx}>{skill}</li>
           ))}
         </ul>
+      </div>
+    );
+  };
+
+  const renderTopTokens = (s: ReviewerSuggestionDTO) => {
+    const topTokens = (s as any).skillMatchTopTokens ?? {};
+    if (!topTokens || typeof topTokens !== "object" || Object.keys(topTokens).length === 0) return null;
+
+    return (
+      <div className="mt-2">
+        <div className="font-medium text-sm mb-1">Top skill tokens</div>
+        <div className="flex flex-wrap gap-1">
+          {Object.entries(topTokens).map(([field, tokens]) =>
+            Array.isArray(tokens)
+              ? tokens.map((token: string, i: number) => (
+                <span
+                  key={`${field}-${i}`}
+                  className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 border border-blue-300 rounded-full"
+                  title={`Field: ${field}`}
+                >
+                  {token}
+                </span>
+              ))
+              : null
+          )}
+        </div>
       </div>
     );
   };
@@ -374,26 +371,12 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         {" • "}Active: <span className="font-semibold">{s.currentActiveAssignments ?? 0}</span>
                       </div>
 
-                      {/* matched skills + top tokens + field scores */}
                       {renderMatchedSkills(s)}
-                      {renderTopTokens(s)}
-                      {renderFieldScores(s)}
-
-                      {s.reviewerSkills && (
-                        <div className="mt-2">
-                          <div className="font-medium">Reviewer skills (profile)</div>
-                          <ul className="list-disc ml-5 text-sm">
-                            {Object.entries(s.reviewerSkills).map(([skill, level]) => (
-                              <li key={`${String(s.reviewerId)}-skill-${skill}`}>
-                                {skill}: <span className="font-semibold">{String(level)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
 
                       {s.isEligible === false && (
-                        <div className="mt-1 text-sm text-rose-600">Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}</div>
+                        <div className="mt-1 text-sm text-rose-600">
+                          Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}
+                        </div>
                       )}
                     </div>
 
@@ -403,15 +386,28 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                       <div className="flex gap-2">
                         <button
                           onClick={() => onAssign(s)}
-                          className={`px-3 py-1 rounded text-sm ${s.isEligible ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 cursor-not-allowed"}`}
+                          className={`px-3 py-1 rounded text-sm ${s.isEligible
+                              ? "bg-green-600 text-white"
+                              : "bg-gray-200 text-gray-600 cursor-not-allowed"
+                            }`}
                           disabled={!s.isEligible || assignLoading || !globalDeadline || suggestLoading}
-                          title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : !s.isEligible ? "Reviewer không hợp lệ" : "Assign reviewer"}
+                          title={
+                            !globalDeadline
+                              ? "Vui lòng chọn deadline trước khi phân công"
+                              : !s.isEligible
+                                ? "Reviewer không hợp lệ"
+                                : "Assign reviewer"
+                          }
                         >
                           Assign
                         </button>
                       </div>
 
-                      <button onClick={() => toggleExpand(key)} className="text-xs text-slate-500 underline" disabled={suggestLoading}>
+                      <button
+                        onClick={() => toggleExpand(key)}
+                        className="text-xs text-slate-500 underline"
+                        disabled={suggestLoading}
+                      >
                         {expanded[key] ? "Hide details" : "Show details"}
                       </button>
                     </div>
@@ -426,7 +422,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                           <div className="font-medium">Reviewer skills</div>
                           <ul className="list-disc ml-5">
                             {Object.entries(s.reviewerSkills).map(([skill, level]) => (
-                              <li key={`${key}-profile-${skill}`}>
+                              <li key={skill}>
                                 {skill}: <span className="font-semibold">{String(level)}</span>
                               </li>
                             ))}
@@ -435,13 +431,38 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                       )}
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 text-sm">
-                        <div>Completed: <span className="font-semibold">{s.completedAssignments ?? 0}</span></div>
-                        <div>Avg score: <span className="font-semibold">{s.averageScoreGiven === null || s.averageScoreGiven === undefined ? "-" : formatPercent(s.averageScoreGiven)}</span></div>
-                        <div>On-time rate: <span className="font-semibold">{s.onTimeRate === null || s.onTimeRate === undefined ? "-" : formatPercent(s.onTimeRate)}</span></div>
-                        <div>Quality rating: <span className="font-semibold">{s.qualityRating === null || s.qualityRating === undefined ? "-" : formatPercent(s.qualityRating)}</span></div>
-                        <div>Performance: <span className="font-semibold">{s.performanceScore === null || s.performanceScore === undefined ? "-" : formatPercent(s.performanceScore)}</span></div>
+                        <div>
+                          Completed: <span className="font-semibold">{s.completedAssignments ?? 0}</span>
+                        </div>
+                        <div>
+                          Avg score:{" "}
+                          <span className="font-semibold">
+                            {s.averageScoreGiven === null || s.averageScoreGiven === undefined
+                              ? "-"
+                              : formatPercent(s.averageScoreGiven)}
+                          </span>
+                        </div>
+                        <div>
+                          On-time rate:{" "}
+                          <span className="font-semibold">
+                            {s.onTimeRate === null || s.onTimeRate === undefined ? "-" : formatPercent(s.onTimeRate)}
+                          </span>
+                        </div>
+                        <div>
+                          Quality rating:{" "}
+                          <span className="font-semibold">
+                            {s.qualityRating === null || s.qualityRating === undefined ? "-" : formatPercent(s.qualityRating)}
+                          </span>
+                        </div>
+                        <div>
+                          Performance score:{" "}
+                          <span className="font-semibold">
+                            {s.performanceScore === null || s.performanceScore === undefined
+                              ? "-"
+                              : formatPercent(s.performanceScore)}
+                          </span>
+                        </div>
                       </div>
-
                       {renderTopTokens(s)}
                     </div>
                   )}

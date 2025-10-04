@@ -184,7 +184,6 @@ export const getReviewsByAssignment = async (assignmentId: IdLike): Promise<Revi
   }
 };
 
-// GET /api/reviews/{id}/scores  (score board)
 export const getScoreBoard = async (id: IdLike): Promise<{
   reviewId: IdLike;
   overallScore?: number | null;
@@ -199,18 +198,25 @@ export const getScoreBoard = async (id: IdLike): Promise<{
 }> => {
   try {
     const res = await capBotAPI.get<any>(`/reviews/${id}/scores`);
-    const data = res.data?.data ?? res.data?.Data ?? res.data;
+    
+    const payload = res.data?.data ?? res.data?.Data ?? res.data;
+    const data =
+      payload?.isSuccess && payload?.data
+        ? payload.data
+        : payload; 
+
     if (!data) throw new Error("Không lấy được scoreboard");
+
     return {
-      reviewId: data.ReviewId ?? data.reviewId,
-      overallScore: data.OverallScore ?? data.overallScore,
-      criteriaScores: (data.CriteriaScores ?? data.criteriaScores ?? []).map((x: any) => ({
-        criteriaId: x.CriteriaId ?? x.criteriaId,
-        criteriaName: x.CriteriaName ?? x.criteria?.name,
-        score: x.Score,
-        maxScore: x.MaxScore ?? x.criteria?.maxScore,
-        weight: x.Weight ?? x.criteria?.weight,
-        comment: x.Comment ?? x.comment ?? null,
+      reviewId: data.reviewId ?? data.ReviewId,
+      overallScore: data.overallScore ?? data.OverallScore,
+      criteriaScores: (data.criteriaScores ?? data.CriteriaScores ?? []).map((x: any) => ({
+        criteriaId: x.criteriaId ?? x.CriteriaId,
+        criteriaName: x.criteriaName ?? x.CriteriaName ?? x.criteria?.name ?? "—",
+        score: x.score ?? x.Score,
+        maxScore: x.maxScore ?? x.MaxScore ?? x.criteria?.maxScore,
+        weight: x.weight ?? x.Weight ?? x.criteria?.weight,
+        comment: x.comment ?? x.Comment ?? null,
       })),
     };
   } catch (e) {
