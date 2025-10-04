@@ -1,8 +1,9 @@
 import React from "react";
 import type { TopicDetailResponse } from "@/services/topicService";
 
-interface TopicSummaryCardProps {
-  topicDetail?: any; // có thể là từ /topics hoặc từ /assignments
+export interface TopicSummaryCardProps {
+  topicDetail?: TopicDetailResponse;
+  displayedTopic?: TopicDetailResponse;
 }
 
 function statusColorClass(status?: string) {

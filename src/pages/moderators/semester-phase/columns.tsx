@@ -1,4 +1,3 @@
-// src/pages/moderators/semester-phase/columns.tsx
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/globals/atoms/button";
 import {
@@ -13,13 +12,12 @@ import DataTableColumnHeader from "@/components/globals/molecules/data-table-col
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { getSemesterDetail, SemesterDTO } from "@/services/semesterService";
-import { formatDate } from "@/utils/formatter"; // ⬅️ đổi sang formatDate
+import { formatDate } from "@/utils/formatter";
 
 export type ColumnActionsHandlers = {
   onViewDetail: (id: string) => void;
 };
 
-/** Cell hiển thị ngày bằng cách lấy từ API detail */
 function DateCell({ id, type }: { id: number; type: "start" | "end" }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["semesterDetail", id],
@@ -35,7 +33,7 @@ function DateCell({ id, type }: { id: number; type: "start" | "end" }) {
   if (isError || !data) return <span>—</span>;
 
   const val = type === "start" ? data.startDate : data.endDate;
-  return <span>{formatDate(val) || "—"}</span>; // ⬅️ chỉ ngày
+  return <span>{formatDate(val) || "—"}</span>;
 }
 
 export const createColumns = (

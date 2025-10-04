@@ -94,7 +94,7 @@ export default function SubmissionDetailPage() {
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
 
-  const requiredReviewers = topicDetail?.requiredReviewers ?? 2;
+const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
   const assignedCount = (assignments ?? []).length;
   const isAssignDisabled = assignedCount >= requiredReviewers;
 
@@ -210,7 +210,7 @@ export default function SubmissionDetailPage() {
           availableReviewers={availableReviewers ?? []}
           onClose={() => setIsPickerOpen(false)}
           onConfirm={handleConfirmAssign}
-          loading={bulkAssign.isLoading || loadingAvailable || assigning}
+          loading={bulkAssign.isPending || loadingAvailable || assigning}
           confirmDisabled={isAssignDisabled || assigning}
           assignedCount={assignedCount}
           requiredReviewers={requiredReviewers}

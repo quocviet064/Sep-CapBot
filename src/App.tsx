@@ -134,10 +134,6 @@ const SubmissionsListPage = lazy(
 const SubmissionDetailPage = lazy(
   () => import("./pages/moderators/submissions/SubmissionDetailPage"),
 );
-const ModeratorFeedbackEval = lazy(
-  () => import("./pages/moderators/feedback-evaluation"),
-);
-const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
 const ModeratorCategoryPage = lazy(
   () => import("./pages/moderators/category-manager/category-page"),
 );
@@ -337,11 +333,6 @@ function App() {
             path="/moderators/submissions/:submissionId"
             element={<SubmissionDetailPage />}
           />
-          <Route
-            path="/moderators/feedback-evaluation"
-            element={<ModeratorFeedbackEval />}
-          />
-          <Route path="/moderators/reports" element={<ModeratorReports />} />
           <Route
             path="/moderators/category-manager/category-page"
             element={<ModeratorCategoryPage />}

@@ -377,7 +377,7 @@ export const getReviewerSuggestions = async (
   maxSuggestions = 5,
   usePrompt = true,
   deadline?: string | null,
-  assign = false 
+  assign = false
 ): Promise<SuggestedReviewerItem[]> => {
   try {
     const payload: ReviewerSuggestionInputDTO = {
@@ -471,15 +471,20 @@ export const getAssignmentsByReviewer = async (
 };
 
 export interface ReviewerWorkloadDTO {
-  reviewerId: IdLike;
-  reviewerName?: string;
-  email?: string;
-  currentActiveAssignments: number;
-  completedAssignments?: number;
-  pendingAssignments?: number;
-  onTimeRate?: number;
-  averageScoreGiven?: number;
-  workloadScore?: number;
+  id: number;
+  userName: string;
+  email: string;
+  phoneNumber?: string;
+  currentAssignments: number;
+  skills: string[];
+  isAvailable: boolean;
+  unavailableReason?: string;
+  performance?: {
+    totalAssignments: number;
+    completedAssignments: number;
+    averageScoreGiven: number;
+    onTimeRate: number;
+  };
 }
 
 export interface AnalyzeReviewerMatchDTO {
@@ -505,14 +510,38 @@ export const getReviewersWorkload = async (
       `/reviewer-assignments/workload`,
       { params: semesterId != null ? { semesterId } : undefined }
     );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy thống kê thất bại");
-    return res.data.data ?? [];
+
+    if (!res.data.success)
+      throw new Error(res.data.message || "Lấy thống kê thất bại");
+
+    const raw = res.data.data ?? [];
+
+    // Chuẩn hóa dữ liệu (đề phòng null)
+    return raw.map((r: any) => ({
+      id: r.id,
+      userName: r.userName,
+      email: r.email,
+      phoneNumber: r.phoneNumber,
+      currentAssignments: r.currentAssignments ?? 0,
+      skills: r.skills ?? [],
+      isAvailable: r.isAvailable ?? false,
+      unavailableReason: r.unavailableReason ?? null,
+      performance: r.performance
+        ? {
+          totalAssignments: r.performance.totalAssignments ?? 0,
+          completedAssignments: r.performance.completedAssignments ?? 0,
+          averageScoreGiven: r.performance.averageScoreGiven ?? 0,
+          onTimeRate: r.performance.onTimeRate ?? 0,
+        }
+        : undefined,
+    }));
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể lấy thống kê workload reviewer");
     toast.error(msg);
     throw new Error(msg);
   }
 };
+
 
 /** Phân tích matching */
 export const analyzeReviewerMatch = async (
