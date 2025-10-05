@@ -65,7 +65,6 @@ export default function PhasePage() {
 
   return (
     <div className="space-y-4">
-      {/* HEADER */}
       <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 p-5 text-white shadow-sm">
         <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
@@ -75,9 +74,9 @@ export default function PhasePage() {
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Giai đoạn</h2>
+              <h2 className="text-lg font-semibold">Loại giai đoạn</h2>
               <p className="text-xs text-white/70">
-                Danh sách giai đoạn có phân trang, lọc theo học kỳ
+                Danh sách loại giai đoạn có phân trang, lọc theo học kỳ
               </p>
             </div>
           </div>
@@ -103,13 +102,15 @@ export default function PhasePage() {
         <div className="flex items-center gap-2">
           <Button onClick={() => setOpenCreate(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Tạo giai đoạn
+            Tạo loại giai đoạn
           </Button>
         </div>
       </div>
 
       <div className="min-h-[520px] rounded-2xl border bg-white/70 px-4 py-4 shadow-sm">
-        <h3 className="mb-3 text-base font-semibold">Danh sách giai đoạn</h3>
+        <h3 className="mb-3 text-base font-semibold">
+          Danh sách loại giai đoạn
+        </h3>
 
         <DataTable
           data={items}

@@ -20,16 +20,6 @@ export type ColumnActionsHandlers = {
   onViewDetail: (id: number) => void;
 };
 
-const colorFromStatus = (value?: string | null) => {
-  const sv = (value ?? "").toString().toLowerCase();
-  if (sv === "approved") return "green";
-  if (sv.includes("reject")) return "red";
-  if (sv === "underreview" || sv === "under_review" || sv === "review")
-    return "dodgerblue";
-  if (sv === "submitted") return "slategray";
-  return "orange";
-};
-
 const OneLine = ({
   children,
   width = "max-w-[220px]",
@@ -53,6 +43,40 @@ const TwoLines = ({
     <div className="line-clamp-2 break-words whitespace-normal">{children}</div>
   </div>
 );
+
+const getStatusMeta = (value?: string | null) => {
+  const raw = (value ?? "").toString().trim();
+  if (!raw) return { label: "--", color: "#9ca3af" };
+  const obsolete = raw.startsWith("[Obsolete]");
+  const base = obsolete ? raw.replace(/^\[Obsolete\]\s*/i, "") : raw;
+
+  switch (base) {
+    case "Draft":
+      return { label: "Bản nháp", color: "#64748b" };
+    case "SubmissionPending":
+      return { label: "Chờ nộp", color: "#6b7280" };
+    case "Submitted":
+      return { label: "Đã nộp", color: "#6366f1" };
+    case "UnderReview":
+      return { label: "Đang duyệt", color: "#1e90ff" };
+    case "Approved":
+      return {
+        label: obsolete ? "Đã duyệt (cũ)" : "Đã duyệt",
+        color: "#16a34a",
+      };
+    case "Rejected":
+      return { label: obsolete ? "Từ chối (cũ)" : "Từ chối", color: "#ef4444" };
+    case "RevisionRequired":
+      return {
+        label: obsolete ? "Yêu cầu chỉnh sửa (cũ)" : "Yêu cầu chỉnh sửa",
+        color: "#f59e0b",
+      };
+    case "Archived":
+      return { label: "Lưu trữ", color: "#475569" };
+    default:
+      return { label: raw, color: "#f59e0b" };
+  }
+};
 
 export const createTopicListColumns = (
   handlers: ColumnActionsHandlers,
@@ -298,19 +322,21 @@ export const createTopicListColumns = (
   },
   {
     accessorKey: "latestSubmissionStatus",
-    meta: { title: "Trạng thái " },
+    meta: { title: "Trạng thái" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Trạng thái " center />
+      <DataTableColumnHeader column={column} title="Trạng thái" center />
     ),
     cell: ({ row }) => {
-      const s = (row.original.latestSubmissionStatus ?? "").toString();
+      const { label, color } = getStatusMeta(
+        row.original.latestSubmissionStatus as string | null,
+      );
       return (
         <div className="flex justify-center pr-4">
           <Badge
             className="whitespace-nowrap text-white"
-            style={{ backgroundColor: colorFromStatus(s) }}
+            style={{ backgroundColor: color }}
           >
-            {s || "--"}
+            {label}
           </Badge>
         </div>
       );
@@ -334,25 +360,7 @@ export const createTopicListColumns = (
     size: 120,
     maxSize: 140,
   },
-  {
-    accessorKey: "isLegacy",
-    meta: { title: "Legacy" },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Legacy" center />
-    ),
-    cell: ({ row }) => (
-      <div className="flex justify-center pr-4">
-        <Badge
-          className="whitespace-nowrap text-white"
-          style={{ backgroundColor: row.original.isLegacy ? "green" : "red" }}
-        >
-          {row.original.isLegacy ? "Có" : "Không"}
-        </Badge>
-      </div>
-    ),
-    size: 120,
-    maxSize: 140,
-  },
+
   {
     accessorKey: "createdAt",
     meta: { title: "Ngày tạo" },

@@ -21,9 +21,15 @@ import {
   Save,
   Trash2,
   X,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useDeleteSemester, useUpdateSemester } from "@/hooks/useSemester";
+import {
+  useDeleteSemester,
+  useUpdateSemester,
+  useSemesters,
+} from "@/hooks/useSemester";
 import { motion } from "framer-motion";
 
 const toYMD = (isoOrYmd?: string | null) => {
@@ -108,6 +114,20 @@ function FieldTextarea(
   );
 }
 
+function FieldSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={[
+        "w-full rounded-xl border px-3.5 py-2.5 text-sm",
+        "border-neutral-200 bg-white shadow-inner outline-none",
+        "focus:border-indigo-400 focus:ring-4 focus:ring-indigo-200/60",
+        props.className || "",
+      ].join(" ")}
+    />
+  );
+}
+
 function SkeletonRow() {
   return (
     <div className="grid grid-cols-12 items-center gap-4 py-3">
@@ -156,6 +176,19 @@ interface SemesterDetailDialogProps {
   semesterId: string | null;
 }
 
+type TermType = "Summer" | "Fall" | "Spring";
+
+const parseTermYear = (
+  name?: string | null,
+): { term: TermType; year: string } | null => {
+  if (!name) return null;
+  const m = name.match(/^(Summer|Fall|Spring)\s+(\d{4})$/i);
+  if (!m) return null;
+  const term = (m[1][0].toUpperCase() +
+    m[1].slice(1).toLowerCase()) as TermType;
+  return { term, year: m[2] };
+};
+
 export default function SemesterDetailDialog({
   isOpen,
   onClose,
@@ -169,6 +202,12 @@ export default function SemesterDetailDialog({
 
   const { mutate: updateMutate, isPending: isSaving } = useUpdateSemester();
   const { mutate: deleteMutate, isPending: isDeleting } = useDeleteSemester();
+
+  const { data: semesters = [] } = useSemesters();
+
+  const currentYear = String(new Date().getFullYear());
+  const [term, setTerm] = useState<TermType>("Summer");
+  const [year, setYear] = useState<string>(currentYear);
 
   useEffect(() => {
     if (!isOpen || !semesterId) return;
@@ -189,6 +228,14 @@ export default function SemesterDetailDialog({
           endDate: toYMD(s.endDate),
           description: s.description,
         });
+        const parsed = parseTermYear(s.name);
+        if (parsed) {
+          setTerm(parsed.term);
+          setYear(parsed.year);
+        } else {
+          setTerm("Summer");
+          setYear(currentYear);
+        }
       })
       .catch((err: unknown) => {
         const msg =
@@ -196,10 +243,25 @@ export default function SemesterDetailDialog({
         setErrorMsg(msg);
       })
       .finally(() => setLoading(false));
-  }, [isOpen, semesterId]);
+  }, [isOpen, semesterId, currentYear]);
 
   const onChange = (key: keyof UpdateSemesterDTO, value: string | number) =>
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+
+  useEffect(() => {
+    if (!isEditing || !form) return;
+    onChange("name", `${term} ${year}`.trim());
+  }, [term, year, isEditing]);
+
+  const isDuplicate = useMemo(() => {
+    if (!form?.name) return false;
+    const name = form.name.trim().toLowerCase();
+    const id = String(form.id);
+    return semesters.some(
+      (s) =>
+        String(s.id) !== id && (s.name || "").trim().toLowerCase() === name,
+    );
+  }, [form?.name, form?.id, semesters]);
 
   const canSave = useMemo(() => {
     if (!form) return false;
@@ -207,9 +269,10 @@ export default function SemesterDetailDialog({
       !!form.name?.trim() &&
       !!form.startDate &&
       !!form.endDate &&
-      !!form.description?.trim()
+      !!form.description?.trim() &&
+      !isDuplicate
     );
-  }, [form]);
+  }, [form, isDuplicate]);
 
   const isDirty = useMemo(() => {
     if (!form || !detail) return false;
@@ -223,6 +286,10 @@ export default function SemesterDetailDialog({
 
   const handleSave = () => {
     if (!form) return;
+    if (isDuplicate) {
+      toast.error("Tên học kỳ đã tồn tại");
+      return;
+    }
     if (new Date(form.startDate) > new Date(form.endDate)) {
       toast.error("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc");
       return;
@@ -293,6 +360,18 @@ export default function SemesterDetailDialog({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isEditing, isSaving, canSave]);
+
+  const incYear = () => {
+    const y = parseInt(year || currentYear, 10);
+    const next = isNaN(y) ? parseInt(currentYear, 10) + 1 : y + 1;
+    setYear(String(Math.min(9999, next)));
+  };
+
+  const decYear = () => {
+    const y = parseInt(year || currentYear, 10);
+    const next = isNaN(y) ? parseInt(currentYear, 10) - 1 : y - 1;
+    setYear(String(Math.max(0, next)));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={closeOrConfirm}>
@@ -373,19 +452,82 @@ export default function SemesterDetailDialog({
                       {detail.name ?? "--"}
                     </div>
                   ) : (
-                    <FieldInput
-                      value={form?.name ?? ""}
-                      onChange={(e) => onChange("name", e.target.value)}
-                      placeholder="VD: Học kỳ 1/2025"
-                      maxLength={200}
-                    />
+                    <>
+                      <div className="flex flex-nowrap items-center gap-3 whitespace-nowrap">
+                        <FieldSelect
+                          value={term}
+                          onChange={(e) => setTerm(e.target.value as TermType)}
+                          className={[
+                            "w-[160px]",
+                            isDuplicate
+                              ? "border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-200/60"
+                              : "",
+                          ].join(" ")}
+                        >
+                          <option value="Summer">Summer</option>
+                          <option value="Fall">Fall</option>
+                          <option value="Spring">Spring</option>
+                        </FieldSelect>
+                        <div className="relative w-[140px]">
+                          <FieldInput
+                            inputMode="numeric"
+                            value={year}
+                            onChange={(e) => {
+                              const v = e.target.value
+                                .replace(/\D+/g, "")
+                                .slice(0, 4);
+                              setYear(v);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                incYear();
+                              }
+                              if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                decYear();
+                              }
+                            }}
+                            placeholder="YYYY"
+                            className={[
+                              "pr-8 text-center",
+                              isDuplicate
+                                ? "border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-200/60"
+                                : "",
+                            ].join(" ")}
+                          />
+                          <div className="pointer-events-auto absolute inset-y-0 right-1 flex w-6 flex-col items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={incYear}
+                              className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-neutral-100 active:scale-95"
+                              aria-label="Tăng năm"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={decYear}
+                              className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-neutral-100 active:scale-95"
+                              aria-label="Giảm năm"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      {isDuplicate && (
+                        <div className="mt-2 text-xs font-medium text-red-600">
+                          Tên học kỳ{" "}
+                          <span className="font-semibold">{form?.name}</span> đã
+                          tồn tại. Vui lòng chọn kỳ khác hoặc đổi năm.
+                        </div>
+                      )}
+                    </>
                   )}
                 </Row>
                 <div className="border-t" />
-                <Row
-                  label="Xu hướng"
-                  hint="Mô tả ngắn gọn mục tiêu hoặc ghi chú cho học kỳ."
-                >
+                <Row label="Xu hướng">
                   {!isEditing ? (
                     <div className="text-sm text-neutral-800">
                       {detail.description ?? "--"}
@@ -483,6 +625,14 @@ export default function SemesterDetailDialog({
                       endDate: toYMD(detail.endDate),
                       description: detail.description,
                     });
+                    const parsed = parseTermYear(detail.name);
+                    if (parsed) {
+                      setTerm(parsed.term);
+                      setYear(parsed.year);
+                    } else {
+                      setTerm("Summer");
+                      setYear(currentYear);
+                    }
                   }
                   setIsEditing(false);
                 }}

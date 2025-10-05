@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useTopicDetail } from "@/hooks/useTopic";
+import capBotAPI from "@/lib/CapBotApi";
 
 const DUP_CHECK_ROUTE = "/topics/topic-version/duplicate-check";
 
@@ -107,6 +108,7 @@ type VersionSeed = {
   categoryName: string;
   semesterId: number;
   semesterName: string;
+  fileId?: number;
   docFileName?: string;
   docFileSize?: number;
 };
@@ -117,6 +119,37 @@ function formatBytes(b: number) {
   const i = Math.floor(Math.log(b) / Math.log(k));
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   return `${parseFloat((b / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+function pickFileId(v: unknown): number | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.fileId === "number") return obj.fileId;
+  if (typeof obj.id === "number") return obj.id;
+  const data = obj.data as Record<string, unknown> | undefined;
+  if (data) {
+    if (typeof data.fileId === "number") return data.fileId;
+    if (typeof data.id === "number") return data.id;
+  }
+  return undefined;
+}
+
+function getErrorMessage(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err) {
+    const resp = (
+      err as {
+        response?: { data?: { message?: unknown } };
+        message?: unknown;
+      }
+    ).response;
+    const msg = resp?.data?.message;
+    if (typeof msg === "string") return msg;
+    const fallback = (err as { message?: unknown }).message;
+    if (typeof fallback === "string") return fallback;
+  }
+  return "Không upload được tệp";
 }
 
 export default function TopicVersionCreateSuggestPage() {
@@ -187,6 +220,7 @@ export default function TopicVersionCreateSuggestPage() {
     categoryName: incomingSeed.categoryName ?? fetchedSeed?.categoryName ?? "",
     semesterId: incomingSeed.semesterId ?? fetchedSeed?.semesterId ?? 0,
     semesterName: incomingSeed.semesterName ?? fetchedSeed?.semesterName ?? "",
+    fileId: incomingSeed.fileId,
     docFileName: incomingSeed.docFileName,
     docFileSize: incomingSeed.docFileSize,
   };
@@ -203,20 +237,6 @@ export default function TopicVersionCreateSuggestPage() {
   const [problem, setProblem] = useState(initialSeed.problem);
   const [context, setContext] = useState(initialSeed.context);
   const [content, setContent] = useState(initialSeed.content);
-
-  useEffect(() => {
-    if (!fetchedSeed) return;
-    setENTitle((v) => (v ? v : (fetchedSeed.eN_Title ?? "")));
-    setVNTitle((v) => (v ? v : (fetchedSeed.vN_title ?? "")));
-    setDescription((v) => (v ? v : (fetchedSeed.description ?? "")));
-    setObjectives((v) => (v ? v : (fetchedSeed.objectives ?? "")));
-    setMethodology((v) => (v ? v : (fetchedSeed.methodology ?? "")));
-    setExpectedOutcomes((v) => (v ? v : (fetchedSeed.expectedOutcomes ?? "")));
-    setRequirements((v) => (v ? v : (fetchedSeed.requirements ?? "")));
-    setProblem((v) => (v ? v : (fetchedSeed.problem ?? "")));
-    setContext((v) => (v ? v : (fetchedSeed.context ?? "")));
-    setContent((v) => (v ? v : (fetchedSeed.content ?? "")));
-  }, [fetchedSeed]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const requiredKeys = [
@@ -324,7 +344,21 @@ export default function TopicVersionCreateSuggestPage() {
     setPrevDocMeta(null);
   };
 
-  const goCheckDuplicate = () => {
+  const uploadAndGetFileId = async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    const res = await capBotAPI.post("/File/upload", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const id = pickFileId(res?.data as unknown);
+    if (typeof id !== "number") {
+      console.error("Upload response:", res?.data);
+      throw new Error("Không lấy được fileId từ phản hồi tải lên");
+    }
+    return id;
+  };
+
+  const goCheckDuplicate = async () => {
     if (!Number.isFinite(tid)) {
       toast.error("Thiếu topicId hợp lệ");
       return;
@@ -335,33 +369,45 @@ export default function TopicVersionCreateSuggestPage() {
       );
       return;
     }
-    const formSnapshot = {
-      eN_Title,
-      vN_title,
-      problem,
-      context,
-      content,
-      description,
-      objectives,
-      methodology,
-      expectedOutcomes,
-      requirements,
-      docFileName: docFile?.name ?? prevDocMeta?.name,
-      docFileSize: docFile?.size ?? prevDocMeta?.size,
-      categoryId: initialSeed.categoryId,
-      categoryName: initialSeed.categoryName,
-      semesterId: initialSeed.semesterId,
-      semesterName: initialSeed.semesterName,
-      supervisorId: initialSeed.supervisorId,
-      supervisorName: initialSeed.supervisorName,
-    };
-    navigate(DUP_CHECK_ROUTE, {
-      state: {
-        formSnapshot,
-        topicId: tid,
-        submissionId,
-      },
-    });
+
+    try {
+      let fileId = initialSeed.fileId;
+      if (docFile) {
+        fileId = await uploadAndGetFileId(docFile);
+      }
+
+      const formSnapshot = {
+        eN_Title,
+        vN_title,
+        problem,
+        context,
+        content,
+        description,
+        objectives,
+        methodology,
+        expectedOutcomes,
+        requirements,
+        docFileName: docFile?.name ?? prevDocMeta?.name,
+        docFileSize: docFile?.size ?? prevDocMeta?.size,
+        fileId,
+        categoryId: initialSeed.categoryId,
+        categoryName: initialSeed.categoryName,
+        semesterId: initialSeed.semesterId,
+        semesterName: initialSeed.semesterName,
+        supervisorId: initialSeed.supervisorId,
+        supervisorName: initialSeed.supervisorName,
+      } satisfies Partial<VersionSeed> & { fileId?: number };
+
+      navigate(DUP_CHECK_ROUTE, {
+        state: {
+          formSnapshot,
+          topicId: tid,
+          submissionId,
+        },
+      });
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
+    }
   };
 
   if (loadingTopic) {

@@ -13,6 +13,49 @@ import {
 import { normalizeAssetUrl } from "@/utils/assetUrl";
 import VersionTabs from "../topic-version/TopicVersionTabs";
 
+type StatusInput = number | string | null | undefined;
+
+const STATUS_VN_MAP: Record<string, string> = {
+  "1": "Chờ xử lý",
+  pending: "Chờ xử lý",
+
+  "2": "Đang xem xét",
+  underreview: "Đang xem xét",
+  "under review": "Đang xem xét",
+  under_review: "Đang xem xét",
+
+  "3": "Bị trùng",
+  duplicate: "Bị trùng",
+
+  "4": "Hoàn thành",
+  completed: "Hoàn thành",
+
+  "5": "Yêu cầu chỉnh sửa",
+  revisionrequired: "Yêu cầu chỉnh sửa",
+  "revision required": "Yêu cầu chỉnh sửa",
+  revision_required: "Yêu cầu chỉnh sửa",
+
+  "6": "Chuyển cấp duyệt",
+  escalatedtomoderator: "Chuyển cấp duyệt",
+  "escalated to moderator": "Chuyển cấp duyệt",
+  escalated_to_moderator: "Chuyển cấp duyệt",
+
+  "7": "Đã duyệt",
+  approved: "Đã duyệt",
+
+  "8": "Từ chối",
+  rejected: "Từ chối",
+};
+
+function toVietnameseStatus(s: StatusInput): string | undefined {
+  if (s == null || s === "") return undefined;
+  if (typeof s === "number")
+    return STATUS_VN_MAP[String(s)] ?? `Trạng thái ${s}`;
+  const raw = String(s).trim().toLowerCase();
+  const compact = raw.replace(/[\s_]+/g, "");
+  return STATUS_VN_MAP[compact] ?? STATUS_VN_MAP[raw] ?? s;
+}
+
 function SectionCard({
   title,
   desc,
@@ -103,6 +146,7 @@ function FileAttachment({
     </button>
   );
 }
+
 type SubmissionLite = {
   additionalNotes?: string | null;
   status?: string | null;
@@ -110,6 +154,12 @@ type SubmissionLite = {
 };
 type WithSubs = { submissions?: SubmissionLite[] };
 type WithVersionSubs = { currentVersion?: { submissions?: SubmissionLite[] } };
+
+type MaybeLatestStatus = { latestSubmissionStatus?: string | number | null };
+
+function hasLatestSubmissionStatus(x: unknown): x is MaybeLatestStatus {
+  return typeof x === "object" && x !== null && "latestSubmissionStatus" in x;
+}
 
 const pickLatestSubmission = (
   data: TopicDetailResponse,
@@ -136,9 +186,18 @@ function TopicDetailPage({
   const navigate = useNavigate();
   const current = data.currentVersion;
   const latest = pickLatestSubmission(data);
-  const latestStatus = (latest?.status ?? "").toString();
   const latestNotes = latest?.additionalNotes ?? null;
   const latestTime = latest?.submittedAt ?? null;
+
+  const sourceStatus: string | number | null =
+    (latest?.status as string | number | null) ??
+    (hasLatestSubmissionStatus(data)
+      ? (data.latestSubmissionStatus ?? null)
+      : null) ??
+    (current?.status as string | number | null) ??
+    null;
+
+  const vnStatus = toVietnameseStatus(sourceStatus);
 
   return (
     <div className="space-y-4">
@@ -283,8 +342,8 @@ function TopicDetailPage({
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Trạng thái đề tài</span>
                 <span className="font-medium">
-                  {latestStatus ? (
-                    <Badge className="text-white">{latestStatus}</Badge>
+                  {vnStatus ? (
+                    <Badge className="text-white">{vnStatus}</Badge>
                   ) : (
                     "—"
                   )}
@@ -308,6 +367,7 @@ function TopicDetailPage({
               </div>
             </div>
           </SectionCard>
+
           <SectionCard title="Thông tin ghi chú kèm theo (nếu có)">
             <div className="space-y-2 text-sm">
               <div
@@ -379,5 +439,12 @@ export default function SubmittedTopicDetailPage() {
   if (error) return <p className="text-red-500">{error}</p>;
   if (!data) return <p className="text-sm">Không tìm thấy đề tài.</p>;
 
-  return <TopicDetailPage data={data} onBack={() => navigate(-1)} />;
+  return (
+    <TopicDetailPage
+      data={data}
+      onBack={() =>
+        navigate("/supervisors/all-submitted-topics/AllSubmittedTopicsPage")
+      }
+    />
+  );
 }

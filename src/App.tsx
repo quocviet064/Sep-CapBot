@@ -18,6 +18,9 @@ import TopicCreateConfirmPage from "./pages/supervisors/topic-version/TopicVersi
 import WelcomeCreateTopicPage from "./pages/supervisors/WelcomeCreateTopicPage";
 import AISuggestPage from "./pages/supervisors/AISuggestPage";
 import MyTopicsDashboard from "./pages/supervisors/my-topics-dashboard";
+import TopicListVersionDetailPage from "./pages/supervisors/all-topics-list/TopicListVersionDetailPage";
+import AdminUserDetailPage from "./pages/admins/auth-management/AdminUserDetailPage";
+import AdminUsersPerformanceDashboard from "./pages/admins/admin-dashboard/AdminUsersPerformanceDashboard";
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -192,9 +195,15 @@ function App() {
             path="/supervisors/topics/all-topics-list"
             element={<TopicsListPage />}
           />
+
           <Route
             path="/supervisors/topics/all-topics-list/topics/:id"
             element={<TopicListDetailPage />}
+          />
+
+          <Route
+            path="/supervisors/topics/all-topics-list/topics/:topicId/versions/:versionId"
+            element={<TopicListVersionDetailPage />}
           />
 
           <Route
@@ -282,6 +291,11 @@ function App() {
           <Route path="/supervisors/category" element={<CategoryPage />} />
 
           <Route
+            path="/admins/admin-dashboard"
+            element={<AdminUsersPerformanceDashboard />}
+          />
+
+          <Route
             path="/admins/semester-management/SemesterPage"
             element={<AdminSemesterPage />}
           />
@@ -305,6 +319,10 @@ function App() {
           <Route
             path="/admins/auth-management/account-provision"
             element={<AccountProvisionPage />}
+          />
+          <Route
+            path="/admin/users/:userId"
+            element={<AdminUserDetailPage />}
           />
 
           <Route path="/reviewers/dashboard" element={<ReviewerDashboard />} />

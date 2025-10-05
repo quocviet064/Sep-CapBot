@@ -30,9 +30,9 @@ export const createPhaseTypeColumns = (
   },
   {
     accessorKey: "name",
-    meta: { title: "Tên loại giai đoạn" },
+    meta: { title: "Tên giai đoạn" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tên loại giai đoạn" />
+      <DataTableColumnHeader column={column} title="Tên giai đoạn" />
     ),
     cell: ({ row }) => (
       <div className="font-medium text-neutral-900">{row.original.name}</div>

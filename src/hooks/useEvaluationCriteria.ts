@@ -11,6 +11,7 @@ import {
   type CreateCriteriaPayload,
   type UpdateCriteriaPayload,
   getCriteriaDetail,
+  deleteCriteria,
 } from "@/services/evaluationCriteriaService";
 import { toast } from "sonner";
 
@@ -80,5 +81,19 @@ export function useCriteriaBySemester(semesterId?: number) {
     queryFn: () => getCriteriaBySemester(Number(semesterId)),
     enabled: typeof semesterId === "number" && semesterId > 0,
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useDeleteCriteria() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: deleteCriteria,
+    onSuccess: () => {
+      toast.success("Xóa tiêu chí thành công");
+      qc.invalidateQueries({ queryKey: ["criteria"] });
+    },
+    onError: (e) => {
+      toast.error(e.message || "Xóa tiêu chí thất bại");
+    },
   });
 }

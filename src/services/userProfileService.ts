@@ -138,10 +138,11 @@ export const getUserProfileByUserId = async (
       `/user-profiles/by-user/${userId}`,
     );
     const { success, message, data } = res.data;
-    if (!success) throw new Error(message || "Không thể lấy hồ sơ theo UserId");
+    if (!success)
+      throw new Error(message || "Hồ sơ tài khoản chưa được cập nhật");
     return data;
   } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể lấy hồ sơ theo UserId");
+    const msg = getAxiosMessage(e, "Hồ sơ tài khoản chưa được cập nhật");
     toast.error(msg);
     throw new Error(msg);
   }

@@ -168,15 +168,44 @@ function FileAttachment({
 const fmt = (s?: string | null) => (s && String(s).trim().length ? s : "—");
 const fmtDate = (d?: string | null) => (d ? formatDateTime(d) : "—");
 
-function normalizeStatusLabel(s?: string | number | null) {
+/** ---------- Trạng thái TV phiên bản: ánh xạ & chuẩn hoá (VN) ---------- */
+const TVS_LABEL_VN: Record<number, string> = {
+  1: "Bản nháp", // Draft
+  2: "Chờ nộp", // SubmissionPending
+  3: "Đã nộp", // Submitted
+  4: "Đang đánh giá", // UnderReview
+  5: "Đã duyệt", // Approved (obsolete)
+  6: "Từ chối", // Rejected (obsolete)
+  7: "Yêu cầu chỉnh sửa", // RevisionRequired (obsolete)
+  8: "Đã lưu trữ", // Archived
+};
+
+const normalizeTopicVersionStatusCode = (
+  s?: string | number | null,
+): number | undefined => {
   if (s == null) return undefined;
-  const v = String(s).toLowerCase();
-  if (v === "0" || v === "draft") return "Draft";
-  if (v === "1" || v === "submitted") return "Submitted";
-  if (v === "2" || v === "approved") return "Approved";
-  if (v === "3" || v === "rejected") return "Rejected";
-  return v.charAt(0).toUpperCase() + v.slice(1);
-}
+  if (typeof s === "number") return TVS_LABEL_VN[s] ? s : undefined;
+  const raw = String(s).trim();
+  if (/^\d+$/.test(raw)) {
+    const n = Number(raw);
+    return TVS_LABEL_VN[n] ? n : undefined;
+  }
+  const m = raw.toLowerCase().replace(/\s|_/g, ""); // handle "Under_Review" | "under review"
+  if (m === "draft") return 1;
+  if (m === "submissionpending") return 2;
+  if (m === "submitted") return 3;
+  if (m === "underreview") return 4;
+  if (m === "approved") return 5;
+  if (m === "rejected") return 6;
+  if (m === "revisionrequired") return 7;
+  if (m === "archived") return 8;
+  return undefined;
+};
+
+const topicVersionStatusLabelVN = (s?: string | number | null) =>
+  TVS_LABEL_VN[normalizeTopicVersionStatusCode(s) ?? 0] ?? "—";
+
+/** --------------------------------------------------------------------- */
 
 const REQUIRED_FIELDS = [
   "eN_Title",
@@ -290,7 +319,6 @@ export default function TopicVersionDetailPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-
     if (!eN_Title.trim()) e.eN_Title = "Vui lòng nhập EN Title";
     if (!vN_title.trim()) e.vN_title = "Vui lòng nhập VN Title";
     if (!description.trim()) e.description = "Vui lòng nhập mô tả";
@@ -302,7 +330,6 @@ export default function TopicVersionDetailPage() {
     if (!expectedOutcomes.trim())
       e.expectedOutcomes = "Vui lòng nhập kết quả kỳ vọng";
     if (!requirements.trim()) e.requirements = "Vui lòng nhập yêu cầu";
-
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -424,7 +451,11 @@ export default function TopicVersionDetailPage() {
     );
   }
 
-  const normalizedStatus = normalizeStatusLabel(ver.status);
+  // ---- Trạng thái hiện tại (VN) + logic disable khi "Đã nộp" ----
+  const statusCode = normalizeTopicVersionStatusCode(ver.status);
+  const statusVN = topicVersionStatusLabelVN(ver.status);
+  const isSubmitted = statusCode === 3; // Đã nộp
+  const canEdit = statusCode === 1; // Chỉ cho phép sửa khi Bản nháp (giữ nguyên rule cũ)
 
   return (
     <div className="space-y-4">
@@ -439,7 +470,7 @@ export default function TopicVersionDetailPage() {
             <div>
               <h2 className="text-lg font-semibold">Chi tiết phiên bản</h2>
               <p className="text-xs text-white/70">
-                v{ver.versionNumber} • Trạng thái: {normalizedStatus || "—"}
+                v{ver.versionNumber} • Trạng thái: {statusVN}
               </p>
             </div>
           </div>
@@ -456,13 +487,6 @@ export default function TopicVersionDetailPage() {
                 />
               </div>
             </div>
-            <Button
-              onClick={() => navigate(`/unsubmitted/topics/${topicId}`)}
-              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              Về chi tiết đề tài
-            </Button>
           </div>
         </div>
       </div>
@@ -791,7 +815,7 @@ export default function TopicVersionDetailPage() {
                   Trạng thái hiện tại
                 </span>
                 <span className="rounded-full border bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-700">
-                  {normalizedStatus || "—"}
+                  {statusVN}
                 </span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
@@ -829,11 +853,17 @@ export default function TopicVersionDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* XÓA: disable nếu đang Submitted */}
             <Button
               variant="outline"
               onClick={handleDelete}
-              disabled={deleting}
-              className="inline-flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50"
+              disabled={deleting || isSubmitted}
+              title={
+                isSubmitted
+                  ? "Không thể xóa khi phiên bản ở trạng thái Đã nộp"
+                  : undefined
+              }
+              className="inline-flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deleting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -887,15 +917,18 @@ export default function TopicVersionDetailPage() {
                 </Button>
               </>
             ) : (
+              // CHỈNH SỬA: disable nếu Submitted hoặc không phải Bản nháp (giữ rule cũ)
               <Button
                 onClick={() => setIsEditing(true)}
-                disabled={normalizeStatusLabel(ver.status) !== "Draft"}
+                disabled={!canEdit || isSubmitted}
                 title={
-                  normalizeStatusLabel(ver.status) === "Draft"
-                    ? ""
-                    : "Chỉ sửa được khi phiên bản ở trạng thái Draft"
+                  isSubmitted
+                    ? "Không thể chỉnh sửa khi phiên bản ở trạng thái Đã nộp"
+                    : canEdit
+                      ? ""
+                      : "Chỉ sửa được khi phiên bản ở trạng thái Bản nháp"
                 }
-                className="inline-flex min-w-36 items-center gap-2"
+                className="inline-flex min-w-36 items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <PencilLine className="h-4 w-4" /> Chỉnh sửa
               </Button>
