@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx
 import capBotAPI from "@/lib/CapBotApi";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { Role } from "@/schemas/userSchema";

@@ -29,14 +29,14 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   submissionId?: IdLike;
-  onConfirm?: (payload: any) => Promise<any> | any; // optional backward-compat
+  onConfirm?: (payload: any) => Promise<any> | any;
   onAssignedSuccess?: () => void;
   availableReviewers?: any[];
   loading?: boolean;
   confirmDisabled?: boolean;
   assignedCount?: number;
   requiredReviewers?: number;
-  remainingSlots?: number; // authoritative number slots allowed by parent
+  remainingSlots?: number;
 }
 
 export default function ReviewerPickerDialog({
@@ -96,7 +96,6 @@ export default function ReviewerPickerDialog({
     );
   }, [allNormalized, search]);
 
-  // authoritative remaining: if parent provided remainingSlots use it; otherwise compute from requiredReviewers - assignedCount
   const remaining = typeof propRemainingSlots === "number"
     ? Math.max(0, propRemainingSlots)
     : Math.max(0, (requiredReviewers ?? 2) - (assignedCount ?? 0));
@@ -153,60 +152,35 @@ export default function ReviewerPickerDialog({
 
     const sid = typeof submissionId === "string" ? Number(submissionId) : submissionId;
 
-    // nếu chọn 1 reviewer -> gọi API single
-    if (selected.length === 1) {
-      const payload = {
-        submissionId: sid,
-        reviewerId: selected[0],
-        assignmentType,
-        deadline: isoDeadline,
-      };
-
-      try {
-        await singleAssign.mutateAsync(payload);
-
-        // optional parent callback (post-success)
-        if (onConfirm) {
-          try {
-            await onConfirm(payload);
-          } catch (e) {
-            console.warn("onConfirm callback error", e);
-          }
-        }
-        onAssignedSuccess?.();
-        onClose();
-        return;
-      } catch {
-        return;
-      }
-    }
-
-    // nếu chọn >1 reviewers -> gọi bulk API
-    const assignments = selected.map((rid) => ({
-      submissionId: sid,
-      reviewerId: rid,
-      assignmentType,
-      deadline: isoDeadline,
-    }));
-
-    const bulkPayload = { assignments };
-
     try {
-      await bulkAssign.mutateAsync(bulkPayload);
-
-      if (onConfirm) {
-        try {
-          await onConfirm(bulkPayload);
-        } catch (e) {
-          console.warn("onConfirm callback error", e);
-        }
+      if (selected.length === 1) {
+        const payload = {
+          submissionId: sid,
+          reviewerId: selected[0],
+          assignmentType,
+          deadline: isoDeadline,
+        };
+        await singleAssign.mutateAsync(payload);
+        if (onConfirm) await onConfirm(payload);
+      } else {
+        const assignments = selected.map((rid) => ({
+          submissionId: sid,
+          reviewerId: rid,
+          assignmentType,
+          deadline: isoDeadline,
+        }));
+        await bulkAssign.mutateAsync({ assignments });
+        if (onConfirm) await onConfirm({ assignments });
       }
+
       onAssignedSuccess?.();
       onClose();
-    } catch {
-      // keep dialog open so mod can retry
+    } catch (e) {
+      console.error(e);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

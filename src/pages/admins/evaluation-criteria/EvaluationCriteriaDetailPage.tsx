@@ -1,4 +1,3 @@
-// src/pages/admin/evaluation/EvaluationCriteriaDetailPage.tsx
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {

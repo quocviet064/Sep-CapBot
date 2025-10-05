@@ -11,19 +11,7 @@ import type {
 const normalize = (v?: unknown) => String(v ?? "").trim();
 const toLower = (v?: unknown) => normalize(v).toLowerCase();
 
-const statusLabel = (s?: unknown) => {
-  const k = toLower(s);
-  if (!k) return "--";
-  if (k.includes("assigned")) return "Được phân công";
-  if (k.includes("inprogress") || k.includes("in_progress") || k.includes("in progress"))
-    return "Đang đánh giá";
-  if (k.includes("completed")) return "Hoàn thành";
-  if (k.includes("overdue")) return "Quá hạn";
-  return "--";
-};
-
 const typeLabel = (t?: unknown) => {
-  // assignmentType might be numeric or string
   const k = toLower(t);
   if (!k) return "--";
   if (k === "primary" || k === "1") return "Primary";
@@ -193,8 +181,6 @@ export function createColumns(
       ),
       cell: ({ row }) => {
         const a = row.original as any;
-
-        // reviewStatus normalized to lowercase if set in enrichedAssignments
         const reviewStatus = toLower(a.reviewStatus ?? a.review?.status);
         const reviewId = a.reviewId ?? a.review?.id ?? null;
 
@@ -211,7 +197,6 @@ export function createColumns(
         const hasReview = !!reviewStatus;
         const deadlineInFuture = deadlineDate ? deadlineDate >= now : false;
 
-        // Allow evaluate if assigned OR no review yet and not overdue or no status
         const canEvaluate =
           hasAssignedStatus || (!hasReview && (deadlineInFuture || !statusKeyNorm));
 

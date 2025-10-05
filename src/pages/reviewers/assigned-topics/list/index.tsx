@@ -21,11 +21,9 @@ const STATUS = {
   OVERDUE: "overdue",
 } as const;
 
-/** normalize helpers */
 const normalize = (v?: unknown) => String(v ?? "").trim();
 const toLower = (v?: unknown) => normalize(v).toLowerCase();
 
-/** map statuses to canonical lowercase keys */
 const canonicalAssignmentStatus = (s?: unknown) => {
   const k = toLower(s);
   if (!k) return "";
@@ -34,7 +32,7 @@ const canonicalAssignmentStatus = (s?: unknown) => {
     return "inprogress";
   if (k.includes("completed")) return "completed";
   if (k.includes("overdue")) return "overdue";
-  return k; // fallback (e.g. draft/submitted etc)
+  return k; 
 };
 
 export default function ReviewerAssignedList() {
@@ -46,7 +44,7 @@ export default function ReviewerAssignedList() {
   const { data: reviewStatsResp, isLoading: statsLoading } = useReviewStatistics();
   const reviewList = reviewStatsResp?.listObjects ?? [];
 
-  // build map assignmentId => best review summary (prefer Submitted > Draft > InProgress)
+  // Submitted > Draft > InProgress
   const reviewByAssignment = useMemo(() => {
     const map = new Map<number | string, any>();
     if (!Array.isArray(reviewList)) return map;
@@ -184,7 +182,7 @@ export default function ReviewerAssignedList() {
             return;
           }
 
-          // Submitted -> ask to withdraw then open a new review (or editing)
+          // Submitted -> ask to withdraw 
           if (st === "submitted") {
             const conf = window.confirm("Bản đánh giá này đã được gửi. Bạn muốn rút lại để chỉnh sửa?");
             if (!conf) return;
@@ -202,7 +200,6 @@ export default function ReviewerAssignedList() {
           }
         }
 
-        // fallback: get reviews by assignment to find draft/submitted
         let list: any[] = [];
         try {
           list = (await getReviewsByAssignment(assignmentId)) ?? [];
@@ -239,7 +236,6 @@ export default function ReviewerAssignedList() {
           }
         }
 
-        // Decide whether starting a new review is allowed:
         const statusKey = toLower((row as any).status ?? (row as any).assignmentStatus ?? (row as any).statusName ?? "");
         const now = new Date();
 
@@ -247,7 +243,7 @@ export default function ReviewerAssignedList() {
         if (statusKey === "assigned" || statusKey === "") {
           allowStart = true;
         } else {
-          // If there's a deadline/ due date and it's not overdue -> allow
+          // not overdue -> allow
           const maybeDeadline =
             (row as any).submissionDeadline ??
             (row as any).deadline ??
@@ -261,8 +257,6 @@ export default function ReviewerAssignedList() {
               allowStart = true;
             }
           }
-
-          // fallback: if there is no review found and status not present, allow
           const foundReview = reviewByAssignment.get(assignmentId);
           if (!allowStart && !foundReview && (!statusKey || statusKey.length === 0)) {
             allowStart = true;
@@ -344,7 +338,6 @@ export default function ReviewerAssignedList() {
       onWithdrawReview,
       canWithdrawFromStatus: (status: unknown) => {
         const k = canonicalAssignmentStatus(status);
-        // allow withdraw if inprogress or completed (backend rules may differ)
         return k === "inprogress" || k === "completed";
       },
     }),

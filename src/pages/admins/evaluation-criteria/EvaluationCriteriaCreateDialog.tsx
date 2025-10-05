@@ -1,4 +1,3 @@
-// src/pages/admin/evaluation/EvaluationCriteriaCreateDialog.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/globals/atoms/button";
 import {

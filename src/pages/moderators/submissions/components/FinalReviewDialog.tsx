@@ -104,7 +104,7 @@ export default function FinalReviewDialog({
     try {
       await mutation.mutateAsync(payload);
     } catch {
-      // error handled in onError
+      // handled in onError
     } finally {
       setIsSubmitting(false);
     }

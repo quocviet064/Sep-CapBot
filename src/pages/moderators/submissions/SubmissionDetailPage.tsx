@@ -94,7 +94,6 @@ export default function SubmissionDetailPage() {
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
 
-  // ----- Detect escalated state robustly -----
   const latestSubmissionStatus = (topicDetail as any)?.latestSubmissionStatus;
   const currentVersionStatus = (topicDetail as any)?.currentVersionStatus;
   const topStatus = (topicDetail as any)?.status;
@@ -130,9 +129,8 @@ export default function SubmissionDetailPage() {
     if (Number(target) === Number(sid)) {
       try {
         await refetchSummary?.();
-      } catch (err: any) {
-        // ignore or show toast
-        toast.error(err?.message ?? "Không thể tải summary");
+      } catch {
+        // ignore
       }
     }
   };
