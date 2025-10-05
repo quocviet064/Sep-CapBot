@@ -23,7 +23,6 @@ export interface CreateTopicVersionPayload {
   requirements: string;
 
   fileId?: number;
-  documentUrl?: string;
 
   problem: string;
   context: string;

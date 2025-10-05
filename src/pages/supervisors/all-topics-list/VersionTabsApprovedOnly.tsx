@@ -13,12 +13,6 @@ type Props = {
   showCurrentButton?: boolean;
 };
 
-const isApproved = (status: string | number | null | undefined) => {
-  if (status === null || typeof status === "undefined") return false;
-  if (typeof status === "number") return status === 5;
-  return String(status).toLowerCase() === "approved";
-};
-
 export default function VersionTabsApprovedOnly({
   topicId,
   currentHref,
@@ -33,7 +27,9 @@ export default function VersionTabsApprovedOnly({
 
   const items = useMemo(() => {
     const all = data?.listObjects ?? [];
-    const approvedOnly = all.filter((v) => isApproved(v.status));
+    const approvedOnly = all.filter(
+      (v) => typeof v.status === "string" && v.status === "Approved",
+    );
     return approvedOnly
       .slice()
       .sort((a, b) => (a.versionNumber ?? 0) - (b.versionNumber ?? 0));
@@ -41,7 +37,7 @@ export default function VersionTabsApprovedOnly({
 
   useEffect(() => {
     if (isNavigatingCurrent) setIsNavigatingCurrent(false);
-  }, [location.pathname]);
+  }, [location.pathname, isNavigatingCurrent]);
 
   const handleGoCurrent = () => {
     if (location.pathname === currentHref) {

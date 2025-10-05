@@ -52,6 +52,7 @@ type FormSnapshot = {
   semesterName?: string;
   maxStudents?: number;
   fileToken?: string | null;
+  fileId?: number;
   __fromSuggestion?: boolean;
 };
 
@@ -371,6 +372,7 @@ export default function VersionDuplicateCheck() {
           typeof snap.semesterId === "number"
             ? Number(snap.semesterId)
             : undefined,
+        fileId: typeof snap.fileId === "number" ? snap.fileId : undefined,
       };
 
       if (!body.title) {
@@ -502,6 +504,7 @@ export default function VersionDuplicateCheck() {
       semesterName,
       docFileName: snap.docFileName,
       docFileSize: snap.docFileSize,
+      fileId: snap.fileId,
     };
 
     if (!topicId || Number.isNaN(Number(topicId))) {

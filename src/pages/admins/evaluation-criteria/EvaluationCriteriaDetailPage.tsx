@@ -10,12 +10,16 @@ import {
   User2,
   Scale,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/globals/atoms/button";
 import { Badge } from "@/components/globals/atoms/badge";
 import LoadingPage from "@/pages/loading-page";
-import { useCriteriaDetail } from "@/hooks/useEvaluationCriteria";
+import {
+  useCriteriaDetail,
+  useDeleteCriteria,
+} from "@/hooks/useEvaluationCriteria";
 import { formatDateTime } from "@/utils/formatter";
 import EvaluationCriteriaEditDialog from "./EvaluationCriteriaEditDialog";
 
@@ -95,6 +99,7 @@ export default function EvaluationCriteriaDetailPage() {
   const navigate = useNavigate();
   const { data, isLoading, error } = useCriteriaDetail(id);
   const [openEdit, setOpenEdit] = useState(false);
+  const del = useDeleteCriteria();
 
   useEffect(() => {
     if (error) toast.error(error.message);
@@ -123,6 +128,19 @@ export default function EvaluationCriteriaDetailPage() {
         Không tìm thấy tiêu chí.
       </div>
     );
+
+  const handleDelete = async () => {
+    const ok = window.confirm(
+      "Xóa tiêu chí này? Hành động không thể hoàn tác.",
+    );
+    if (!ok) return;
+    try {
+      await del.mutateAsync(data.id);
+      navigate(-1);
+    } catch {
+      //aa
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -210,7 +228,7 @@ export default function EvaluationCriteriaDetailPage() {
           />
           <Row
             label="Người tạo"
-            value={data.createdBy || "—"}
+            value={data.createdBy || "Admin"}
             icon={<User2 className="h-3.5 w-3.5" />}
           />
           <Row
@@ -219,14 +237,14 @@ export default function EvaluationCriteriaDetailPage() {
               data.lastModifiedAt &&
               data.lastModifiedAt !== "0001-01-01T00:00:00"
                 ? formatDateTime(data.lastModifiedAt)
-                : "—"
+                : ""
             }
             icon={<CalendarClock className="h-3.5 w-3.5" />}
             mono
           />
           <Row
             label="Người sửa cuối"
-            value={data.lastModifiedBy || "—"}
+            value={data.lastModifiedBy || ""}
             icon={<User2 className="h-3.5 w-3.5" />}
           />
         </Section>
@@ -243,12 +261,22 @@ export default function EvaluationCriteriaDetailPage() {
             Quay lại
           </Button>
 
-          <Button
-            onClick={() => setOpenEdit(true)}
-            className="mr-3 ml-auto inline-flex items-center gap-2"
-          >
-            <Pencil className="h-4 w-4" /> Chỉnh sửa
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              onClick={() => setOpenEdit(true)}
+              className="inline-flex items-center gap-2"
+            >
+              <Pencil className="h-4 w-4" /> Chỉnh sửa
+            </Button>
+            <Button
+              onClick={handleDelete}
+              disabled={del.isPending}
+              className="inline-flex items-center gap-2 bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-600"
+            >
+              <Trash2 className="h-4 w-4" />
+              {del.isPending ? "Đang xoá..." : "Xoá"}
+            </Button>
+          </div>
         </div>
       </div>
 

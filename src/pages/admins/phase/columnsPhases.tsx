@@ -56,9 +56,9 @@ export const createPhaseColumns = (
   },
   {
     accessorKey: "name",
-    meta: { title: "Tên giai đoạn" },
+    meta: { title: "Tên loại giai đoạn" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tên giai đoạn" />
+      <DataTableColumnHeader column={column} title="Tên loại giai đoạn" />
     ),
     cell: ({ row }) => (
       <div className="max-w-[380px] truncate font-medium text-neutral-900">
@@ -68,9 +68,9 @@ export const createPhaseColumns = (
   },
   {
     accessorKey: "phaseTypeName",
-    meta: { title: "Loại" },
+    meta: { title: "Giai đoạn" },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Loại" />
+      <DataTableColumnHeader column={column} title="Giai đoạn" />
     ),
     cell: ({ row }) => row.original.phaseTypeName || "--",
   },
