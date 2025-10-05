@@ -1,11 +1,10 @@
 import axios, { AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 
-const aiBaseUrl = (
-  import.meta.env.VITE_AI_API_BASE_URL || "http://152.42.227.169:8000"
-).replace(/\/+$/, "");
+const aiBaseUrl =
+  import.meta.env.VITE_AI_API_BASE_URL?.replace(/\/+$/, "") ?? "";
 
 const aiAPI = axios.create({
-  baseURL: aiBaseUrl.replace(/\/+$/, ""),
+  baseURL: aiBaseUrl,
   timeout: 30000,
 });
 
