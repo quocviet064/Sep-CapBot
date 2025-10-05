@@ -11,7 +11,6 @@ import {
   type TopicDetailResponse,
 } from "@/services/topicService";
 import { normalizeAssetUrl } from "@/utils/assetUrl";
-
 import VersionTabsApprovedOnly from "./VersionTabsApprovedOnly";
 
 function SectionCard({
@@ -77,7 +76,6 @@ function FileAttachment({
       return "tai-lieu";
     }
   })();
-
   const handleClick = () => {
     const a = document.createElement("a");
     a.href = resolved;
@@ -87,7 +85,6 @@ function FileAttachment({
     a.remove();
     window.open(resolved, "_blank", "noopener,noreferrer");
   };
-
   return (
     <button
       onClick={handleClick}
@@ -109,17 +106,51 @@ function FileAttachment({
 
 type SubmissionLite = {
   additionalNotes?: string | null;
-  status?: string | null;
+  status?: string | number | null;
   submittedAt?: string | null;
 };
-type WithSubs = { submissions?: SubmissionLite[] };
-type WithVersionSubs = { currentVersion?: { submissions?: SubmissionLite[] } };
+
+const STATUS_LABEL_VN: Record<number, string> = {
+  1: "Chờ xử lý",
+  2: "Đang xem xét",
+  3: "Trùng lặp",
+  4: "Hoàn tất",
+  5: "Yêu cầu chỉnh sửa",
+  6: "Chuyển Moderator",
+  7: "Đã duyệt",
+  8: "Từ chối",
+};
+
+const normalizeStatusCode = (
+  v?: string | number | null,
+): number | undefined => {
+  if (v == null) return undefined;
+  if (typeof v === "number") return STATUS_LABEL_VN[v] ? v : undefined;
+  const s = String(v).trim();
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    return STATUS_LABEL_VN[n] ? n : undefined;
+  }
+  const m = s.toLowerCase();
+  if (m === "pending") return 1;
+  if (m === "underreview" || m === "under_review") return 2;
+  if (m === "duplicate") return 3;
+  if (m === "completed") return 4;
+  if (m === "revisionrequired" || m === "revision_required") return 5;
+  if (m === "escalatedtomoderator" || m === "escalated_to_moderator") return 6;
+  if (m === "approved") return 7;
+  if (m === "rejected") return 8;
+  return undefined;
+};
+
+const statusLabelVN = (v?: string | number | null) =>
+  STATUS_LABEL_VN[normalizeStatusCode(v) ?? 0] ?? "—";
 
 const pickLatestSubmission = (
   data: TopicDetailResponse,
 ): SubmissionLite | null => {
-  const listA = (data as WithSubs).submissions ?? [];
-  const listB = (data as WithVersionSubs).currentVersion?.submissions ?? [];
+  const listA = data.submissions ?? [];
+  const listB = data.currentVersion?.submissions ?? [];
   const list = [...listA, ...listB];
   if (list.length === 0) return null;
   const sorted = [...list].sort((a, b) => {
@@ -138,11 +169,20 @@ function TopicDetailContent({
   onBack?: () => void;
 }) {
   const navigate = useNavigate();
-  const current = data.currentVersion;
+  const current = data.currentVersion ?? null;
   const latest = pickLatestSubmission(data);
-  const latestStatus = (latest?.status ?? "").toString();
-  const latestNotes = latest?.additionalNotes ?? null;
-  const latestTime = latest?.submittedAt ?? null;
+  const latestTime = latest?.submittedAt ?? data.latestSubmittedAt ?? null;
+
+  const topicStatus =
+    data.latestSubmissionStatus ??
+    (data as unknown as { status?: string | number }).status ??
+    null;
+  const topicStatusVN = statusLabelVN(topicStatus);
+
+  const duyetLabel =
+    normalizeStatusCode(current?.status) === 7
+      ? "Phiên bản mới"
+      : "Phiên bản gốc";
 
   return (
     <div className="space-y-4">
@@ -285,12 +325,18 @@ function TopicDetailContent({
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Trạng thái đề tài</span>
                 <span className="font-medium">
-                  {latestStatus ? (
-                    <Badge className="text-white">{latestStatus}</Badge>
+                  {topicStatusVN !== "—" ? (
+                    <Badge className="text-white">{topicStatusVN}</Badge>
                   ) : (
                     "—"
                   )}
                 </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border p-3">
+                <span className="text-muted-foreground">
+                  Phiên bản được duyệt
+                </span>
+                <span className="font-medium">{duyetLabel}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Tổng số phiên bản</span>
@@ -322,8 +368,8 @@ function TopicDetailContent({
                 role="note"
                 aria-label="Ghi chú nộp"
               >
-                {latestNotes && latestNotes.trim() ? (
-                  latestNotes
+                {latest?.additionalNotes && latest.additionalNotes.trim() ? (
+                  latest.additionalNotes
                 ) : (
                   <span className="text-neutral-400 italic">
                     — Không có ghi chú —

@@ -9,10 +9,12 @@ import type {
 import { registerUser, fetchUsers, deleteUser } from "@/services/authService";
 
 export function useRegisterUser() {
+  const qc = useQueryClient();
   return useMutation<void, Error, RegisterUserDTO>({
     mutationFn: registerUser,
     onSuccess: () => {
       toast.success("Tạo tài khoản thành công");
+      qc.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (err) => {
       toast.error(err.message || "Tạo tài khoản thất bại");
@@ -34,6 +36,7 @@ export function useUsers(args: GetUsersQuery) {
     staleTime: 1000 * 60 * 5,
   });
 }
+
 export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation<void, Error, number | string>({

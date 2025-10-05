@@ -400,7 +400,7 @@ export default function MyProfilePage() {
 
         <div className="mt-4">
           <button
-            onClick={() => navigate("/supervisors/topics/myTopic-page")}
+            onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900"
           >
             <ArrowLeft className="h-4 w-4" />

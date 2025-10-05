@@ -131,6 +131,26 @@ const pickLatestSubmission = (
   return sorted[0] || null;
 };
 
+type SubmissionWithRound = { submissionRound?: number | null };
+type WithRoundA = { submissions?: SubmissionWithRound[] };
+type WithRoundB = { currentVersion?: { submissions?: SubmissionWithRound[] } };
+
+const getMaxSubmissionRound = (data: TopicDetailResponse): number => {
+  const a = ((data as WithRoundA).submissions ?? []).map((s) =>
+    typeof s.submissionRound === "number"
+      ? s.submissionRound
+      : Number(s.submissionRound ?? 0),
+  );
+  const b =
+    ((data as WithRoundB).currentVersion?.submissions ?? []).map((s) =>
+      typeof s.submissionRound === "number"
+        ? s.submissionRound
+        : Number(s.submissionRound ?? 0),
+    ) ?? [];
+  const all = [...a, ...b].filter((n) => Number.isFinite(n)) as number[];
+  return all.length ? Math.max(...all) : 0;
+};
+
 const statusLabel: Record<string, string> = {
   Pending: "Chờ xử lý",
   UnderReview: "Đang duyệt",
@@ -176,6 +196,9 @@ function TopicDetailPage({
   const resolvedStatus = data.latestSubmissionStatus ?? null;
   const isRevisionRequired = resolvedStatus === "RevisionRequired";
 
+  const maxRound = getMaxSubmissionRound(data);
+  const reachedLimit = maxRound >= 3;
+
   return (
     <div className="space-y-4">
       <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-tr from-neutral-900 via-neutral-800 to-neutral-700 p-5 text-white shadow-sm">
@@ -197,83 +220,99 @@ function TopicDetailPage({
       </div>
 
       <div className="mt-4">
-        {isRevisionRequired && (
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 text-neutral-700"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 7h18M3 12h18M3 17h18"
-                />
-              </svg>
-              <span className="text-sm font-semibold tracking-wide text-neutral-700 uppercase">
-                Lựa chọn phiên bản chủ đề để nộp
-              </span>
-            </div>
-            <Button
-              onClick={() => {
-                const seed = {
-                  eN_Title: data.eN_Title ?? "",
-                  vN_title: data.vN_title ?? "",
-                  description: data.description ?? "",
-                  objectives: data.objectives ?? "",
-                  methodology: data.currentVersion?.methodology ?? "",
-                  expectedOutcomes: data.currentVersion?.expectedOutcomes ?? "",
-                  requirements: data.currentVersion?.requirements ?? "",
-                  problem: data.problem ?? "",
-                  context: data.context ?? "",
-                  content: data.content ?? "",
-                  supervisorId: data.supervisorId ?? 0,
-                  supervisorName: data.supervisorName ?? "",
-                  categoryId: data.categoryId ?? 0,
-                  categoryName: data.categoryName ?? "",
-                  semesterId: data.semesterId ?? 0,
-                  semesterName: data.semesterName ?? "",
-                };
+        {(isRevisionRequired || reachedLimit) && (
+          <>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-neutral-700"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7h18M3 12h18M3 17h18"
+                  />
+                </svg>
+                <span className="text-sm font-semibold tracking-wide text-neutral-700 uppercase">
+                  Lựa chọn phiên bản chủ đề để nộp
+                </span>
+              </div>
+              <Button
+                disabled={reachedLimit}
+                onClick={() => {
+                  if (reachedLimit) return;
+                  const seed = {
+                    eN_Title: data.eN_Title ?? "",
+                    vN_title: data.vN_title ?? "",
+                    description: data.description ?? "",
+                    objectives: data.objectives ?? "",
+                    methodology: data.currentVersion?.methodology ?? "",
+                    expectedOutcomes:
+                      data.currentVersion?.expectedOutcomes ?? "",
+                    requirements: data.currentVersion?.requirements ?? "",
+                    problem: data.problem ?? "",
+                    context: data.context ?? "",
+                    content: data.content ?? "",
+                    supervisorId: data.supervisorId ?? 0,
+                    supervisorName: data.supervisorName ?? "",
+                    categoryId: data.categoryId ?? 0,
+                    categoryName: data.categoryName ?? "",
+                    semesterId: data.semesterId ?? 0,
+                    semesterName: data.semesterName ?? "",
+                  };
 
-                const latestSubmissionId = (() => {
-                  const a: SubmissionLite[] = data.submissions ?? [];
-                  const b: SubmissionLite[] =
-                    data.currentVersion?.submissions ?? [];
-                  const merged: SubmissionLite[] = [...a, ...b].sort((x, y) => {
-                    const tx = x.submittedAt ? Date.parse(x.submittedAt) : 0;
-                    const ty = y.submittedAt ? Date.parse(y.submittedAt) : 0;
-                    return ty - tx;
+                  const latestSubmissionId = (() => {
+                    const a: SubmissionLite[] = data.submissions ?? [];
+                    const b: SubmissionLite[] =
+                      data.currentVersion?.submissions ?? [];
+                    const merged: SubmissionLite[] = [...a, ...b].sort(
+                      (x, y) => {
+                        const tx = x.submittedAt
+                          ? Date.parse(x.submittedAt)
+                          : 0;
+                        const ty = y.submittedAt
+                          ? Date.parse(y.submittedAt)
+                          : 0;
+                        return ty - tx;
+                      },
+                    );
+                    const id = merged[0]?.id;
+                    return typeof id === "number" || typeof id === "string"
+                      ? id
+                      : undefined;
+                  })();
+
+                  const to = `/topics/${data.id}/versions/new${
+                    latestSubmissionId
+                      ? `?submissionId=${latestSubmissionId}`
+                      : ""
+                  }`;
+
+                  navigate(to, {
+                    state: {
+                      seed,
+                      ...(latestSubmissionId
+                        ? { submissionId: latestSubmissionId }
+                        : {}),
+                    },
                   });
-                  const id = merged[0]?.id;
-                  return typeof id === "number" || typeof id === "string"
-                    ? id
-                    : undefined;
-                })();
-
-                const to = `/topics/${data.id}/versions/new${
-                  latestSubmissionId
-                    ? `?submissionId=${latestSubmissionId}`
-                    : ""
-                }`;
-
-                navigate(to, {
-                  state: {
-                    seed,
-                    ...(latestSubmissionId
-                      ? { submissionId: latestSubmissionId }
-                      : {}),
-                  },
-                });
-              }}
-              className="inline-flex items-center gap-2"
-            >
-              + Tạo phiên bản mới
-            </Button>
-          </div>
+                }}
+                className="inline-flex items-center gap-2"
+              >
+                + Tạo phiên bản mới
+              </Button>
+            </div>
+            {reachedLimit && (
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                Đề tài này đã bị từ chối 3 lần. Không thể tạo thêm.
+              </div>
+            )}
+          </>
         )}
         <VersionTabs
           topicId={data.id}
@@ -447,7 +486,7 @@ function TopicDetailPage({
             <div className="space-y-2 text-sm">
               <div
                 className={[
-                  "min-h-[96px] w-full rounded-xl border bg-white/70 px-3 py-2",
+                  "min-h[96px] w-full rounded-xl border bg-white/70 px-3 py-2",
                   "break-words whitespace-pre-wrap",
                   "text-sm text-neutral-800 shadow-sm ring-1 ring-black/5",
                 ].join(" ")}
@@ -492,7 +531,7 @@ function TopicDetailPage({
           <div className="flex items-center gap-2">
             <Button
               onClick={() => {
-                if (isRevisionRequired) {
+                if (resolvedStatus === "RevisionRequired") {
                   toast.error(
                     "Đề tài này đã bị yêu cầu chỉnh sửa, bạn cần tạo và nộp phiên bản mới cho đề tài này .",
                   );

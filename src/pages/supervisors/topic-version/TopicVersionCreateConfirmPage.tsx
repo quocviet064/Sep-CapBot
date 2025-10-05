@@ -36,6 +36,7 @@ type FormSnapshot = {
   maxStudents?: number;
   fileToken?: string | null;
   __fromSuggestion?: boolean;
+  fileId?: number;
 };
 
 function SectionCard({
@@ -202,11 +203,17 @@ export default function TopicCreateConfirmPage() {
         methodology: String(s.methodology ?? ""),
         expectedOutcomes: String(s.expectedOutcomes ?? ""),
         requirements: String(s.requirements ?? ""),
-        documentUrl: fileUrl || undefined,
         problem: String(s.problem ?? ""),
         context: String(s.context ?? ""),
         content: String(s.content ?? ""),
+        fileId: typeof s.fileId === "number" ? s.fileId : undefined,
       };
+      if (!payload.fileId) {
+        toast.error("Thiếu fileId – hãy đính kèm tệp trước khi tạo.");
+        console.warn("Create payload thiếu fileId:", payload);
+        return;
+      }
+      console.log("CreateTopicVersion payload:", payload);
       const created = await createVersion(payload);
       if (submissionId) {
         await resubmit({

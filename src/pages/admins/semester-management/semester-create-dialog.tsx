@@ -1,4 +1,3 @@
-// src/components/semester/semester-create-dialog.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/globals/atoms/button";
 import {
@@ -17,7 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useCreateSemester } from "@/hooks/useSemester";
+import { useCreateSemester, useSemesters } from "@/hooks/useSemester";
 import type { CreateSemesterDTO } from "@/services/semesterService";
 
 function FieldInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -97,7 +96,6 @@ export default function SemesterCreateDialog({
   const currentYear = String(new Date().getFullYear());
   const [term, setTerm] = useState<TermType>("Summer");
   const [year, setYear] = useState<string>(currentYear);
-
   const [form, setForm] = useState<CreateSemesterDTO>({
     name: "",
     startDate: "",
@@ -105,40 +103,52 @@ export default function SemesterCreateDialog({
     description: "",
   });
 
+  const { data: semesters = [] } = useSemesters();
+
   const {
     mutate: createMutate,
     isPending: isSaving,
     isSuccess,
+    reset,
   } = useCreateSemester();
 
   useEffect(() => {
     setForm((p) => ({ ...p, name: `${term} ${year}`.trim() }));
   }, [term, year]);
 
+  const isDuplicate = useMemo(() => {
+    const name = form.name.trim().toLowerCase();
+    if (!name) return false;
+    return semesters.some((s) => (s.name || "").trim().toLowerCase() === name);
+  }, [form.name, semesters]);
+
   const canSave = useMemo(() => {
-    const nameOk = /^\w+\s\d{4}$/.test(form.name.trim());
+    const nameOk = form.name.trim().length >= 3;
     const datesOk =
       !!form.startDate &&
       !!form.endDate &&
       new Date(form.startDate) <= new Date(form.endDate);
-    const descOk = !!form.description.trim();
-    return nameOk && datesOk && descOk;
-  }, [form]);
+    return nameOk && datesOk && !isDuplicate;
+  }, [form.name, form.startDate, form.endDate, isDuplicate]);
+
+  const handleClose = () => {
+    reset();
+    setTerm("Summer");
+    setYear(currentYear);
+    setForm({ name: "", startDate: "", endDate: "", description: "" });
+    onClose();
+  };
 
   useEffect(() => {
-    if (!isOpen) {
-      setTerm("Summer");
-      setYear(currentYear);
-      setForm({ name: "", startDate: "", endDate: "", description: "" });
-    }
-  }, [isOpen, currentYear]);
+    if (!isOpen) reset();
+  }, [isOpen, reset]);
 
   useEffect(() => {
     if (isSuccess) {
       toast.success("Đã tạo học kỳ");
-      onClose();
+      handleClose();
     }
-  }, [isSuccess, onClose]);
+  }, [isSuccess]);
 
   const incYear = () => {
     const y = parseInt(year || currentYear, 10);
@@ -153,8 +163,11 @@ export default function SemesterCreateDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[720px] max-w-[96vw] overflow-hidden p-0">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => (!open ? handleClose() : null)}
+    >
+      <DialogContent className="w=[720px] max-w-[96vw] overflow-hidden p-0">
         <div className="relative">
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-600 to-violet-600" />
           <div
@@ -188,7 +201,12 @@ export default function SemesterCreateDialog({
                 <FieldSelect
                   value={term}
                   onChange={(e) => setTerm(e.target.value as TermType)}
-                  className="w-[160px]"
+                  className={[
+                    "w-[160px]",
+                    isDuplicate
+                      ? "border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-200/60"
+                      : "",
+                  ].join(" ")}
                 >
                   <option value="Summer">Summer</option>
                   <option value="Fall">Fall</option>
@@ -214,7 +232,12 @@ export default function SemesterCreateDialog({
                       }
                     }}
                     placeholder="YYYY"
-                    className="pr-8 text-center"
+                    className={[
+                      "pr-8 text-center",
+                      isDuplicate
+                        ? "border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-200/60"
+                        : "",
+                    ].join(" ")}
                   />
                   <div className="pointer-events-auto absolute inset-y-0 right-1 flex w-6 flex-col items-center justify-center gap-1">
                     <button
@@ -236,6 +259,13 @@ export default function SemesterCreateDialog({
                   </div>
                 </div>
               </div>
+
+              {isDuplicate && (
+                <div className="mt-2 text-xs font-medium text-red-600">
+                  Tên học kỳ <span className="font-semibold">{form.name}</span>{" "}
+                  đã tồn tại. Vui lòng chọn kỳ khác hoặc đổi năm.
+                </div>
+              )}
             </Row>
 
             <div className="border-t" />
@@ -246,7 +276,7 @@ export default function SemesterCreateDialog({
                 onChange={(e) =>
                   setForm((p) => ({ ...p, description: e.target.value }))
                 }
-                placeholder="Nhập mô tả học kỳ"
+                placeholder="Nhập mô tả học kỳ (không bắt buộc)"
               />
             </Row>
             <div className="border-t" />
@@ -280,7 +310,7 @@ export default function SemesterCreateDialog({
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isSaving}
               className="gap-2"
             >

@@ -206,3 +206,19 @@ export async function getCriteriaBySemester(
     throw new Error(getAxiosMessage(e, "Không lấy được tiêu chí của học kỳ"));
   }
 }
+export async function deleteCriteria(id: number): Promise<void> {
+  try {
+    const res = await capBotAPI.delete<ApiEnvelope<unknown>>(
+      `/evaluation-criteria/${id}`,
+    );
+    if (!res.data?.success)
+      throw new Error(res.data?.message || "Xóa tiêu chí thất bại");
+  } catch (e) {
+    if (axios.isAxiosError(e)) {
+      const status = e.response?.status;
+      if (status === 404) throw new Error("Không tìm thấy tiêu chí");
+      if (status === 409) throw new Error("Tiêu chí đang được sử dụng");
+    }
+    throw new Error(getAxiosMessage(e, "Xóa tiêu chí thất bại"));
+  }
+}

@@ -18,6 +18,16 @@ export const siteSupervisor = [
     icon: Bot,
   },
   {
+    title: "Tạo đề tài và gợi ý AI",
+    url: "/supervisors/topics/ai-agent",
+    icon: Bot,
+  },
+  {
+    title: "Nộp đề tài",
+    url: "/supervisors/submission-topic/semesters/semesters-page",
+    icon: Bot,
+  },
+  {
     title: "Quản lý đề tài",
     url: "#",
     icon: SquareTerminal,
@@ -42,16 +52,7 @@ export const siteSupervisor = [
   //   url: "/supervisors/topics/create-new",
   //   icon: Bot,
   // },
-  {
-    title: "Tạo đề tài và gợi ý AI",
-    url: "/supervisors/topics/ai-agent",
-    icon: Bot,
-  },
-  {
-    title: "Nộp đề tài",
-    url: "/supervisors/submission-topic/semesters/semesters-page",
-    icon: Bot,
-  },
+
   {
     title: "Thông tin học kỳ và tiêu chí",
     url: "/supervisors/semester",
@@ -71,13 +72,8 @@ export const siteAdmin = [
     icon: SquareTerminal,
     isActive: false,
     items: [
-      { title: "Số lượng đề tài theo kỳ", url: "/admins/dashboard/overview" },
-      { title: "Tình trạng AI check", url: "/admins/dashboard/status-ai" },
-      { title: "Đề tài có cảnh báo", url: "/admins/dashboard/warning-topics" },
-      {
-        title: "Giảng viên chưa hoạt động",
-        url: "/admins/dashboard/inactive-supervisors",
-      },
+      { title: "Dashboard", url: "/admins/admin-dashboard" },
+      { title: "Tất cả đề tài", url: "/supervisors/topics/all-topics-list" },
     ],
   },
   {
@@ -91,8 +87,8 @@ export const siteAdmin = [
         url: "/admins/semester-management/SemesterPage",
       },
 
-      { title: "Phase Type", url: "/admins/phase-types/PhaseTypePage" },
-      { title: "Phase", url: "/admins/phase/PhasePage" },
+      { title: "Giai đoạn", url: "/admins/phase-types/PhaseTypePage" },
+      { title: "Loại giai đoạn", url: "/admins/phase/PhasePage" },
     ],
   },
   {
@@ -109,24 +105,6 @@ export const siteAdmin = [
     title: "Quản lí tài khoản",
     url: "/admins/auth-management/account-provision",
     icon: Bot,
-  },
-  {
-    title: "Quản lý đề tài & phiên bản",
-    url: "#",
-    icon: FileText,
-    isActive: false,
-    items: [
-      { title: "Tất cả đề tài", url: "/admins/topics-management/all-topics" },
-      {
-        title: "Đề tài mới gửi",
-        url: "/admins/topics-management/new-submitted",
-      },
-      {
-        title: "Đề tài bị AI cảnh báo",
-        url: "/admins/topics-management/ai-flagged",
-      },
-      { title: "Phiên bản đề tài", url: "/admins/topics-management/versions" },
-    ],
   },
 ];
 

@@ -125,7 +125,7 @@ export default function PhaseTypePage() {
   const columns = useMemo(
     () =>
       createPhaseTypeColumns({
-        onCopyId: () => toast.success("Đã sao chép mã loại giai đoạn"),
+        onCopyId: () => toast.success("Đã sao chép mã giai đoạn"),
         onViewDetail: (id) => {
           setSelectedId(id);
           setOpenDetail(true);
@@ -140,7 +140,7 @@ export default function PhaseTypePage() {
 
   const handleCreate = () => {
     if (!createName.trim()) {
-      toast.error("Tên loại giai đoạn là bắt buộc");
+      toast.error("Tên giai đoạn là bắt buộc");
       return;
     }
     createMutate(
@@ -172,9 +172,9 @@ export default function PhaseTypePage() {
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Loại giai đoạn</h2>
+              <h2 className="text-lg font-semibold">Giai đoạn</h2>
               <p className="text-xs text-white/70">
-                Danh sách tất cả loại giai đoạn đang hoạt động
+                Danh sách tất cả giai đoạn đang hoạt động
               </p>
             </div>
           </div>
@@ -200,15 +200,13 @@ export default function PhaseTypePage() {
         <div className="flex items-center gap-2">
           <Button onClick={() => setOpenCreate(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Tạo loại giai đoạn
+            Tạo giai đoạn
           </Button>
         </div>
       </div>
 
       <div className="min-h-[520px] rounded-2xl border bg-white/70 px-4 py-4 shadow-sm">
-        <h3 className="mb-3 text-base font-semibold">
-          Danh sách loại giai đoạn
-        </h3>
+        <h3 className="mb-3 text-base font-semibold">Danh sách giai đoạn</h3>
 
         <DataTable
           data={items}
@@ -216,7 +214,7 @@ export default function PhaseTypePage() {
           visibility={DEFAULT_VISIBILITY}
           search={keyword}
           setSearch={setKeyword}
-          placeholder="Tìm kiếm loại giai đoạn..."
+          placeholder="Tìm kiếm giai đoạn..."
           page={pageNumber}
           setPage={setPageNumber}
           totalPages={totalPages}
@@ -249,10 +247,10 @@ export default function PhaseTypePage() {
                 </div>
                 <div>
                   <DialogTitle className="text-[18px] font-semibold">
-                    Tạo loại giai đoạn
+                    Tạo giai đoạn
                   </DialogTitle>
                   <DialogDescription className="text-[12px] text-white/80">
-                    Nhập thông tin để tạo loại giai đoạn mới.
+                    Nhập thông tin để tạo giai đoạn mới.
                   </DialogDescription>
                 </div>
               </div>
@@ -261,11 +259,11 @@ export default function PhaseTypePage() {
 
           <div className="space-y-5 bg-neutral-50 px-6 py-6">
             <Section title="Thông tin bắt buộc">
-              <Row label="Tên loại giai đoạn *">
+              <Row label="Tên giai đoạn *">
                 <FieldInput
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="Nhập tên loại giai đoạn"
+                  placeholder="Nhập tên giai đoạn"
                   maxLength={200}
                 />
               </Row>

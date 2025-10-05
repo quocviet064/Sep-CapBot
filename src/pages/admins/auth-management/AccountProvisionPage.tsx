@@ -1,11 +1,14 @@
 import { Suspense, useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Button } from "@/components/globals/atoms/button";
 import { Users, Shield, Plus, Loader2 } from "lucide-react";
+
+import { Button } from "@/components/globals/atoms/button";
 import AdminUserCreateDialog from "./admin-user-create-dialog";
 import { DataTable } from "@/components/globals/atoms/data-table";
 import { createUserColumns } from "./columnsUsers";
 import { useUsers, useDeleteUser } from "@/hooks/useAdminUser";
+import type { UserDTO } from "@/services/authService";
 
 const DEFAULT_VISIBILITY = {
   id: false,
@@ -17,6 +20,8 @@ const DEFAULT_VISIBILITY = {
 };
 
 export default function AccountProvisionPage() {
+  const navigate = useNavigate();
+
   const [openCreate, setOpenCreate] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -34,21 +39,30 @@ export default function AccountProvisionPage() {
     if (error) toast.error(error.message);
   }, [error]);
 
-  const list = data?.listObjects ?? [];
+  const list: UserDTO[] = data?.listObjects ?? [];
   const totalPages = data?.totalPages ?? 1;
 
   const columns = useMemo(
     () =>
       createUserColumns({
         onCopyId: () => toast.success("Đã sao chép mã user"),
-        onViewDetail: (id) => toast.info(`Xem chi tiết #${id}`),
+        onViewDetail: (id) => {
+          const user = list.find((u) => String(u.id) === String(id));
+          navigate(`/admin/users/${id}`, {
+            state: {
+              email: user?.email,
+              roles: user?.roleInUserOverviewDTOs?.map((r) => r.name) ?? [],
+              userName: user?.userName,
+            },
+          });
+        },
         onDelete: (id) => {
           const ok = window.confirm(`Bạn có chắc chắn muốn xoá user #${id}?`);
           if (!ok) return;
           del.mutate(id);
         },
       }),
-    [del],
+    [del, list, navigate],
   );
 
   useEffect(() => {

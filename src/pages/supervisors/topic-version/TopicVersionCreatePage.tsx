@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   useLocation,
   useNavigate,
@@ -16,8 +16,11 @@ import {
   X,
   Asterisk,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { useTopicDetail } from "@/hooks/useTopic";
+import { useCheckDuplicateAdvanced } from "@/hooks/useAiDuplicateAdvanced";
+import capBotAPI from "@/lib/CapBotApi";
 
 function RequiredBadge() {
   return (
@@ -40,8 +43,8 @@ function SectionCard({
 }: {
   title: string;
   desc?: string;
-  children: React.ReactNode;
-  icon?: React.ReactNode;
+  children: ReactNode;
+  icon?: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border bg-white/70 p-4 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-sm">
@@ -72,7 +75,7 @@ function Field({
   required?: boolean;
   hint?: string;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
@@ -118,6 +121,40 @@ function formatBytes(b: number) {
   const i = Math.floor(Math.log(b) / Math.log(k));
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   return `${parseFloat((b / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+function pickFileId(v: unknown): number | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.fileId === "number") return obj.fileId;
+  if (typeof obj.id === "number") return obj.id;
+  const data = obj.data as Record<string, unknown> | undefined;
+  if (data) {
+    if (typeof data.fileId === "number") return data.fileId;
+    if (typeof data.id === "number") return data.id;
+  }
+  return undefined;
+}
+
+function getErrorMessage(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err) {
+    const resp = (
+      err as {
+        response?: {
+          data?: { message?: unknown; detail?: Array<{ msg?: unknown }> };
+        };
+      }
+    ).response;
+    const msg = resp?.data?.message;
+    if (typeof msg === "string") return msg;
+    const detailFirst = Array.isArray(resp?.data?.detail)
+      ? resp?.data?.detail[0]?.msg
+      : undefined;
+    if (typeof detailFirst === "string") return detailFirst;
+  }
+  return "Lỗi kiểm tra trùng lặp";
 }
 
 export default function TopicVersionCreatePage() {
@@ -263,6 +300,8 @@ export default function TopicVersionCreatePage() {
   const [fileError, setFileError] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const dupAdv = useCheckDuplicateAdvanced();
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!eN_Title.trim()) e.eN_Title = "Vui lòng nhập EN Title";
@@ -317,6 +356,20 @@ export default function TopicVersionCreatePage() {
     setFileError(undefined);
   };
 
+  const uploadAndGetFileId = async (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    const res = await capBotAPI.post("/File/upload", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    const id = pickFileId(res?.data as unknown);
+    if (typeof id !== "number") {
+      console.error("Upload response:", res?.data);
+      throw new Error("Không lấy được fileId từ phản hồi tải lên");
+    }
+    return id;
+  };
+
   const resetForm = () => {
     setENTitle("");
     setVNTitle("");
@@ -333,7 +386,7 @@ export default function TopicVersionCreatePage() {
     setFileError(undefined);
   };
 
-  const goCheckDuplicate = () => {
+  const goCheckDuplicate = async () => {
     if (!Number.isFinite(tid)) {
       toast.error("Thiếu topicId hợp lệ");
       return;
@@ -345,43 +398,77 @@ export default function TopicVersionCreatePage() {
       return;
     }
 
-    const formSnapshot = {
-      eN_Title,
-      vN_title,
-      problem,
-      context,
-      content,
-      description,
-      objectives,
-      methodology,
-      expectedOutcomes,
-      requirements,
-      supervisorId: initialSeed.supervisorId,
-      supervisorName: initialSeed.supervisorName,
-      categoryId: initialSeed.categoryId,
-      categoryName: initialSeed.categoryName,
-      semesterId: initialSeed.semesterId,
-      semesterName: initialSeed.semesterName,
-      maxStudents: 1,
-      fileToken: null,
+    try {
+      let fileId: number | undefined = undefined;
+      if (docFile) fileId = await uploadAndGetFileId(docFile);
 
-      docFileName: docFile?.name ?? undefined,
-      docFileSize: docFile?.size ?? undefined,
-    };
+      const body = {
+        title: vN_title.trim(),
+        eN_Title: eN_Title.trim(),
+        vN_title: vN_title.trim(),
+        problem: problem.trim(),
+        context: context.trim(),
+        content: content.trim(),
+        description: description.trim(),
+        objectives: objectives.trim(),
+        methodology: methodology.trim(),
+        expectedOutcomes: expectedOutcomes.trim(),
+        requirements: requirements.trim(),
+        semesterId: initialSeed.semesterId || undefined,
+        fileId,
+      };
 
-    const to = `/topics/topic-version/duplicate-check${
-      submissionId
-        ? `?submissionId=${encodeURIComponent(String(submissionId))}`
-        : ""
-    }`;
+      const result = await dupAdv.mutateAsync({
+        body,
+        params: {
+          threshold: 0.8,
+          last_n_semesters: 3,
+          semester_id: initialSeed.semesterId || null,
+        },
+      });
 
-    navigate(to, {
-      state: {
-        formSnapshot,
-        topicId: tid,
-        ...(submissionId ? { submissionId } : {}),
-      },
-    });
+      const formSnapshot = {
+        eN_Title,
+        vN_title,
+        problem,
+        context,
+        content,
+        description,
+        objectives,
+        methodology,
+        expectedOutcomes,
+        requirements,
+        supervisorId: initialSeed.supervisorId,
+        supervisorName: initialSeed.supervisorName,
+        categoryId: initialSeed.categoryId,
+        categoryName: initialSeed.categoryName,
+        semesterId: initialSeed.semesterId,
+        semesterName: initialSeed.semesterName,
+        maxStudents: 1,
+        docFileName: docFile?.name ?? undefined,
+        docFileSize: docFile?.size ?? undefined,
+        fileId: fileId ?? undefined,
+      };
+
+      navigate(
+        `/topics/topic-version/duplicate-check${
+          submissionId
+            ? `?submissionId=${encodeURIComponent(String(submissionId))}`
+            : ""
+        }`,
+        {
+          state: {
+            result,
+            formSnapshot,
+            topicId: Number(tid),
+            ...(submissionId ? { submissionId } : {}),
+          },
+        },
+      );
+    } catch (err: unknown) {
+      console.error("Duplicate check error:", err);
+      toast.error(getErrorMessage(err));
+    }
   };
 
   if (!navSeed && loadingTopic) {
@@ -663,7 +750,6 @@ export default function TopicVersionCreatePage() {
                   {vN_title || "—"}
                 </div>
               </div>
-
               <div className="rounded-xl border p-3">
                 <div className="text-muted-foreground mb-1">Tài liệu</div>
                 <div className="text-sm font-medium">
@@ -714,11 +800,15 @@ export default function TopicVersionCreatePage() {
 
             <Button
               onClick={goCheckDuplicate}
-              variant="default"
+              disabled={dupAdv.isPending}
               className="inline-flex min-w-44 items-center gap-2"
             >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Kiểm tra trùng lặp
+              {dupAdv.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              {dupAdv.isPending ? "Đang kiểm tra…" : "Kiểm tra trùng lặp"}
             </Button>
           </div>
         </div>
