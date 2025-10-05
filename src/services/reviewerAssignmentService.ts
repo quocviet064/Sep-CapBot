@@ -699,3 +699,51 @@ export const getMyAssignmentStatistics =
       throw new Error(msg);
     }
   };
+export const getAssignmentsByReviewer = async (
+  reviewerId: IdLike,
+): Promise<ReviewerAssignmentResponseDTO[]> => {
+  try {
+    const rid = encodeURIComponent(String(reviewerId));
+    const res = await capBotAPI.get<
+      ApiResponse<ReviewerAssignmentResponseDTO[]>
+    >(`/reviewer-assignments/by-reviewer/${rid}`);
+
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không thể lấy assignments reviewer");
+
+    const data = res.data.data ?? [];
+    return data.map((d) => ({
+      ...d,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      status: normalizeAssignmentStatus(d.status) ?? d.status,
+    }));
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy assignments reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+export const getRecommendedReviewers = async (
+  submissionId: IdLike,
+  query?: RecommendationQuery,
+): Promise<RecommendedReviewerDTO[]> => {
+  try {
+    const sid = encodeURIComponent(String(submissionId));
+    const res = await capBotAPI.get<ApiResponse<RecommendedReviewerDTO[]>>(
+      `/reviewer-assignments/recommendations/${sid}`,
+      {
+        params: query,
+      },
+    );
+
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không thể lấy gợi ý reviewer");
+
+    return res.data.data ?? [];
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy gợi ý reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};

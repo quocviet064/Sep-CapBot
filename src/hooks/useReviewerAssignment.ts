@@ -5,10 +5,10 @@ import {
   bulkAssignReviewers,
   cancelAssignment,
   getAssignmentsBySubmission,
+  getAssignmentsByReviewer,
   getAvailableReviewers,
   getRecommendedReviewers,
   updateAssignmentStatus,
-  getAssignmentsByReviewer,
   getMyAssignments,
   getMyAssignmentsByStatus,
   getMyAssignmentStatistics,
@@ -26,20 +26,26 @@ import {
 import { startReview } from "@/services/reviewService";
 
 export function useAvailableReviewers(submissionId?: IdLike) {
-  const key = submissionId == null ? "" : String(submissionId);
   return useQuery<AvailableReviewerDTO[], Error>({
-    queryKey: ["availableReviewers", key],
+    queryKey: ["availableReviewers", submissionId],
     queryFn: () => getAvailableReviewers(submissionId!),
-    enabled: submissionId != null && key !== "",
+    enabled: !!submissionId,
   });
 }
 
 export function useAssignmentsBySubmission(submissionId?: IdLike) {
-  const key = submissionId == null ? "" : String(submissionId);
   return useQuery<ReviewerAssignmentResponseDTO[], Error>({
-    queryKey: ["assignmentsBySubmission", key],
+    queryKey: ["assignmentsBySubmission", submissionId],
     queryFn: () => getAssignmentsBySubmission(submissionId!),
-    enabled: submissionId != null && key !== "",
+    enabled: !!submissionId,
+  });
+}
+
+export function useAssignmentsByReviewer(reviewerId?: IdLike) {
+  return useQuery<ReviewerAssignmentResponseDTO[], Error>({
+    queryKey: ["assignmentsByReviewer", reviewerId],
+    queryFn: () => getAssignmentsByReviewer(reviewerId!),
+    enabled: !!reviewerId,
   });
 }
 
@@ -47,71 +53,53 @@ export function useRecommendedReviewers(
   submissionId?: IdLike,
   query?: RecommendationQuery,
 ) {
-  const key = submissionId == null ? "" : String(submissionId);
   return useQuery<RecommendedReviewerDTO[], Error>({
-    queryKey: [
-      "recommendedReviewers",
-      key,
-      query?.minSkillScore ?? null,
-      query?.maxWorkload ?? null,
-    ],
+    queryKey: ["recommendedReviewers", submissionId, query],
     queryFn: () => getRecommendedReviewers(submissionId!, query),
-    enabled: submissionId != null && key !== "",
+    enabled: !!submissionId,
   });
 }
 
 export const useMyAssignments = (status?: AssignmentStatus) =>
   useQuery<ReviewerAssignmentResponseDTO[], Error>({
-    queryKey: ["my-assignments", status ?? "all"],
+    queryKey: ["myAssignments", status ?? "all"],
     queryFn: () =>
       status == null ? getMyAssignments() : getMyAssignmentsByStatus(status),
-    staleTime: 1000 * 60 * 3,
   });
 
 export const useMyAssignmentStats = () =>
   useQuery<MyAssignmentStatisticsDTO, Error>({
-    queryKey: ["my-assignments-stats"],
+    queryKey: ["myAssignmentsStats"],
     queryFn: () => getMyAssignmentStatistics(),
-    staleTime: 1000 * 60 * 5,
-  });
-
-export const useAssignmentsByReviewer = (reviewerId?: IdLike) =>
-  useQuery<ReviewerAssignmentResponseDTO[], Error>({
-    queryKey: ["assignments-by-reviewer", reviewerId ?? "me"],
-    enabled: !!reviewerId,
-    queryFn: () => getAssignmentsByReviewer(reviewerId as IdLike),
-    staleTime: 1000 * 60 * 3,
   });
 
 export function useAssignReviewer() {
   const qc = useQueryClient();
   return useMutation<ReviewerAssignmentResponseDTO, Error, AssignReviewerDTO>({
-    mutationFn: (payload) => assignReviewer(payload),
+    mutationFn: assignReviewer,
     onSuccess: (_data, vars) => {
-      const k = String(vars.submissionId);
-      qc.invalidateQueries({ queryKey: ["availableReviewers", k] });
-      qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", k] });
-      qc.invalidateQueries({ queryKey: ["recommendedReviewers", k] });
-      qc.invalidateQueries({ queryKey: ["my-assignments"] });
+      const key = String(vars.submissionId);
+      qc.invalidateQueries({ queryKey: ["availableReviewers", key] });
+      qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", key] });
+      qc.invalidateQueries({ queryKey: ["recommendedReviewers", key] });
+      qc.invalidateQueries({ queryKey: ["myAssignments"] });
     },
   });
 }
 
-/** Bulk assign */
 export function useBulkAssignReviewers() {
   const qc = useQueryClient();
-
   return useMutation<
     ReviewerAssignmentResponseDTO[],
     Error,
     BulkAssignReviewerDTO
   >({
-    mutationFn: (payload) => bulkAssignReviewers(payload),
+    mutationFn: bulkAssignReviewers,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
       qc.invalidateQueries({ queryKey: ["availableReviewers"] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers"] });
-      qc.invalidateQueries({ queryKey: ["my-assignments"] });
+      qc.invalidateQueries({ queryKey: ["myAssignments"] });
     },
   });
 }
@@ -127,7 +115,7 @@ export function useUpdateAssignmentStatus() {
       updateAssignmentStatus(assignmentId, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
-      qc.invalidateQueries({ queryKey: ["my-assignments"] });
+      qc.invalidateQueries({ queryKey: ["myAssignments"] });
     },
   });
 }
@@ -135,10 +123,10 @@ export function useUpdateAssignmentStatus() {
 export function useCancelAssignment() {
   const qc = useQueryClient();
   return useMutation<void, Error, IdLike>({
-    mutationFn: (assignmentId) => cancelAssignment(assignmentId),
+    mutationFn: cancelAssignment,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
-      qc.invalidateQueries({ queryKey: ["my-assignments"] });
+      qc.invalidateQueries({ queryKey: ["myAssignments"] });
     },
   });
 }
@@ -150,13 +138,13 @@ export function useAutoAssignReviewers() {
     Error,
     AutoAssignReviewerDTO
   >({
-    mutationFn: (payload) => autoAssignReviewers(payload),
+    mutationFn: autoAssignReviewers,
     onSuccess: (_data, vars) => {
-      const k = String(vars.submissionId);
-      qc.invalidateQueries({ queryKey: ["availableReviewers", k] });
-      qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", k] });
-      qc.invalidateQueries({ queryKey: ["recommendedReviewers", k] });
-      qc.invalidateQueries({ queryKey: ["my-assignments"] });
+      const key = String(vars.submissionId);
+      qc.invalidateQueries({ queryKey: ["availableReviewers", key] });
+      qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", key] });
+      qc.invalidateQueries({ queryKey: ["recommendedReviewers", key] });
+      qc.invalidateQueries({ queryKey: ["myAssignments"] });
     },
   });
 }
@@ -164,11 +152,11 @@ export function useAutoAssignReviewers() {
 export function useStartReview() {
   const qc = useQueryClient();
   return useMutation<void, Error, IdLike>({
-    mutationFn: (assignmentId) => startReview(assignmentId),
+    mutationFn: startReview,
     onSuccess: (_data, assignmentId) => {
-      qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] });
+      qc.invalidateQueries({ queryKey: ["assignmentsByReviewer"] });
       qc.invalidateQueries({
-        queryKey: ["reviewer-assignment-detail", assignmentId],
+        queryKey: ["reviewerAssignmentDetail", assignmentId],
       });
     },
   });
