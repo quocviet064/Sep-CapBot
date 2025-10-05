@@ -402,3 +402,26 @@ export const getReviewStatistics = async (): Promise<ReviewListResponse> => {
     throw new Error(msg);
   }
 };
+export type ReviewDetailDTO = {
+  id: IdLike;
+  assignmentId: IdLike;
+  overallScore: number | null;
+  overallComment: string | null;
+  recommendation: Recommendation | null;
+  timeSpentMinutes: number | null;
+  status: string | null;
+  submittedAt: string | null;
+  criteriaScores: ReviewCriteriaScoreDTO[];
+};
+
+export const getReviewDetail = async (id: IdLike): Promise<ReviewDetailDTO> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<ReviewDetailDTO>>(`/reviews/${id}`);
+    if (!res.data.success) throw new Error(res.data.message || "Không lấy được chi tiết đánh giá");
+    return res.data.data;
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không lấy được chi tiết đánh giá");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};

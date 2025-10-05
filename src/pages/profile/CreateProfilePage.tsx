@@ -88,7 +88,7 @@ export default function CreateProfilePage() {
     Supervisor: "/supervisors/topics/myTopic-page",
     Administrator: "/admins/dashboard/overview",
     Moderator: "/moderators/dashboard",
-    Reviewer: "/reviewers/dashboard/assigned-count",
+    Reviewer: "/reviewers/dashboard",
   };
 
   const [submitting, setSubmitting] = useState(false);

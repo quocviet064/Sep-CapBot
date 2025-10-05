@@ -24,6 +24,7 @@ import useNotificationHub from "./hooks/useNotificationHub";
 import TopicListVersionDetailPage from "./pages/supervisors/all-topics-list/TopicListVersionDetailPage";
 import AdminUserDetailPage from "./pages/admins/auth-management/AdminUserDetailPage";
 import AdminUsersPerformanceDashboard from "./pages/admins/admin-dashboard/AdminUsersPerformanceDashboard";
+import ReviewDetailPage from "./pages/supervisors/all-submitted-topics/ReviewDetailPage";
 
 
 const LectureLayout = lazy(
@@ -269,6 +270,10 @@ function App() {
           <Route
             path="/supervisors/submission-topic/semesters/semesters-page"
             element={<SemestersPage />}
+          />
+          <Route
+            path="/topics/:id/submissions/:id/reviews"
+            element={<ReviewDetailPage />}
           />
           <Route
             path="/supervisors/submission-topic/semesters/phase-types"

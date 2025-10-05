@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { BookOpen, ArrowLeft, FileText, Download } from "lucide-react";
+import { BookOpen, ArrowLeft, FileText, Download, ListChecks } from "lucide-react";
 import LoadingPage from "@/pages/loading-page";
 import { Badge } from "@/components/globals/atoms/badge";
 import { Button } from "@/components/globals/atoms/button";
 import { Label } from "@/components/globals/atoms/label";
 import { formatDateTime } from "@/utils/formatter";
-import {
-  getTopicDetail,
-  type TopicDetailResponse,
-} from "@/services/topicService";
+import { getTopicDetail, type TopicDetailResponse } from "@/services/topicService";
 import { normalizeAssetUrl } from "@/utils/assetUrl";
 import VersionTabs from "../topic-version/TopicVersionTabs";
 
@@ -18,39 +15,31 @@ type StatusInput = number | string | null | undefined;
 const STATUS_VN_MAP: Record<string, string> = {
   "1": "Chờ xử lý",
   pending: "Chờ xử lý",
-
   "2": "Đang xem xét",
   underreview: "Đang xem xét",
   "under review": "Đang xem xét",
   under_review: "Đang xem xét",
-
   "3": "Bị trùng",
   duplicate: "Bị trùng",
-
   "4": "Hoàn thành",
   completed: "Hoàn thành",
-
   "5": "Yêu cầu chỉnh sửa",
   revisionrequired: "Yêu cầu chỉnh sửa",
   "revision required": "Yêu cầu chỉnh sửa",
   revision_required: "Yêu cầu chỉnh sửa",
-
   "6": "Chuyển cấp duyệt",
   escalatedtomoderator: "Chuyển cấp duyệt",
   "escalated to moderator": "Chuyển cấp duyệt",
   escalated_to_moderator: "Chuyển cấp duyệt",
-
   "7": "Đã duyệt",
   approved: "Đã duyệt",
-
   "8": "Từ chối",
   rejected: "Từ chối",
 };
 
 function toVietnameseStatus(s: StatusInput): string | undefined {
   if (s == null || s === "") return undefined;
-  if (typeof s === "number")
-    return STATUS_VN_MAP[String(s)] ?? `Trạng thái ${s}`;
+  if (typeof s === "number") return STATUS_VN_MAP[String(s)] ?? `Trạng thái ${s}`;
   const raw = String(s).trim().toLowerCase();
   const compact = raw.replace(/[\s_]+/g, "");
   return STATUS_VN_MAP[compact] ?? STATUS_VN_MAP[raw] ?? s;
@@ -75,9 +64,7 @@ function SectionCard({
         </div>
         <div>
           <h3 className="text-base font-semibold">{title}</h3>
-          {desc ? (
-            <p className="text-muted-foreground text-xs">{desc}</p>
-          ) : null}
+          {desc ? <p className="text-muted-foreground text-xs">{desc}</p> : null}
         </div>
       </div>
       {children}
@@ -85,13 +72,7 @@ function SectionCard({
   );
 }
 
-function InfoBlock({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function InfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
       <Label className="text-sm font-semibold text-gray-700">{label}</Label>
@@ -102,13 +83,7 @@ function InfoBlock({
   );
 }
 
-function FileAttachment({
-  url,
-  className,
-}: {
-  url: string;
-  className?: string;
-}) {
+function FileAttachment({ url, className }: { url: string; className?: string }) {
   const resolved = normalizeAssetUrl(url);
   const filename = (() => {
     try {
@@ -147,25 +122,27 @@ function FileAttachment({
   );
 }
 
-type SubmissionLite = {
+type SubmissionView = {
+  id: number;
   additionalNotes?: string | null;
-  status?: string | null;
+  status?: string | number | null;
   submittedAt?: string | null;
+  reviews?: Array<Record<string, unknown>> | null;
+  totalReviews?: number | null;
+  completedReviews?: number | null;
+  averageScore?: number | null;
 };
-type WithSubs = { submissions?: SubmissionLite[] };
-type WithVersionSubs = { currentVersion?: { submissions?: SubmissionLite[] } };
-
+type WithSubs = { submissions?: SubmissionView[] };
+type WithVersionSubs = { currentVersion?: { submissions?: SubmissionView[] } };
 type MaybeLatestStatus = { latestSubmissionStatus?: string | number | null };
 
 function hasLatestSubmissionStatus(x: unknown): x is MaybeLatestStatus {
   return typeof x === "object" && x !== null && "latestSubmissionStatus" in x;
 }
 
-const pickLatestSubmission = (
-  data: TopicDetailResponse,
-): SubmissionLite | null => {
-  const listA = (data as WithSubs).submissions ?? [];
-  const listB = (data as WithVersionSubs).currentVersion?.submissions ?? [];
+const pickLatestSubmission = (data: TopicDetailResponse): SubmissionView | null => {
+  const listA = (data as unknown as WithSubs).submissions ?? [];
+  const listB = (data as unknown as WithVersionSubs).currentVersion?.submissions ?? [];
   const list = [...listA, ...listB];
   if (list.length === 0) return null;
   const sorted = [...list].sort((a, b) => {
@@ -176,28 +153,31 @@ const pickLatestSubmission = (
   return sorted[0] || null;
 };
 
-function TopicDetailPage({
-  data,
-  onBack,
-}: {
-  data: TopicDetailResponse;
-  onBack?: () => void;
-}) {
+function TopicDetailPage({ data, onBack }: { data: TopicDetailResponse; onBack?: () => void }) {
   const navigate = useNavigate();
   const current = data.currentVersion;
   const latest = pickLatestSubmission(data);
   const latestNotes = latest?.additionalNotes ?? null;
   const latestTime = latest?.submittedAt ?? null;
-
   const sourceStatus: string | number | null =
     (latest?.status as string | number | null) ??
-    (hasLatestSubmissionStatus(data)
-      ? (data.latestSubmissionStatus ?? null)
-      : null) ??
+    (hasLatestSubmissionStatus(data) ? (data.latestSubmissionStatus ?? null) : null) ??
     (current?.status as string | number | null) ??
     null;
-
   const vnStatus = toVietnameseStatus(sourceStatus);
+  const reviews = Array.isArray(latest?.reviews) ? latest?.reviews : [];
+  const totalReviews =
+    typeof latest?.totalReviews === "number" ? latest.totalReviews : reviews.length;
+  const canViewReviews = Boolean(latest?.id && totalReviews > 0);
+  const singleReviewId =
+    totalReviews === 1
+      ? (() => {
+          const r = reviews[0] as Record<string, unknown> | undefined;
+          const direct = r && typeof r.reviewId === "number" ? r.reviewId : undefined;
+          const alt = r && typeof r.id === "number" ? r.id : undefined;
+          return direct ?? alt ?? undefined;
+        })()
+      : undefined;
 
   return (
     <div className="space-y-4">
@@ -211,11 +191,27 @@ function TopicDetailPage({
             </div>
             <div>
               <h2 className="text-lg font-semibold">Chi tiết đề tài</h2>
-              <p className="text-xs text-white/70">
-                Xem thông tin đề tài đồ án
-              </p>
+              <p className="text-xs text-white/70">Xem thông tin đề tài đồ án</p>
             </div>
           </div>
+          {canViewReviews ? (
+            <Button
+              onClick={() => {
+                if (singleReviewId) {
+                  navigate(`/reviews/${singleReviewId}`);
+                } else {
+                  navigate(`/topics/${data.id}/submissions/${latest?.id}/reviews`, {
+                    state: { topicTitle: data.vN_title || data.eN_Title, semesterName: data.semesterName },
+                  });
+                }
+              }}
+              className="inline-flex items-center gap-2 bg-amber-600 text-white hover:bg-amber-700"
+            >
+              <ListChecks className="h-4 w-4" />
+              Xem chi tiết kết quả
+              <Badge variant="secondary" className="ml-1">{totalReviews}</Badge>
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -228,10 +224,7 @@ function TopicDetailPage({
               return;
             }
             navigate(`/topics/${data.id}/versions/${versionId}`, {
-              state: {
-                categoryName: data.categoryName,
-                semesterName: data.semesterName,
-              },
+              state: { categoryName: data.categoryName, semesterName: data.semesterName },
             });
           }}
           className="mt-2"
@@ -240,26 +233,18 @@ function TopicDetailPage({
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
-          <SectionCard
-            title="Thông tin cơ bản"
-            desc="Các trường nhận diện và phân loại đề tài."
-          >
+          <SectionCard title="Thông tin cơ bản" desc="Các trường nhận diện và phân loại đề tài.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <InfoBlock label="Title (EN)">{data.eN_Title}</InfoBlock>
               <InfoBlock label="Tiêu đề (VN)">{data.vN_title}</InfoBlock>
               <InfoBlock label="Viết tắt">{data.abbreviation}</InfoBlock>
-              <InfoBlock label="Giảng viên hướng dẫn">
-                {data.supervisorName}
-              </InfoBlock>
+              <InfoBlock label="Giảng viên hướng dẫn">{data.supervisorName}</InfoBlock>
               <InfoBlock label="Danh mục">{data.categoryName}</InfoBlock>
               <InfoBlock label="Học kỳ">{data.semesterName}</InfoBlock>
             </div>
           </SectionCard>
 
-          <SectionCard
-            title="Nội dung & đính kèm"
-            desc="Toàn bộ mô tả học thuật và tệp minh chứng."
-          >
+          <SectionCard title="Nội dung & đính kèm" desc="Toàn bộ mô tả học thuật và tệp minh chứng.">
             <div className="space-y-4">
               <InfoBlock label="Mô tả">{data.description}</InfoBlock>
               <InfoBlock label="Mục tiêu">{data.objectives}</InfoBlock>
@@ -269,18 +254,14 @@ function TopicDetailPage({
             </div>
 
             <div className="mt-4 space-y-3">
-              <Label className="text-sm font-semibold text-gray-700">
-                Tài liệu hiện tại
-              </Label>
+              <Label className="text-sm font-semibold text-gray-700">Tài liệu hiện tại</Label>
               <div>
                 {current?.documentUrl ? (
                   <FileAttachment url={current.documentUrl} />
                 ) : data.documentUrl ? (
                   <FileAttachment url={data.documentUrl} />
                 ) : (
-                  <div className="rounded-xl border bg-white/70 px-3 py-2 text-sm text-neutral-500">
-                    —
-                  </div>
+                  <div className="rounded-xl border bg-white/70 px-3 py-2 text-sm text-neutral-500">—</div>
                 )}
               </div>
             </div>
@@ -293,15 +274,11 @@ function TopicDetailPage({
               <div className="rounded-xl border p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Danh mục</span>
-                  <span className="font-medium">
-                    {data.categoryName || "—"}
-                  </span>
+                  <span className="font-medium">{data.categoryName || "—"}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-muted-foreground">Học kỳ</span>
-                  <span className="font-medium">
-                    {data.semesterName || "—"}
-                  </span>
+                  <span className="font-medium">{data.semesterName || "—"}</span>
                 </div>
               </div>
 
@@ -329,9 +306,7 @@ function TopicDetailPage({
               <div className="rounded-xl border p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Viết tắt</span>
-                  <span className="font-medium">
-                    {data.abbreviation || "—"}
-                  </span>
+                  <span className="font-medium">{data.abbreviation || "—"}</span>
                 </div>
               </div>
             </div>
@@ -341,19 +316,11 @@ function TopicDetailPage({
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Trạng thái đề tài</span>
-                <span className="font-medium">
-                  {vnStatus ? (
-                    <Badge className="text-white">{vnStatus}</Badge>
-                  ) : (
-                    "—"
-                  )}
-                </span>
+                <span className="font-medium">{vnStatus ? <Badge className="text-white">{vnStatus}</Badge> : "—"}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Tổng số phiên bản</span>
-                <span className="font-medium">
-                  {String(data.totalVersions)}
-                </span>
+                <span className="font-medium">{String(data.totalVersions)}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Người Nộp</span>
@@ -361,9 +328,7 @@ function TopicDetailPage({
               </div>
               <div className="flex items-center justify-between rounded-xl border p-3">
                 <span className="text-muted-foreground">Thời gian nộp</span>
-                <span className="font-medium">
-                  {latestTime ? formatDateTime(latestTime) : "—"}
-                </span>
+                <span className="font-medium">{latestTime ? formatDateTime(latestTime) : "—"}</span>
               </div>
             </div>
           </SectionCard>
@@ -382,9 +347,7 @@ function TopicDetailPage({
                 {latestNotes && latestNotes.trim() ? (
                   latestNotes
                 ) : (
-                  <span className="text-neutral-400 italic">
-                    — Không có ghi chú —
-                  </span>
+                  <span className="text-neutral-400 italic">— Không có ghi chú —</span>
                 )}
               </div>
             </div>
@@ -404,6 +367,24 @@ function TopicDetailPage({
               Quay lại
             </Button>
           </div>
+          {canViewReviews ? (
+            <Button
+              onClick={() => {
+                if (singleReviewId) {
+                  navigate(`/reviews/${singleReviewId}`);
+                } else {
+                  navigate(`/topics/${data.id}/submissions/${latest?.id}/reviews`, {
+                    state: { topicTitle: data.vN_title || data.eN_Title, semesterName: data.semesterName },
+                  });
+                }
+              }}
+              className="inline-flex items-center gap-2 bg-amber-600 text-white hover:bg-amber-700"
+            >
+              <ListChecks className="h-4 w-4" />
+              Xem chi tiết kết quả
+              <Badge variant="secondary" className="ml-1">{totalReviews}</Badge>
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -442,9 +423,7 @@ export default function SubmittedTopicDetailPage() {
   return (
     <TopicDetailPage
       data={data}
-      onBack={() =>
-        navigate("/supervisors/all-submitted-topics/AllSubmittedTopicsPage")
-      }
+      onBack={() => navigate("/supervisors/all-submitted-topics/AllSubmittedTopicsPage")}
     />
   );
 }

@@ -16,6 +16,8 @@ import {
   withdrawReview,
   getReviewStatistics,
   type IdLike,
+  ReviewDetailDTO,
+  getReviewDetail,
 } from "@/services/reviewService";
 
 /** list (paging) */
@@ -139,4 +141,11 @@ export const useReviewStatistics = () =>
     queryKey: ["review-statistics"],
     queryFn: () => getReviewStatistics(),
     staleTime: 60 * 1000,
+  });
+export const useReviewDetailFull = (id?: IdLike) =>
+  useQuery<ReviewDetailDTO, Error>({
+    queryKey: ["review-detail-full", id ?? null],
+    queryFn: () => getReviewDetail(id!),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
