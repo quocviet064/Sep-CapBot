@@ -1,7 +1,7 @@
 import axios, { AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 
 const apiUrl = (
-  import.meta.env.VITE_REACT_PUBLIC_API_URL || "http://localhost:5207"
+  import.meta.env.VITE_REACT_PUBLIC_API_URL || "http://152.42.227.169:7190"
 ).replace(/\/+$/, "");
 const apiVersion = (
   import.meta.env.VITE_REACT_PUBLIC_API_VERSION || "api"

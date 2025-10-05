@@ -1,7 +1,7 @@
 import axios, { AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 
 const aiBaseUrl = (
-  import.meta.env.VITE_AI_API_BASE_URL || "http://localhost:8000"
+  import.meta.env.VITE_AI_API_BASE_URL || "http://152.42.227.169:8000"
 ).replace(/\/+$/, "");
 
 const aiAPI = axios.create({

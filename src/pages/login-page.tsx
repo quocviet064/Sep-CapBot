@@ -4,7 +4,6 @@ import {
   Eye,
   EyeOff,
   LogIn,
-  UserPlus,
   Shield,
   Mail,
   LockKeyhole,
@@ -25,31 +24,32 @@ import {
 } from "@/components/globals/atoms/card";
 import { Input } from "@/components/globals/atoms/input";
 import { Label } from "@/components/globals/atoms/label";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/globals/atoms/tabs";
 import { Switch } from "@/components/globals/atoms/switch";
 import { parseJwt, useAuth } from "@/contexts/AuthContext";
 import {
   loginUserSchema,
-  LoginUserType,
-  RegisterType,
-  registerSchema,
+  type LoginUserType,
   roles as ROLE_OPTIONS,
 } from "@/schemas/userSchema";
 import { toast } from "sonner";
 import { tryGetMyUserProfile } from "@/services/userProfileService";
+import axios from "axios";
+
+type ApiErrorResponse = {
+  statusCode?: number | string;
+  success?: boolean;
+  data?: unknown;
+  errors?: unknown;
+  message?: string;
+};
 
 function LoginPage() {
   const navigate = useNavigate();
   const { login, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isVisibleLogin, setIsVisibleLogin] = useState(false);
-  const [isVisibleRegister, setIsVisibleRegister] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     logout();
@@ -63,10 +63,6 @@ function LoginPage() {
       role: "Supervisor",
     },
   });
-  const registerForm = useForm<RegisterType>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", phoneNumber: "", email: "", password: "" },
-  });
 
   const {
     register: loginRegister,
@@ -74,14 +70,9 @@ function LoginPage() {
     formState: { errors: loginErrors },
   } = loginForm;
 
-  const {
-    register: registerRegister,
-    handleSubmit: handleRegisterSubmit,
-    formState: { errors: registerErrors },
-  } = registerForm;
-
   const onSubmitLogin = async (data: LoginUserType) => {
     setIsLoading(true);
+    setApiError(null);
     try {
       await login(data.emailOrUsername, data.password, data.role);
       const token = localStorage.getItem("accessToken");
@@ -96,20 +87,27 @@ function LoginPage() {
       };
       const prof = await tryGetMyUserProfile();
       if (prof) {
-        toast("Login thành công");
+        toast.success("Đăng nhập thành công");
         navigate(roleRoutes[role] || "/");
       } else {
         navigate("/profile/CreateProfilePage");
       }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSubmitRegister = async (data: RegisterType) => {
-    setIsLoading(true);
-    try {
-      console.log("register", JSON.stringify(data, null, 2));
+    } catch (e: unknown) {
+      let msg = "Đăng nhập thất bại. Vui lòng thử lại.";
+      let status: number | undefined;
+      if (axios.isAxiosError(e)) {
+        status = e.response?.status;
+        const data = e.response?.data as ApiErrorResponse | undefined;
+        if (typeof data?.message === "string" && data.message.trim() !== "") {
+          msg = data.message;
+        } else if (status === 401) {
+          msg = "Bạn nhập tài khoản hoặc mật khẩu không chính xác";
+        } else if (status === 403) {
+          msg = "Bạn không có quyền truy cập vai trò này";
+        }
+      }
+      setApiError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -185,284 +183,151 @@ function LoginPage() {
         <div className="flex items-center">
           <div className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-neutral-900/70 via-neutral-900/50 to-neutral-800/60 p-4 text-white shadow-[0_20px_80px_rgba(0,0,0,.45)] backdrop-blur-xl">
             <div className="absolute inset-0 -z-10 rounded-3xl [mask-composite:exclude] p-[1px] [background:conic-gradient(from_200deg_at_50%_50%,rgba(255,115,0,.5),rgba(245,158,11,.35),transparent_60%)] [mask:linear-gradient(#000,#000)_content-box,linear-gradient(#000,#000)]" />
-            <Tabs defaultValue="login" className="space-y-5">
-              <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl bg-white/10 p-1">
-                <TabsTrigger
-                  value="login"
-                  className="rounded-lg text-white/90 transition-all data-[state=active]:bg-gradient-to-tr data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md"
-                  disabled={isLoading}
-                >
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Đăng nhập
-                </TabsTrigger>
-                <TabsTrigger
-                  value="register"
-                  className="rounded-lg text-white/90 transition-all data-[state=active]:bg-gradient-to-tr data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md"
-                  disabled={isLoading}
-                >
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Đăng ký
-                </TabsTrigger>
-              </TabsList>
+            <form onSubmit={handleLoginSubmit(onSubmitLogin)}>
+              <Card className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-2xl backdrop-blur-xl">
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-white">
+                    Chào mừng quay lại
+                  </CardTitle>
+                  <CardDescription className="text-white/75">
+                    Đăng nhập bằng email/username và vai trò của bạn
+                  </CardDescription>
+                </CardHeader>
 
-              <TabsContent value="login">
-                <form onSubmit={handleLoginSubmit(onSubmitLogin)}>
-                  <Card className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-2xl backdrop-blur-xl">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-white">
-                        Chào mừng quay lại
-                      </CardTitle>
-                      <CardDescription className="text-white/75">
-                        Đăng nhập bằng email/username và vai trò của bạn
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                      <div>
-                        <Label htmlFor="email" className="text-white">
-                          Email / Username
-                        </Label>
-                        <div className="relative mt-2">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-white/70">
-                            <Mail className="h-4 w-4" />
-                          </div>
-                          <Input
-                            id="email"
-                            type="text"
-                            placeholder="name@domain.edu.vn"
-                            className="border-white/20 bg-white/10 pl-10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
-                            {...loginRegister("emailOrUsername")}
-                          />
-                        </div>
-                        {loginErrors.emailOrUsername && (
-                          <p className="mt-1 ml-1 text-sm text-amber-300">
-                            {loginErrors.emailOrUsername.message}
-                          </p>
-                        )}
-                      </div>
+                {apiError && (
+                  <div className="mx-6 mb-3 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                    {apiError}
+                  </div>
+                )}
 
-                      <div>
-                        <Label htmlFor="password" className="text-white">
-                          Mật khẩu
-                        </Label>
-                        <div className="relative mt-2">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-white/70">
-                            <LockKeyhole className="h-4 w-4" />
-                          </div>
-                          <Input
-                            id="password"
-                            type={isVisibleLogin ? "text" : "password"}
-                            placeholder="••••••••"
-                            className="border-white/20 bg-white/10 pr-10 pl-10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
-                            {...loginRegister("password")}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsVisibleLogin((v) => !v)}
-                            className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center text-white/80 transition hover:text-white"
-                            aria-label={
-                              isVisibleLogin ? "Ẩn mật khẩu" : "Hiện mật khẩu"
-                            }
-                            aria-pressed={isVisibleLogin}
-                          >
-                            {isVisibleLogin ? (
-                              <EyeOff size={16} />
-                            ) : (
-                              <Eye size={16} />
-                            )}
-                          </button>
-                        </div>
-                        {loginErrors.password && (
-                          <p className="mt-1 ml-1 text-sm text-amber-300">
-                            {loginErrors.password.message}
-                          </p>
-                        )}
+                <CardContent className="space-y-5">
+                  <div>
+                    <Label htmlFor="email" className="text-white">
+                      Email / Username
+                    </Label>
+                    <div className="relative mt-2">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-white/70">
+                        <Mail className="h-4 w-4" />
                       </div>
-
-                      <div>
-                        <Label htmlFor="role" className="text-white">
-                          Vai trò
-                        </Label>
-                        <div className="group relative mt-2">
-                          <div className="pointer-events-none absolute inset-0 -z-10 rounded-md opacity-0 transition-opacity [background:conic-gradient(from_180deg_at_50%_50%,rgba(255,115,0,0.35),rgba(245,158,11,0.25),transparent_60%)] group-focus-within:opacity-100" />
-                          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-white/70">
-                            <Shield className="h-4 w-4" />
-                          </div>
-                          <select
-                            id="role"
-                            className="relative z-10 h-10 w-full appearance-none rounded-md border border-white/20 bg-white/10 pr-9 pl-10 text-sm text-white backdrop-blur transition outline-none placeholder:text-white/60 hover:bg-white/15 focus:ring-2 focus:ring-orange-400/40"
-                            {...loginRegister("role")}
-                          >
-                            {ROLE_OPTIONS.map((r) => (
-                              <option
-                                key={r}
-                                value={r}
-                                className="bg-neutral-900 text-white"
-                              >
-                                {r}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 text-white/70 transition-colors group-focus-within:text-white" />
-                        </div>
-                        {loginErrors.role && (
-                          <p className="mt-1 ml-1 text-sm text-amber-300">
-                            {loginErrors.role.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center gap-3">
-                          <Switch
-                            checked={rememberMe}
-                            onCheckedChange={setRememberMe}
-                            aria-label="Ghi nhớ đăng nhập"
-                          />
-                          <span className="text-sm text-white">
-                            Ghi nhớ đăng nhập
-                          </span>
-                        </div>
-                        <span className="text-xs text-white/70">
-                          Cần hỗ trợ? Liên hệ quản trị
-                        </span>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex w-full flex-col gap-2">
-                      <Button
-                        type="submit"
-                        disabled={isLoading}
-                        size="lg"
-                        className="w-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-lg transition hover:shadow-xl focus-visible:ring-2 focus-visible:ring-orange-400/50"
-                      >
-                        {isLoading ? "Đang xử lý..." : "Đăng nhập"}
-                      </Button>
-                      <p className="text-center text-xs text-white/70">
-                        Dành cho giảng viên. Sinh viên vui lòng dùng cổng riêng.
+                      <Input
+                        id="email"
+                        type="text"
+                        placeholder="name@domain.edu.vn"
+                        className="border-white/20 bg-white/10 pl-10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
+                        {...loginRegister("emailOrUsername")}
+                      />
+                    </div>
+                    {loginErrors.emailOrUsername && (
+                      <p className="mt-1 ml-1 text-sm text-amber-300">
+                        {loginErrors.emailOrUsername.message}
                       </p>
-                    </CardFooter>
-                  </Card>
-                </form>
-              </TabsContent>
+                    )}
+                  </div>
 
-              <TabsContent value="register">
-                <form onSubmit={handleRegisterSubmit(onSubmitRegister)}>
-                  <Card className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/10 text-white shadow-2xl backdrop-blur-xl">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
-                    <CardHeader className="pb-3">
-                      <CardTitle>Đăng ký tài khoản</CardTitle>
-                      <CardDescription className="text-white/75">
-                        Tạo tài khoản mới theo quy trình nội bộ
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-5">
-                      <div>
-                        <Label htmlFor="fullName" className="text-white">
-                          Họ và tên
-                        </Label>
-                        <Input
-                          id="fullName"
-                          placeholder="Nhập họ tên"
-                          className="mt-2 border-white/20 bg-white/10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
-                          {...registerRegister("fullName")}
-                        />
-                        {registerErrors.fullName && (
-                          <p className="mt-1 text-sm text-amber-300">
-                            {registerErrors.fullName.message}
-                          </p>
-                        )}
+                  <div>
+                    <Label htmlFor="password" className="text-white">
+                      Mật khẩu
+                    </Label>
+                    <div className="relative mt-2">
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-white/70">
+                        <LockKeyhole className="h-4 w-4" />
                       </div>
-
-                      <div>
-                        <Label htmlFor="phoneNumber" className="text-white">
-                          Số điện thoại
-                        </Label>
-                        <Input
-                          id="phoneNumber"
-                          placeholder="Nhập số điện thoại"
-                          className="mt-2 border-white/20 bg-white/10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
-                          {...registerRegister("phoneNumber")}
-                        />
-                        {registerErrors.phoneNumber && (
-                          <p className="mt-1 text-sm text-amber-300">
-                            {registerErrors.phoneNumber.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label htmlFor="email" className="text-white">
-                          Email
-                        </Label>
-                        <Input
-                          id="email"
-                          placeholder="Nhập email"
-                          className="mt-2 border-white/20 bg-white/10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
-                          {...registerRegister("email")}
-                        />
-                        {registerErrors.email && (
-                          <p className="mt-1 text-sm text-amber-300">
-                            {registerErrors.email.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label htmlFor="reg-password" className="text-white">
-                          Mật khẩu
-                        </Label>
-                        <div className="relative mt-2">
-                          <Input
-                            id="reg-password"
-                            type={isVisibleRegister ? "text" : "password"}
-                            placeholder="Tạo mật khẩu"
-                            className="border-white/20 bg-white/10 pr-10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
-                            {...registerRegister("password")}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsVisibleRegister((v) => !v)}
-                            className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center text-white/80 transition hover:text-white"
-                            aria-label={
-                              isVisibleRegister
-                                ? "Ẩn mật khẩu"
-                                : "Hiện mật khẩu"
-                            }
-                            aria-pressed={isVisibleRegister}
-                          >
-                            {isVisibleRegister ? (
-                              <EyeOff size={16} />
-                            ) : (
-                              <Eye size={16} />
-                            )}
-                          </button>
-                          <p className="text-center text-xl text-red-700/70">
-                            Tài khoản của bạn đang chờ xét duyệt
-                          </p>
-                        </div>
-                        {registerErrors.password && (
-                          <p className="mt-1 text-sm text-amber-300">
-                            {registerErrors.password.message}
-                          </p>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex w-full flex-col gap-2">
-                      <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-lg transition hover:shadow-xl focus-visible:ring-2 focus-visible:ring-orange-400/50"
+                      <Input
+                        id="password"
+                        type={isVisibleLogin ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="border-white/20 bg-white/10 pr-10 pl-10 text-white placeholder:text-white/60 focus-visible:ring-orange-400/50"
+                        {...loginRegister("password")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsVisibleLogin((v) => !v)}
+                        className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center text-white/80 transition hover:text-white"
+                        aria-label={
+                          isVisibleLogin ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                        }
+                        aria-pressed={isVisibleLogin}
                       >
-                        {isLoading ? "Đang xử lý..." : "Đăng ký"}
-                      </Button>
-                      <p className="text-center text-xs text-white/70">
-                        Việc cấp quyền được phê duyệt bởi quản trị viên.
+                        {isVisibleLogin ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
+                      </button>
+                    </div>
+                    {loginErrors.password && (
+                      <p className="mt-1 ml-1 text-sm text-amber-300">
+                        {loginErrors.password.message}
                       </p>
-                    </CardFooter>
-                  </Card>
-                </form>
-              </TabsContent>
-            </Tabs>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="role" className="text-white">
+                      Vai trò
+                    </Label>
+                    <div className="group relative mt-2">
+                      <div className="pointer-events-none absolute inset-0 -z-10 rounded-md opacity-0 transition-opacity [background:conic-gradient(from_180deg_at_50%_50%,rgba(255,115,0,0.35),rgba(245,158,11,0.25),transparent_60%)] group-focus-within:opacity-100" />
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-white/70">
+                        <Shield className="h-4 w-4" />
+                      </div>
+                      <select
+                        id="role"
+                        className="relative z-10 h-10 w-full appearance-none rounded-md border border-white/20 bg-white/10 pr-9 pl-10 text-sm text-white backdrop-blur transition outline-none placeholder:text-white/60 hover:bg-white/15 focus:ring-2 focus:ring-orange-400/40"
+                        {...loginRegister("role")}
+                      >
+                        {ROLE_OPTIONS.map((r) => (
+                          <option
+                            key={r}
+                            value={r}
+                            className="bg-neutral-900 text-white"
+                          >
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 text-white/70 transition-colors group-focus-within:text-white" />
+                    </div>
+                    {loginErrors.role && (
+                      <p className="mt-1 ml-1 text-sm text-amber-300">
+                        {loginErrors.role.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        checked={rememberMe}
+                        onCheckedChange={setRememberMe}
+                        aria-label="Ghi nhớ đăng nhập"
+                      />
+                      <span className="text-sm text-white">
+                        Ghi nhớ đăng nhập
+                      </span>
+                    </div>
+                    <span className="text-xs text-white/70">
+                      Cần hỗ trợ? Liên hệ quản trị
+                    </span>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex w-full flex-col gap-2">
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    size="lg"
+                    className="w-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white shadow-lg transition hover:shadow-xl focus-visible:ring-2 focus-visible:ring-orange-400/50"
+                  >
+                    <LogIn className="mr-2 h-4 w-4" />
+                    {isLoading ? "Đang xử lý..." : "Đăng nhập"}
+                  </Button>
+                  <p className="text-center text-xs text-white/70">
+                    Dành cho giảng viên. Sinh viên vui lòng dùng cổng riêng.
+                  </p>
+                </CardFooter>
+              </Card>
+            </form>
           </div>
         </div>
       </div>
