@@ -24,15 +24,6 @@ import {
   AssignmentStatus,
 } from "@/services/reviewerAssignmentService";
 import { startReview } from "@/services/reviewService";
-import { toast } from "sonner";
-
-type ApiResponse<T> = {
-  statusCode: number | string;
-  success: boolean;
-  data: T;
-  errors: unknown;
-  message: string | null;
-};
 
 export function useAvailableReviewers(submissionId?: IdLike) {
   const key = submissionId == null ? "" : String(submissionId);
@@ -72,7 +63,8 @@ export function useRecommendedReviewers(
 export const useMyAssignments = (status?: AssignmentStatus) =>
   useQuery<ReviewerAssignmentResponseDTO[], Error>({
     queryKey: ["my-assignments", status ?? "all"],
-    queryFn: () => (status == null ? getMyAssignments() : getMyAssignmentsByStatus(status)),
+    queryFn: () =>
+      status == null ? getMyAssignments() : getMyAssignmentsByStatus(status),
     staleTime: 1000 * 60 * 3,
   });
 
@@ -109,7 +101,11 @@ export function useAssignReviewer() {
 export function useBulkAssignReviewers() {
   const qc = useQueryClient();
 
-  return useMutation<ReviewerAssignmentResponseDTO[], Error, BulkAssignReviewerDTO>({
+  return useMutation<
+    ReviewerAssignmentResponseDTO[],
+    Error,
+    BulkAssignReviewerDTO
+  >({
     mutationFn: (payload) => bulkAssignReviewers(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
@@ -171,7 +167,9 @@ export function useStartReview() {
     mutationFn: (assignmentId) => startReview(assignmentId),
     onSuccess: (_data, assignmentId) => {
       qc.invalidateQueries({ queryKey: ["assignments-by-reviewer"] });
-      qc.invalidateQueries({ queryKey: ["reviewer-assignment-detail", assignmentId] });
+      qc.invalidateQueries({
+        queryKey: ["reviewer-assignment-detail", assignmentId],
+      });
     },
   });
 }

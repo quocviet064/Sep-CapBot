@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -8,7 +8,10 @@ import { useTopicDetail } from "@/hooks/useTopic";
 import { useSubmissionReviewSummary } from "@/hooks/useSubmissionReview";
 
 import type { SubmissionListItem } from "@/services/submissionService";
-import type { TopicDetailResponse, SubmissionDTO } from "@/services/topicService";
+import type {
+  TopicDetailResponse,
+  SubmissionDTO,
+} from "@/services/topicService";
 import type { SubmissionReviewSummaryDTO } from "@/services/submissionReviewService";
 
 import {
@@ -26,26 +29,76 @@ import SidebarActions from "./components/SidebarActions";
 import FinalReviewDialog from "./components/FinalReviewDialog";
 import TopicSummaryCard from "./components/TopicSummaryCard";
 
-export default function SubmissionDetailPage() {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const { submissionId: submissionIdParam } = useParams<{ submissionId: string }>();
-  const { state } = useLocation();
+type LocationState =
+  | {
+      topicId?: number;
+      row?: SubmissionListItem;
+      topicDetail?: TopicDetailResponse;
+      topicVersionId?: number;
+    }
+  | undefined;
 
-  const typedState = state as
-    | {
-        topicId?: number;
-        row?: SubmissionListItem;
-        topicDetail?: TopicDetailResponse;
-        topicVersionId?: number;
-      }
-    | undefined;
+type TopicLike = {
+  latestSubmissionStatus?: string | number | null;
+  currentVersionStatus?: string | number | null;
+  status?: string | number | null;
+  requiredReviewers?: number | null;
+  submissions?: Array<{
+    id: number;
+    status?: string | number | null;
+    submittedAt?: string | null;
+  }>;
+};
+
+type AssignArg = number[] | { reviewerIds: number[]; deadline?: string };
+type BulkAssignItem = {
+  submissionId: number;
+  reviewerId: number;
+  assignmentType: number;
+  deadline?: string;
+};
+type BulkAssignPayload = { assignments: BulkAssignItem[] };
+
+function hasTopicId(x: unknown): x is { topicId?: number } {
+  return typeof x === "object" && x !== null && "topicId" in x;
+}
+
+function hasId(x: unknown): x is { id: number } {
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    typeof (x as { id?: unknown }).id === "number"
+  );
+}
+
+function getErrorMessage(e: unknown, fallback = "Đã xảy ra lỗi"): string {
+  if (e instanceof Error) return e.message || fallback;
+  if (
+    e &&
+    typeof e === "object" &&
+    "message" in e &&
+    typeof (e as { message?: unknown }).message === "string"
+  ) {
+    return (e as { message: string }).message || fallback;
+  }
+  return fallback;
+}
+
+export default function SubmissionDetailPage() {
+  const qc = useQueryClient();
+  const { submissionId: submissionIdParam } = useParams<{
+    submissionId: string;
+  }>();
+  const location = useLocation();
+  const typedState = location.state as LocationState;
 
   const initialRow = typedState?.row;
   const sid = submissionIdParam ? Number(submissionIdParam) : undefined;
 
   const [showReviewsModal, setShowReviewsModal] = useState(false);
-  const [reviewsModalSubmissionId, setReviewsModalSubmissionId] = useState<number | null>(null);
+  const [reviewsModalSubmissionId, setReviewsModalSubmissionId] = useState<
+    number | null
+  >(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFinalReviewOpen, setIsFinalReviewOpen] = useState(false);
@@ -53,19 +106,33 @@ export default function SubmissionDetailPage() {
 
   const { data: submissionDetailShort } = useSubmissionDetail(sid);
 
-  const topicId =
-    typedState?.topicId ?? (submissionDetailShort as any)?.topicId ?? undefined;
+  const topicIdNum =
+    typedState?.topicId ??
+    (hasTopicId(submissionDetailShort)
+      ? submissionDetailShort.topicId
+      : undefined) ??
+    undefined;
+
+  const topicIdStr = topicIdNum != null ? String(topicIdNum) : undefined;
+
   const { data: topicDetailResponse, refetch: refetchTopicDetail } =
-    useTopicDetail(topicId);
+    useTopicDetail(topicIdStr);
   const topicDetail = topicDetailResponse as TopicDetailResponse | undefined;
 
-  const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } =
-    useSubmissionReviewSummary(sid);
+  const {
+    data: summary,
+    isLoading: loadingSummary,
+    refetch: refetchSummary,
+  } = useSubmissionReviewSummary(sid);
 
   const selectedSubmission = useMemo<SubmissionDTO | undefined>(() => {
-    if (!topicDetail)
-      return (initialRow ?? (submissionDetailShort as any)) as SubmissionDTO;
-    const subs = topicDetail.submissions ?? [];
+    if (!topicDetail) {
+      if (hasId(initialRow)) return initialRow as unknown as SubmissionDTO;
+      if (hasId(submissionDetailShort))
+        return submissionDetailShort as unknown as SubmissionDTO;
+      return undefined;
+    }
+    const subs = (topicDetail.submissions ?? []) as SubmissionDTO[];
     if (sid) {
       const found = subs.find((s) => s.id === sid);
       if (found) return found;
@@ -75,7 +142,11 @@ export default function SubmissionDetailPage() {
       const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
       return tb - ta;
     });
-    return sorted[0] ?? (initialRow as SubmissionDTO);
+    if (sorted[0]) return sorted[0];
+    if (hasId(initialRow)) return initialRow as unknown as SubmissionDTO;
+    if (hasId(submissionDetailShort))
+      return submissionDetailShort as unknown as SubmissionDTO;
+    return undefined;
   }, [topicDetail, sid, initialRow, submissionDetailShort]);
 
   useEffect(() => {
@@ -94,15 +165,15 @@ export default function SubmissionDetailPage() {
   const bulkAssign = useBulkAssignReviewers();
   const cancelAssignment = useCancelAssignment();
 
-  const latestSubmissionStatus = (topicDetail as any)?.latestSubmissionStatus;
-  const currentVersionStatus = (topicDetail as any)?.currentVersionStatus;
-  const topStatus = (topicDetail as any)?.status;
+  const t = topicDetail as unknown as TopicLike | undefined;
+  const latestSubmissionStatus = t?.latestSubmissionStatus;
+  const currentVersionStatus = t?.currentVersionStatus;
+  const topStatus = t?.status;
 
-  const anySubmissionEscalated =
-    Array.isArray((topicDetail as any)?.submissions) &&
-    ((topicDetail as any).submissions as any[]).some(
-      (s) => String(s?.status) === "EscalatedToModerator"
-    );
+  const subsArray = Array.isArray(t?.submissions) ? (t?.submissions ?? []) : [];
+  const anySubmissionEscalated = subsArray.some(
+    (s) => String(s?.status) === "EscalatedToModerator",
+  );
 
   const isEscalated =
     String(latestSubmissionStatus) === "EscalatedToModerator" ||
@@ -110,8 +181,8 @@ export default function SubmissionDetailPage() {
     String(topStatus) === "EscalatedToModerator" ||
     anySubmissionEscalated;
 
-  // business rule: default required reviewers; escalated allows +1 reviewer
-  const requiredReviewers = (topicDetail as any)?.requiredReviewers ?? 2;
+  const requiredReviewers =
+    typeof t?.requiredReviewers === "number" ? t.requiredReviewers : 2;
   const assignedCount = (assignments ?? []).length;
   const maxAllowedReviewers = requiredReviewers + (isEscalated ? 1 : 0);
   const remainingSlots = Math.max(0, maxAllowedReviewers - assignedCount);
@@ -129,47 +200,54 @@ export default function SubmissionDetailPage() {
     if (Number(target) === Number(sid)) {
       try {
         await refetchSummary?.();
-      } catch {
-        // ignore
+      } catch (e) {
+        void e;
       }
     }
   };
 
-  const handleConfirmAssign = async (arg: any) => {
-    if (!sid) return toast.error("Submission ID không hợp lệ");
-    if (isAssignDisabled)
-      return toast.error(`Đã có ${assignedCount} reviewer. Không thể phân công thêm.`);
-    let payload: any;
+  const handleConfirmAssign = async (arg: AssignArg) => {
+    if (!sid) {
+      toast.error("Submission ID không hợp lệ");
+      return;
+    }
+    if (isAssignDisabled) {
+      toast.error(`Đã có ${assignedCount} reviewer. Không thể phân công thêm.`);
+      return;
+    }
+    let payload: BulkAssignPayload | null = null;
     if (Array.isArray(arg)) {
       payload = {
-        assignments: arg.map((rid: any) => ({
+        assignments: arg.map((rid) => ({
           submissionId: sid,
           reviewerId: rid,
           assignmentType: 1,
         })),
       };
-    } else if (arg?.reviewerIds) {
+    } else if (Array.isArray(arg.reviewerIds)) {
       payload = {
-        assignments: arg.reviewerIds.map((rid: any) => ({
+        assignments: arg.reviewerIds.map((rid) => ({
           submissionId: sid,
           reviewerId: rid,
           assignmentType: 1,
           deadline: arg.deadline,
         })),
       };
-    } else return ;
+    }
+    if (!payload) return;
 
     setAssigning(true);
     try {
       await bulkAssign.mutateAsync(payload);
       toast.success("Phân công reviewer thành công");
-      if (topicId) qc.invalidateQueries({ queryKey: ["topicDetail", topicId] });
+      if (topicIdStr)
+        qc.invalidateQueries({ queryKey: ["topicDetail", topicIdStr] });
       qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", sid] });
       qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
       qc.invalidateQueries({ queryKey: ["submission-list"] });
-    } catch (err: any) {
-      toast.error(err?.message ?? "Phân công thất bại");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Phân công thất bại"));
     } finally {
       setAssigning(false);
       setIsPickerOpen(false);
@@ -177,8 +255,13 @@ export default function SubmissionDetailPage() {
   };
 
   const handleRemoveAssignment = (assignmentId?: number | string) => {
-    if (!assignmentId) return toast.error("Assignment ID không hợp lệ");
-    const ok = window.confirm("Bạn có chắc muốn huỷ phân công reviewer này không?");
+    if (!assignmentId) {
+      toast.error("Assignment ID không hợp lệ");
+      return;
+    }
+    const ok = window.confirm(
+      "Bạn có chắc muốn huỷ phân công reviewer này không?",
+    );
     if (!ok) return;
     cancelAssignment.mutate(assignmentId, {
       onSuccess: () => {
@@ -186,25 +269,30 @@ export default function SubmissionDetailPage() {
         if (sid) {
           qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", sid] });
           qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
-          qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
+          qc.invalidateQueries({
+            queryKey: ["submission-review-summary", sid],
+          });
         }
       },
-      onError: (err: any) =>
-        toast.error(err?.message ?? "Không thể huỷ phân công"),
+      onError: (err) =>
+        toast.error(getErrorMessage(err, "Không thể huỷ phân công")),
     });
   };
 
   return (
     <div className="w-full px-4 py-4">
       <div className="flex items-start gap-4">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="mt-6 grid gap-6 md:grid-cols-3">
-            <div className="md:col-span-2 space-y-4 min-w-0">
-              <TopicSummaryCard displayedTopic={topicDetail} topicDetail={topicDetail} />
+            <div className="min-w-0 space-y-4 md:col-span-2">
+              <TopicSummaryCard
+                displayedTopic={topicDetail}
+                topicDetail={topicDetail}
+              />
               <AICheckSection submissionDetail={selectedSubmission} />
             </div>
 
-            <aside className="space-y-4 min-w-0">
+            <aside className="min-w-0 space-y-4">
               <SidebarActions
                 assignments={assignments ?? []}
                 loadingAssignments={loadingAssignments}
@@ -217,7 +305,9 @@ export default function SubmissionDetailPage() {
                 onOpenPicker={() => setIsPickerOpen(true)}
                 onOpenSuggestions={() => setIsSuggestionOpen(true)}
                 onOpenAssignments={() =>
-                  qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", sid] })
+                  qc.invalidateQueries({
+                    queryKey: ["assignmentsBySubmission", sid],
+                  })
                 }
                 onOpenFinalReview={() => setIsFinalReviewOpen(true)}
                 submissionId={sid}
@@ -260,20 +350,22 @@ export default function SubmissionDetailPage() {
         onClose={() => setShowReviewsModal(false)}
         submissionId={reviewsModalSubmissionId ?? undefined}
         summary={
-          reviewsModalSubmissionId !== null && Number(reviewsModalSubmissionId) === Number(sid ?? -1)
+          reviewsModalSubmissionId !== null &&
+          Number(reviewsModalSubmissionId) === Number(sid ?? -1)
             ? (summary as SubmissionReviewSummaryDTO | undefined)
             : undefined
         }
         loading={
-          reviewsModalSubmissionId !== null && Number(reviewsModalSubmissionId) === Number(sid ?? -1)
+          reviewsModalSubmissionId !== null &&
+          Number(reviewsModalSubmissionId) === Number(sid ?? -1)
             ? loadingSummary
             : undefined
         }
         onOpenRefetch={async () => {
           try {
             await refetchSummary?.();
-          } catch (err: any) {
-            toast.error(err?.message ?? "Không thể tải lại summary");
+          } catch (err) {
+            toast.error(getErrorMessage(err, "Không thể tải lại summary"));
           }
         }}
       />
@@ -284,19 +376,23 @@ export default function SubmissionDetailPage() {
           onClose={() => setIsFinalReviewOpen(false)}
           submissionId={sid}
           onSuccess={async () => {
-            // refresh
             try {
               setIsFinalReviewOpen(false);
               qc.invalidateQueries({ queryKey: ["submission-detail", sid] });
-              qc.invalidateQueries({ queryKey: ["submission-review-summary", sid] });
-              qc.invalidateQueries({ queryKey: ["assignmentsBySubmission", sid] });
+              qc.invalidateQueries({
+                queryKey: ["submission-review-summary", sid],
+              });
+              qc.invalidateQueries({
+                queryKey: ["assignmentsBySubmission", sid],
+              });
               qc.invalidateQueries({ queryKey: ["submission-list"] });
-              if (topicId) await refetchTopicDetail?.();
+              if (topicIdStr) await refetchTopicDetail?.();
               await refetchSummary?.();
-
               toast.success("Lưu quyết định Moderator thành công");
-            } catch (err: any) {
-              toast.error(err?.message ?? "Đã xảy ra lỗi khi cập nhật trang");
+            } catch (err) {
+              toast.error(
+                getErrorMessage(err, "Đã xảy ra lỗi khi cập nhật trang"),
+              );
             }
           }}
         />

@@ -19,12 +19,12 @@ import {
 
 const toDateInput = (iso?: string) => (iso ? iso.slice(0, 10) : "");
 
-interface Props {
+type Props = {
   isOpen: boolean;
   onClose: () => void;
   semesterId: string | null;
   onUpdate?: () => void;
-}
+};
 
 export default function SemesterDetailDialog({
   isOpen,
@@ -40,6 +40,7 @@ export default function SemesterDetailDialog({
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
   const [isWorking, setIsWorking] = useState(false);
 
   useEffect(() => {
@@ -47,12 +48,13 @@ export default function SemesterDetailDialog({
       setName(data.name);
       setStartDate(toDateInput(data.startDate));
       setEndDate(toDateInput(data.endDate));
+      setDescription(data.description ?? "");
     }
   }, [data]);
 
   const handleSave = async () => {
     if (!data) return;
-    if (!name || !startDate || !endDate) {
+    if (!name.trim() || !startDate || !endDate || !description.trim()) {
       toast.error("Vui lòng điền đầy đủ thông tin.");
       return;
     }
@@ -61,16 +63,17 @@ export default function SemesterDetailDialog({
     try {
       await updateSemester({
         id: data.id,
-        name,
-        startDate, 
-        endDate,   
+        name: name.trim(),
+        startDate,
+        endDate,
+        description: description.trim(),
       });
-      toast.success("✅ Cập nhật thành công!", { id: tid });
+      toast.success(" Cập nhật thành công!", { id: tid });
       setIsEditing(false);
       await refetch();
       onUpdate?.();
-    } catch (e) {
-      toast.error("❌ Cập nhật thất bại!", { id: tid });
+    } catch {
+      toast.error(" Cập nhật thất bại!", { id: tid });
     } finally {
       setIsWorking(false);
     }
@@ -80,7 +83,6 @@ export default function SemesterDetailDialog({
     if (!data) return;
     const confirmed = window.confirm(`Xóa học kỳ "${data.name}"?`);
     if (!confirmed) return;
-
     const tid = toast.loading("Đang xóa...");
     try {
       await deleteSemester(data.id);
@@ -88,7 +90,7 @@ export default function SemesterDetailDialog({
       onUpdate?.();
       onClose();
     } catch {
-      toast.error("❌ Xóa thất bại!", { id: tid });
+      toast.error(" Xóa thất bại!", { id: tid });
     }
   };
 
@@ -98,7 +100,9 @@ export default function SemesterDetailDialog({
         <DialogHeader>
           <DialogTitle>Chi tiết học kỳ</DialogTitle>
           <DialogDescription>
-            {isEditing ? "Chỉnh sửa thông tin học kỳ." : "Xem thông tin chi tiết của học kỳ."}
+            {isEditing
+              ? "Chỉnh sửa thông tin học kỳ."
+              : "Xem thông tin chi tiết của học kỳ."}
           </DialogDescription>
         </DialogHeader>
 
@@ -115,6 +119,7 @@ export default function SemesterDetailDialog({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full rounded border px-3 py-2 text-sm"
+                  disabled={isWorking}
                 />
               ) : (
                 <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
@@ -132,6 +137,7 @@ export default function SemesterDetailDialog({
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="w-full rounded border px-3 py-2 text-sm"
+                    disabled={isWorking}
                   />
                 ) : (
                   <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
@@ -148,6 +154,7 @@ export default function SemesterDetailDialog({
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full rounded border px-3 py-2 text-sm"
+                    disabled={isWorking}
                   />
                 ) : (
                   <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
@@ -155,6 +162,22 @@ export default function SemesterDetailDialog({
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Mô tả</Label>
+              {isEditing ? (
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="min-h-[100px] w-full resize-y rounded border px-3 py-2 text-sm"
+                  disabled={isWorking}
+                />
+              ) : (
+                <div className="bg-secondary rounded-sm px-4 py-2 text-sm">
+                  {data.description || "--"}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between gap-4">
@@ -168,7 +191,7 @@ export default function SemesterDetailDialog({
               <div className="w-full space-y-2">
                 <Label className="text-sm font-medium">Ngày cập nhật</Label>
                 <div className="bg-secondary rounded-sm px-4 py-2 text-sm font-medium">
-                  {formatDate(data.updatedAt) || "Không có"}
+                  {data.updatedAt ? formatDate(data.updatedAt) : "Không có"}
                 </div>
               </div>
             </div>
@@ -197,16 +220,28 @@ export default function SemesterDetailDialog({
           {data &&
             (isEditing ? (
               <>
-                <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isWorking}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsEditing(false)}
+                  disabled={isWorking}
+                >
                   Hủy
                 </Button>
-                <Button variant="default" onClick={handleSave} disabled={isWorking}>
+                <Button
+                  variant="default"
+                  onClick={handleSave}
+                  disabled={isWorking}
+                >
                   {isWorking ? "Đang lưu..." : "Lưu thay đổi"}
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="destructive" onClick={handleDelete} className="mr-2">
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="mr-2"
+                >
                   Xóa
                 </Button>
                 <Button variant="default" onClick={() => setIsEditing(true)}>

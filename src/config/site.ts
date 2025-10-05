@@ -1,12 +1,9 @@
 import {
-  BarChart3,
   Bot,
   CalendarDays,
   CalendarSearch,
   FileSearch,
   FileText,
-  FolderSearch,
-  MessageSquareDiff,
   SquareTerminal,
   FolderKanban,
 } from "lucide-react";

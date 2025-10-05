@@ -12,14 +12,63 @@ type ApiResponse<T> = {
   message: string | null;
 };
 
-type ErrorPayload = { message?: unknown } | string | null;
+type ErrorPayload =
+  | { message?: unknown; errors?: unknown; title?: unknown; detail?: unknown }
+  | string
+  | null
+  | undefined;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+const getProp = <T>(obj: unknown, key: string): T | undefined =>
+  isRecord(obj) ? (obj[key] as T | undefined) : undefined;
+
+const pickFirst = <T>(
+  obj: unknown,
+  keys: string[],
+  fallback?: T,
+): T | undefined => {
+  for (const k of keys) {
+    const v = getProp<T>(obj, k);
+    if (typeof v !== "undefined") return v;
+  }
+  return fallback;
+};
+
+const toNumber = (v: unknown, d = 0): number => {
+  const n = Number(v);
+  return Number.isNaN(n) ? d : n;
+};
 
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError<ErrorPayload>(e)) {
     const data = e.response?.data;
-    const direct = (data as any)?.message;
-    if (typeof direct === "string" && direct.trim()) return direct;
     if (typeof data === "string") return data || fallback;
+    if (isRecord(data)) {
+      const message = getProp<unknown>(data, "message");
+      if (typeof message === "string" && message.trim()) return message;
+      const title = getProp<unknown>(data, "title");
+      if (typeof title === "string" && title.trim()) return title;
+      const detail = getProp<unknown>(data, "detail");
+      if (typeof detail === "string" && detail.trim()) return detail;
+      const errors = getProp<unknown>(data, "errors");
+      if (Array.isArray(errors) && errors.length > 0) {
+        const first = errors[0];
+        if (typeof first === "string") return first;
+        if (isRecord(first) && typeof first.message === "string")
+          return first.message;
+      } else if (isRecord(errors)) {
+        const keys = Object.keys(errors);
+        if (keys.length > 0) {
+          const val = errors[keys[0]];
+          if (Array.isArray(val) && val.length > 0) return String(val[0]);
+          if (typeof val === "string") return val;
+        }
+      }
+    }
+    const generic = (e as { message?: unknown }).message;
+    if (typeof generic === "string" && generic.trim()) return generic;
   }
   return fallback;
 };
@@ -32,7 +81,6 @@ export interface ReviewCriteriaScoreDTO {
   criteriaId: number;
   score: number;
   comment?: string | null;
-
   criteria?: {
     id: number;
     name: string;
@@ -60,7 +108,6 @@ export interface CreateReviewDTO {
   timeSpentMinutes?: number | null;
 }
 
-
 export interface UpdateReviewDTO {
   id: IdLike;
   assignmentId: IdLike;
@@ -77,11 +124,16 @@ export interface PagingModel {
   keyword?: string;
 }
 
-// POST /api/reviews
-export const createReview = async (payload: CreateReviewDTO): Promise<ReviewDTO> => {
+export const createReview = async (
+  payload: CreateReviewDTO,
+): Promise<ReviewDTO> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<ReviewDTO>>("/reviews", payload);
-    if (!res.data.success) throw new Error(res.data.message || "Tạo đánh giá thất bại");
+    const res = await capBotAPI.post<ApiResponse<ReviewDTO>>(
+      "/reviews",
+      payload,
+    );
+    if (!res.data.success)
+      throw new Error(res.data.message || "Tạo đánh giá thất bại");
     toast.success("Đã tạo đánh giá");
     return res.data.data;
   } catch (e) {
@@ -91,11 +143,16 @@ export const createReview = async (payload: CreateReviewDTO): Promise<ReviewDTO>
   }
 };
 
-// PUT /api/reviews
-export const updateReview = async (payload: UpdateReviewDTO): Promise<ReviewDTO> => {
+export const updateReview = async (
+  payload: UpdateReviewDTO,
+): Promise<ReviewDTO> => {
   try {
-    const res = await capBotAPI.put<ApiResponse<ReviewDTO>>("/reviews", payload);
-    if (!res.data.success) throw new Error(res.data.message || "Cập nhật đánh giá thất bại");
+    const res = await capBotAPI.put<ApiResponse<ReviewDTO>>(
+      "/reviews",
+      payload,
+    );
+    if (!res.data.success)
+      throw new Error(res.data.message || "Cập nhật đánh giá thất bại");
     toast.success("Đã cập nhật đánh giá");
     return res.data.data;
   } catch (e) {
@@ -105,7 +162,6 @@ export const updateReview = async (payload: UpdateReviewDTO): Promise<ReviewDTO>
   }
 };
 
-// DELETE /api/reviews/{id}
 export const deleteReview = async (id: IdLike): Promise<void> => {
   try {
     const res = await capBotAPI.delete<ApiResponse<null>>(`/reviews/${id}`);
@@ -118,11 +174,11 @@ export const deleteReview = async (id: IdLike): Promise<void> => {
   }
 };
 
-// GET /api/reviews/{id}
 export const getReviewById = async (id: IdLike): Promise<ReviewDTO> => {
   try {
     const res = await capBotAPI.get<ApiResponse<ReviewDTO>>(`/reviews/${id}`);
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được đánh giá");
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không lấy được đánh giá");
     return res.data.data;
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được đánh giá");
@@ -131,7 +187,6 @@ export const getReviewById = async (id: IdLike): Promise<ReviewDTO> => {
   }
 };
 
-// GET /api/reviews  (paging)
 export type ReviewListResponse = {
   paging: {
     pageNumber: number;
@@ -145,10 +200,16 @@ export type ReviewListResponse = {
   listObjects: ReviewDTO[];
 };
 
-export const getReviews = async (paging: PagingModel): Promise<ReviewListResponse> => {
+export const getReviews = async (
+  paging: PagingModel,
+): Promise<ReviewListResponse> => {
   try {
-    const res = await capBotAPI.get<ApiResponse<ReviewListResponse>>("/reviews", { params: paging });
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được danh sách đánh giá");
+    const res = await capBotAPI.get<ApiResponse<ReviewListResponse>>(
+      "/reviews",
+      { params: paging },
+    );
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không lấy được danh sách đánh giá");
     return res.data.data;
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được danh sách đánh giá");
@@ -157,11 +218,14 @@ export const getReviews = async (paging: PagingModel): Promise<ReviewListRespons
   }
 };
 
-// POST /api/reviews/{id}/submit
 export const submitReview = async (id: IdLike): Promise<ReviewDTO> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<ReviewDTO>>(`/reviews/${id}/submit`, {});
-    if (!res.data.success) throw new Error(res.data.message || "Submit thất bại");
+    const res = await capBotAPI.post<ApiResponse<ReviewDTO>>(
+      `/reviews/${id}/submit`,
+      {},
+    );
+    if (!res.data.success)
+      throw new Error(res.data.message || "Submit thất bại");
     toast.success("Đã submit đánh giá");
     return res.data.data;
   } catch (e) {
@@ -171,11 +235,17 @@ export const submitReview = async (id: IdLike): Promise<ReviewDTO> => {
   }
 };
 
-// GET /api/reviews/assignment/{assignmentId}
-export const getReviewsByAssignment = async (assignmentId: IdLike): Promise<ReviewDTO[]> => {
+export const getReviewsByAssignment = async (
+  assignmentId: IdLike,
+): Promise<ReviewDTO[]> => {
   try {
-    const res = await capBotAPI.get<ApiResponse<ReviewDTO[]>>(`/reviews/assignment/${assignmentId}`);
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được reviews của assignment");
+    const res = await capBotAPI.get<ApiResponse<ReviewDTO[]>>(
+      `/reviews/assignment/${assignmentId}`,
+    );
+    if (!res.data.success)
+      throw new Error(
+        res.data.message || "Không lấy được reviews của assignment",
+      );
     return res.data.data ?? [];
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được reviews của assignment");
@@ -184,7 +254,9 @@ export const getReviewsByAssignment = async (assignmentId: IdLike): Promise<Revi
   }
 };
 
-export const getScoreBoard = async (id: IdLike): Promise<{
+export const getScoreBoard = async (
+  id: IdLike,
+): Promise<{
   reviewId: IdLike;
   overallScore?: number | null;
   criteriaScores: {
@@ -197,28 +269,80 @@ export const getScoreBoard = async (id: IdLike): Promise<{
   }[];
 }> => {
   try {
-    const res = await capBotAPI.get<any>(`/reviews/${id}/scores`);
-    
-    const payload = res.data?.data ?? res.data?.Data ?? res.data;
-    const data =
-      payload?.isSuccess && payload?.data
-        ? payload.data
-        : payload; 
+    const res = await capBotAPI.get<unknown>(`/reviews/${id}/scores`);
+    const payload = isRecord(res.data)
+      ? pickFirst<unknown>(res.data, ["data", "Data"], res.data)
+      : res.data;
+    const inner =
+      isRecord(payload) &&
+      getProp<boolean>(payload, "isSuccess") &&
+      getProp<unknown>(payload, "data")
+        ? (payload as Record<string, unknown>)["data"]
+        : payload;
+    if (!isRecord(inner)) throw new Error("Không lấy được scoreboard");
 
-    if (!data) throw new Error("Không lấy được scoreboard");
+    const reviewId = (getProp<IdLike>(inner, "reviewId") ??
+      getProp<IdLike>(inner, "ReviewId")) as IdLike;
+    const overallScore =
+      getProp<number | null>(inner, "overallScore") ??
+      getProp<number | null>(inner, "OverallScore") ??
+      null;
 
-    return {
-      reviewId: data.reviewId ?? data.ReviewId,
-      overallScore: data.overallScore ?? data.OverallScore,
-      criteriaScores: (data.criteriaScores ?? data.CriteriaScores ?? []).map((x: any) => ({
-        criteriaId: x.criteriaId ?? x.CriteriaId,
-        criteriaName: x.criteriaName ?? x.CriteriaName ?? x.criteria?.name ?? "—",
-        score: x.score ?? x.Score,
-        maxScore: x.maxScore ?? x.MaxScore ?? x.criteria?.maxScore,
-        weight: x.weight ?? x.Weight ?? x.criteria?.weight,
-        comment: x.comment ?? x.Comment ?? null,
-      })),
-    };
+    const rawScores =
+      getProp<unknown[]>(inner, "criteriaScores") ??
+      getProp<unknown[]>(inner, "CriteriaScores") ??
+      [];
+
+    const criteriaScores = Array.isArray(rawScores)
+      ? rawScores.filter(isRecord).map((x) => {
+          const criteriaObj =
+            getProp<unknown>(x, "criteria") ?? getProp<unknown>(x, "Criteria");
+          const criteriaName =
+            getProp<string>(x, "criteriaName") ??
+            getProp<string>(x, "CriteriaName") ??
+            (isRecord(criteriaObj)
+              ? getProp<string>(criteriaObj, "name")
+              : undefined) ??
+            "—";
+          const maxScore = toNumber(
+            getProp<unknown>(x, "maxScore") ??
+              getProp<unknown>(x, "MaxScore") ??
+              (isRecord(criteriaObj)
+                ? getProp<unknown>(criteriaObj, "maxScore")
+                : undefined),
+            0,
+          );
+          const weight = toNumber(
+            getProp<unknown>(x, "weight") ??
+              getProp<unknown>(x, "Weight") ??
+              (isRecord(criteriaObj)
+                ? getProp<unknown>(criteriaObj, "weight")
+                : undefined),
+            0,
+          );
+
+          return {
+            criteriaId: toNumber(
+              getProp<unknown>(x, "criteriaId") ??
+                getProp<unknown>(x, "CriteriaId"),
+              0,
+            ),
+            criteriaName,
+            score: toNumber(
+              getProp<unknown>(x, "score") ?? getProp<unknown>(x, "Score"),
+              0,
+            ),
+            maxScore,
+            weight,
+            comment:
+              getProp<string | null>(x, "comment") ??
+              getProp<string | null>(x, "Comment") ??
+              null,
+          };
+        })
+      : [];
+
+    return { reviewId, overallScore, criteriaScores };
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được bảng điểm");
     toast.error(msg);
@@ -226,12 +350,24 @@ export const getScoreBoard = async (id: IdLike): Promise<{
   }
 };
 
-// POST /api/reviews/{id}/withdraw 
 export const withdrawReview = async (id: IdLike): Promise<void> => {
   try {
-    const res = await capBotAPI.post<any>(`/reviews/${id}/withdraw`, {});
-    if (res?.data?.IsSuccess === false) throw new Error(res?.data?.Message || "Rút lại thất bại");
-    toast.success("Đã gửi yêu cầu rút lại (nếu BE chưa implement sẽ trả thông báo tạm thời).");
+    const res = await capBotAPI.post<unknown>(`/reviews/${id}/withdraw`, {});
+    const body = res.data;
+    const explicitFail =
+      (isRecord(body) && body.IsSuccess === false) ||
+      (isRecord(body) && body.success === false) ||
+      (isRecord(body) && body.ok === false);
+    if (explicitFail) {
+      const msg =
+        (isRecord(body) && (body.Message as string)) ||
+        (isRecord(body) && (body.message as string)) ||
+        "Rút lại thất bại";
+      throw new Error(msg);
+    }
+    toast.success(
+      "Đã gửi yêu cầu rút lại (nếu BE chưa implement sẽ trả thông báo tạm thời).",
+    );
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể rút lại đánh giá");
     toast.error(msg);
@@ -239,10 +375,12 @@ export const withdrawReview = async (id: IdLike): Promise<void> => {
   }
 };
 
-// POST /api/reviewer-assignments/{assignmentId}/start-review
 export const startReview = async (assignmentId: IdLike): Promise<void> => {
   try {
-    const res = await capBotAPI.post(`/reviewer-assignments/${assignmentId}/start-review`, {});
+    await capBotAPI.post(
+      `/reviewer-assignments/${assignmentId}/start-review`,
+      {},
+    );
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể bắt đầu phiên đánh giá");
     toast.error(msg);
@@ -250,11 +388,13 @@ export const startReview = async (assignmentId: IdLike): Promise<void> => {
   }
 };
 
-// GET /api/reviews/statistics
 export const getReviewStatistics = async (): Promise<ReviewListResponse> => {
   try {
-    const res = await capBotAPI.get<ApiResponse<ReviewListResponse>>("/reviews/statistics");
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được thống kê reviews");
+    const res = await capBotAPI.get<ApiResponse<ReviewListResponse>>(
+      "/reviews/statistics",
+    );
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không lấy được thống kê reviews");
     return res.data.data;
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được thống kê reviews");

@@ -8,7 +8,6 @@ import {
   checkEligibilityByTopic,
   type ReviewerSuggestionInputDTO,
   type ReviewerSuggestionBySubmissionInputDTO,
-  type ReviewerSuggestionByTopicInputDTO,
   type ReviewerSuggestionOutputDTO,
   type ReviewerSuggestionDTO,
   type ReviewerEligibilityDTO,
@@ -22,7 +21,8 @@ export const useAiSuggest = (opts?: {
 }) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: Partial<ReviewerSuggestionInputDTO>) => aiSuggest(input),
+    mutationFn: (input: Partial<ReviewerSuggestionInputDTO>) =>
+      aiSuggest(input),
     onSuccess: (data) => {
       toast.success("Gợi ý AI hoàn tất");
       qc.invalidateQueries({ queryKey: ["reviewer-suggestion"] });
@@ -42,11 +42,15 @@ export const useSuggestBySubmission = (opts?: {
 }) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { input: ReviewerSuggestionBySubmissionInputDTO; assign?: boolean }) =>
-      suggestBySubmission(vars.input, !!vars.assign),
+    mutationFn: (vars: {
+      input: ReviewerSuggestionBySubmissionInputDTO;
+      assign?: boolean;
+    }) => suggestBySubmission(vars.input, !!vars.assign),
     onSuccess: (data) => {
       toast.success("Gợi ý theo submission hoàn tất");
-      qc.invalidateQueries({ queryKey: ["reviewer-suggestion", "by-submission"] });
+      qc.invalidateQueries({
+        queryKey: ["reviewer-suggestion", "by-submission"],
+      });
       opts?.onSuccess?.(data);
     },
     onError: (err) => {
@@ -57,7 +61,11 @@ export const useSuggestBySubmission = (opts?: {
 };
 
 /** useTopReviewers */
-export const useTopReviewers = (submissionId?: IdLike, count = 5, enabled = true) =>
+export const useTopReviewers = (
+  submissionId?: IdLike,
+  count = 5,
+  enabled = true,
+) =>
   useQuery<ReviewerSuggestionDTO[], Error>({
     queryKey: ["reviewer-suggestion", "top", submissionId ?? null, count],
     queryFn: () => getTopReviewers(Number(submissionId), count),
@@ -66,18 +74,35 @@ export const useTopReviewers = (submissionId?: IdLike, count = 5, enabled = true
   });
 
 /** useCheckEligibilityByTopic */
-export const useCheckEligibilityByTopic = (reviewerId?: IdLike, topicId?: IdLike, enabled = true) =>
+export const useCheckEligibilityByTopic = (
+  reviewerId?: IdLike,
+  topicId?: IdLike,
+  enabled = true,
+) =>
   useQuery<ReviewerEligibilityDTO, Error>({
-    queryKey: ["reviewer-suggestion", "eligibility", reviewerId ?? null, topicId ?? null],
+    queryKey: [
+      "reviewer-suggestion",
+      "eligibility",
+      reviewerId ?? null,
+      topicId ?? null,
+    ],
     queryFn: () => checkEligibilityByTopic(reviewerId!, topicId!),
     enabled: !!reviewerId && !!topicId && enabled,
     staleTime: 1000 * 60 * 5,
   });
 
 /** Helper: convenience query to call suggestBySubmission in a query-style (not persisted) */
-export const useSuggestBySubmissionQuery = (input?: ReviewerSuggestionBySubmissionInputDTO, assign = false) =>
+export const useSuggestBySubmissionQuery = (
+  input?: ReviewerSuggestionBySubmissionInputDTO,
+  assign = false,
+) =>
   useQuery<ReviewerSuggestionOutputDTO, Error>({
-    queryKey: ["reviewer-suggestion", "by-submission", input ? input.SubmissionId ?? null : null, assign],
+    queryKey: [
+      "reviewer-suggestion",
+      "by-submission",
+      input ? (input.SubmissionId ?? null) : null,
+      assign,
+    ],
     queryFn: () => suggestBySubmission(input!, assign),
     enabled: !!input,
     staleTime: 1000 * 60 * 2,

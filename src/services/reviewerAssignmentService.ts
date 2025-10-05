@@ -131,35 +131,89 @@ interface ApiResponse<T> {
   errors: unknown;
   message: string | null;
 }
-const getAxiosMessage = (e: unknown, fallback: string) => {
-  if (axios.isAxiosError(e)) {
-    const data = (e.response?.data ?? (e as any).data) as any;
-    if (typeof data === "string") return data || fallback;
-    if (data && typeof data === "object") {
-      if (typeof data.message === "string" && data.message.trim()) return data.message;
-      if (Array.isArray(data.errors) && data.errors.length > 0) {
-        const first = data.errors[0];
-        if (typeof first === "string") return first;
-        if (first && typeof first.message === "string") return first.message;
-      }
-      if (data.errors && typeof data.errors === "object") {
-        const keys = Object.keys(data.errors);
-        if (keys.length > 0) {
-          const val = (data.errors as any)[keys[0]];
-          if (Array.isArray(val) && val.length > 0) return String(val[0]);
-          if (typeof val === "string") return val;
-        }
-      }
-      if (typeof data.title === "string" && data.title.trim()) return data.title;
-      if (typeof data.detail === "string" && data.detail.trim()) return data.detail;
+
+/* ---------- type-safe helpers ---------- */
+
+type ErrorItem = { message?: string } | string;
+type ErrorPayload =
+  | {
+      message?: string;
+      errors?: Record<string, unknown> | ErrorItem[];
+      title?: string;
+      detail?: string;
     }
-    return (e as any).message ?? fallback;
+  | string
+  | null
+  | undefined;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+const getProp = <T>(obj: unknown, key: string): T | undefined =>
+  isRecord(obj) ? (obj[key] as T | undefined) : undefined;
+
+const pickFirst = <T>(
+  obj: unknown,
+  keys: string[],
+  fallback?: T,
+): T | undefined => {
+  for (const k of keys) {
+    const v = getProp<T>(obj, k);
+    if (typeof v !== "undefined") return v;
   }
   return fallback;
 };
 
-const normalizeArray = <T = any>(value: unknown): T[] =>
-  Array.isArray(value) ? (value as T[]) : Array.isArray((value as any)?.items) ? ((value as any).items as T[]) : [];
+const toNumber = (v: unknown): number | undefined => {
+  const n = Number(v);
+  return Number.isNaN(n) ? undefined : n;
+};
+
+const getAxiosMessage = (e: unknown, fallback: string) => {
+  if (axios.isAxiosError<ErrorPayload>(e)) {
+    const data = e.response?.data;
+
+    if (typeof data === "string") return data || fallback;
+    if (isRecord(data)) {
+      const message = getProp<string>(data, "message");
+      if (message && message.trim()) return message;
+
+      const title = getProp<string>(data, "title");
+      if (title && title.trim()) return title;
+
+      const detail = getProp<string>(data, "detail");
+      if (detail && detail.trim()) return detail;
+
+      const errors = getProp<unknown>(data, "errors");
+      if (Array.isArray(errors) && errors.length > 0) {
+        const first = errors[0];
+        if (typeof first === "string") return first;
+        if (isRecord(first) && typeof first.message === "string")
+          return first.message;
+      }
+      if (isRecord(errors)) {
+        const keys = Object.keys(errors);
+        if (keys.length > 0) {
+          const val = errors[keys[0]];
+          if (Array.isArray(val) && val.length > 0) return String(val[0]);
+          if (typeof val === "string") return val;
+        }
+      }
+    }
+
+    const generic = (e as { message?: unknown }).message;
+    if (typeof generic === "string" && generic.trim()) return generic;
+    return fallback;
+  }
+  return fallback;
+};
+
+const normalizeArray = <T>(value: unknown): T[] => {
+  if (Array.isArray(value)) return value as T[];
+  const items = getProp<unknown>(value, "items");
+  return Array.isArray(items) ? (items as T[]) : [];
+};
+
 const AssignmentTypeStringToNumber: Record<string, AssignmentTypes> = {
   Primary: AssignmentTypes.Primary,
   Secondary: AssignmentTypes.Secondary,
@@ -173,43 +227,47 @@ const AssignmentStatusStringToNumber: Record<string, AssignmentStatus> = {
   Overdue: AssignmentStatus.Overdue,
 };
 
-const normalizeAssignmentType = (v: any): AssignmentTypes | undefined => {
-  if (v === null || v === undefined) return undefined;
+const normalizeAssignmentType = (v: unknown): AssignmentTypes | undefined => {
   if (typeof v === "number") return v as AssignmentTypes;
   if (typeof v === "string") {
     if (AssignmentTypeStringToNumber[v]) return AssignmentTypeStringToNumber[v];
-    const parsed = Number(v);
-    if (!Number.isNaN(parsed)) return parsed as AssignmentTypes;
+    const n = toNumber(v);
+    if (typeof n === "number") return n as AssignmentTypes;
   }
   return undefined;
 };
 
-const normalizeAssignmentStatus = (v: any): AssignmentStatus | undefined => {
-  if (v === null || v === undefined) return undefined;
+const normalizeAssignmentStatus = (
+  v: unknown,
+): AssignmentStatus | undefined => {
   if (typeof v === "number") return v as AssignmentStatus;
   if (typeof v === "string") {
-    if (AssignmentStatusStringToNumber[v]) return AssignmentStatusStringToNumber[v];
-    const parsed = Number(v);
-    if (!Number.isNaN(parsed)) return parsed as AssignmentStatus;
+    if (AssignmentStatusStringToNumber[v])
+      return AssignmentStatusStringToNumber[v];
+    const n = toNumber(v);
+    if (typeof n === "number") return n as AssignmentStatus;
   }
   return undefined;
 };
+
+/* ---------- API calls ---------- */
 
 /** Phân công 1 reviewer */
 export const assignReviewer = async (
-  payload: AssignReviewerDTO
+  payload: AssignReviewerDTO,
 ): Promise<ReviewerAssignmentResponseDTO> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<ReviewerAssignmentResponseDTO>>(
-      "/reviewer-assignments",
-      payload
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Phân công thất bại");
+    const res = await capBotAPI.post<
+      ApiResponse<ReviewerAssignmentResponseDTO>
+    >("/reviewer-assignments", payload);
+    if (!res.data.success)
+      throw new Error(res.data.message || "Phân công thất bại");
     toast.success("Đã phân công reviewer");
     const d = res.data.data;
     return {
       ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
       status: normalizeAssignmentStatus(d.status) ?? d.status,
     };
   } catch (e) {
@@ -220,19 +278,20 @@ export const assignReviewer = async (
 
 /** Phân công hàng loạt */
 export const bulkAssignReviewers = async (
-  payload: BulkAssignReviewerDTO
+  payload: BulkAssignReviewerDTO,
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      "/reviewer-assignments/bulk",
-      payload
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Bulk assign thất bại");
+    const res = await capBotAPI.post<
+      ApiResponse<ReviewerAssignmentResponseDTO[]>
+    >("/reviewer-assignments/bulk", payload);
+    if (!res.data.success)
+      throw new Error(res.data.message || "Bulk assign thất bại");
     toast.success("Phân công hàng loạt thành công");
     const list = res.data.data ?? [];
-    return list.map(d => ({
+    return list.map((d) => ({
       ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
       status: normalizeAssignmentStatus(d.status) ?? d.status,
     }));
   } catch (e) {
@@ -243,14 +302,15 @@ export const bulkAssignReviewers = async (
 
 /** Reviewer khả dụng theo submission */
 export const getAvailableReviewers = async (
-  submissionId: IdLike
+  submissionId: IdLike,
 ): Promise<AvailableReviewerDTO[]> => {
   try {
     const sid = encodeURIComponent(String(submissionId));
     const res = await capBotAPI.get<ApiResponse<AvailableReviewerDTO[]>>(
-      `/reviewer-assignments/available/${sid}`
+      `/reviewer-assignments/available/${sid}`,
     );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy reviewer khả dụng thất bại");
+    if (!res.data.success)
+      throw new Error(res.data.message || "Lấy reviewer khả dụng thất bại");
     return res.data.data ?? [];
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể lấy reviewer");
@@ -261,18 +321,20 @@ export const getAvailableReviewers = async (
 
 /** Assignments theo submission */
 export const getAssignmentsBySubmission = async (
-  submissionId: IdLike
+  submissionId: IdLike,
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
     const sid = encodeURIComponent(String(submissionId));
-    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      `/reviewer-assignments/by-submission/${sid}`
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy assignments thất bại");
+    const res = await capBotAPI.get<
+      ApiResponse<ReviewerAssignmentResponseDTO[]>
+    >(`/reviewer-assignments/by-submission/${sid}`);
+    if (!res.data.success)
+      throw new Error(res.data.message || "Lấy assignments thất bại");
     const data = res.data.data ?? [];
-    return data.map(d => ({
+    return data.map((d) => ({
       ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
       status: normalizeAssignmentStatus(d.status) ?? d.status,
     }));
   } catch (e) {
@@ -285,14 +347,16 @@ export const getAssignmentsBySubmission = async (
 /** Cập nhật trạng thái */
 export const updateAssignmentStatus = async (
   assignmentId: IdLike,
-  status: AssignmentStatus
+  status: AssignmentStatus,
 ): Promise<void> => {
   try {
     const id = encodeURIComponent(String(assignmentId));
     const res = await capBotAPI.put<ApiResponse<null>>(
-      `/reviewer-assignments/${id}/status`, { status }
+      `/reviewer-assignments/${id}/status`,
+      { status },
     );
-    if (!res.data.success) throw new Error(res.data.message || "Cập nhật status thất bại");
+    if (!res.data.success)
+      throw new Error(res.data.message || "Cập nhật status thất bại");
     toast.success("Cập nhật trạng thái thành công");
   } catch (e) {
     const msg = getAxiosMessage(e, "Cập nhật status thất bại");
@@ -306,9 +370,10 @@ export const cancelAssignment = async (assignmentId: IdLike): Promise<void> => {
   try {
     const id = encodeURIComponent(String(assignmentId));
     const res = await capBotAPI.delete<ApiResponse<null>>(
-      `/reviewer-assignments/${id}`
+      `/reviewer-assignments/${id}`,
     );
-    if (!res.data.success) throw new Error(res.data.message || "Hủy assignment thất bại");
+    if (!res.data.success)
+      throw new Error(res.data.message || "Hủy assignment thất bại");
   } catch (e) {
     const msg = getAxiosMessage(e, "Hủy assignment thất bại");
     throw new Error(msg);
@@ -317,24 +382,25 @@ export const cancelAssignment = async (assignmentId: IdLike): Promise<void> => {
 
 /** Auto-assign 1 submission */
 export const autoAssignReviewers = async (
-  payload: AutoAssignReviewerDTO
+  payload: AutoAssignReviewerDTO,
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
-    const res = await capBotAPI.post<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      "/reviewer-assignments/auto-assign",
-      {
-        submissionId: payload.submissionId,
-        maxWorkload: payload.maxWorkload,
-        prioritizeHighPerformance: payload.prioritizeHighPerformance,
-        topicSkillTags: payload.topicSkillTags,
-      }
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Auto assign thất bại");
+    const res = await capBotAPI.post<
+      ApiResponse<ReviewerAssignmentResponseDTO[]>
+    >("/reviewer-assignments/auto-assign", {
+      submissionId: payload.submissionId,
+      maxWorkload: payload.maxWorkload,
+      prioritizeHighPerformance: payload.prioritizeHighPerformance,
+      topicSkillTags: payload.topicSkillTags,
+    });
+    if (!res.data.success)
+      throw new Error(res.data.message || "Auto assign thất bại");
     toast.success("Auto assign thành công");
     const list = res.data.data ?? [];
-    return list.map(d => ({
+    return list.map((d) => ({
       ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
       status: normalizeAssignmentStatus(d.status) ?? d.status,
     }));
   } catch (e) {
@@ -344,16 +410,19 @@ export const autoAssignReviewers = async (
   }
 };
 
+type SuggestionRaw = Record<string, unknown>;
+
+/** Lấy gợi ý reviewer theo submission (có thể kèm assign) */
 export const getReviewerSuggestions = async (
   submissionId: IdLike,
   maxSuggestions = 5,
   usePrompt = true,
   deadline?: string | null,
-  assign = false
+  assign = false,
 ): Promise<SuggestedReviewerItem[]> => {
   try {
     const payload: ReviewerSuggestionInputDTO = {
-      submissionId: Number(submissionId as any),
+      submissionId: Number(submissionId),
       maxSuggestions,
       usePrompt,
       deadline: deadline ?? null,
@@ -363,20 +432,64 @@ export const getReviewerSuggestions = async (
       ? `/reviewer-suggestion/ai-suggest-by-submission?assign=true`
       : `/reviewer-suggestion/ai-suggest-by-submission`;
 
-    const res = await capBotAPI.post<ApiResponse<any>>(url, payload);
-    if (!res.data.success) throw new Error(res.data.message || "Không lấy được gợi ý");
-    const raw = res.data.data ?? {};
-    const suggestionsRaw = raw.Suggestions ?? raw.suggestions ?? raw.suggestionsList ?? raw;
-    const list = Array.isArray(suggestionsRaw) ? suggestionsRaw : normalizeArray<any>(suggestionsRaw);
+    const res = await capBotAPI.post<ApiResponse<unknown>>(url, payload);
+    if (!res.data.success)
+      throw new Error(res.data.message || "Không lấy được gợi ý");
 
-    return list.map((r: any) => ({
-      reviewerId: r.reviewerId ?? r.ReviewerId ?? r.reviewer?.id ?? r.id,
-      assignmentType: (r.assignmentType ?? r.AssignmentType ?? null) as AssignmentTypes | null,
-      deadline: r.deadline ?? r.Deadline ?? null,
-      skillMatchScore: (r.skillMatchScore ?? r.SkillMatchScore ?? null) as number | null,
-      reviewerName: r.reviewerName ?? r.ReviewerName ?? r.name ?? null,
-      reviewerEmail: r.reviewerEmail ?? r.ReviewerEmail ?? null,
-    }));
+    const raw = res.data.data ?? {};
+    const suggestionsSrc =
+      pickFirst<unknown>(
+        raw,
+        ["Suggestions", "suggestions", "suggestionsList"],
+        raw,
+      ) ?? [];
+    const list = Array.isArray(suggestionsSrc)
+      ? (suggestionsSrc as SuggestionRaw[])
+      : normalizeArray<SuggestionRaw>(suggestionsSrc);
+
+    return list.map((r) => {
+      const reviewer =
+        getProp<number | string>(r, "reviewerId") ??
+        getProp<number | string>(r, "ReviewerId") ??
+        getProp<number | string>(getProp(r, "reviewer"), "id") ??
+        getProp<number | string>(r, "id") ??
+        "";
+
+      const typeRaw =
+        getProp<unknown>(r, "assignmentType") ??
+        getProp<unknown>(r, "AssignmentType");
+
+      const dl =
+        getProp<string | null>(r, "deadline") ??
+        getProp<string | null>(r, "Deadline") ??
+        null;
+
+      const score =
+        toNumber(
+          getProp<unknown>(r, "skillMatchScore") ??
+            getProp<unknown>(r, "SkillMatchScore"),
+        ) ?? null;
+
+      const name =
+        getProp<string>(r, "reviewerName") ??
+        getProp<string>(r, "ReviewerName") ??
+        getProp<string>(r, "name") ??
+        null;
+
+      const email =
+        getProp<string>(r, "reviewerEmail") ??
+        getProp<string>(r, "ReviewerEmail") ??
+        null;
+
+      return {
+        reviewerId: reviewer,
+        assignmentType: normalizeAssignmentType(typeRaw) ?? null,
+        deadline: dl,
+        skillMatchScore: score,
+        reviewerName: name,
+        reviewerEmail: email,
+      };
+    });
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lấy được gợi ý reviewer");
     toast.error(msg);
@@ -385,59 +498,18 @@ export const getReviewerSuggestions = async (
 };
 
 export const assignFromSuggestion = async (
-  payload: AssignFromSuggestionDTO
+  payload: AssignFromSuggestionDTO,
 ): Promise<ReviewerAssignmentResponseDTO> => {
   const assignPayload: AssignReviewerDTO = {
     submissionId: payload.submissionId,
     reviewerId: payload.reviewerId,
-    assignmentType: (payload.assignmentType as AssignmentTypes) ?? AssignmentTypes.Primary,
+    assignmentType:
+      (payload.assignmentType as AssignmentTypes) ?? AssignmentTypes.Primary,
     deadline: payload.deadline ?? undefined,
     notes: undefined,
     skillMatchScore: undefined,
   };
   return assignReviewer(assignPayload);
-};
-
-export async function getRecommendedReviewers(
-  submissionId: IdLike,
-  query?: RecommendationQuery
-): Promise<RecommendedReviewerDTO[]> {
-  try {
-    const sid = encodeURIComponent(String(submissionId));
-    const res = await capBotAPI.get<ApiResponse<RecommendedReviewerDTO[]>>(
-      `/reviewer-assignments/recommendations/${sid}`,
-      { params: { minSkillScore: query?.minSkillScore, maxWorkload: query?.maxWorkload } }
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy đề xuất reviewer thất bại");
-    return res.data.data ?? [];
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể lấy danh sách gợi ý reviewer");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-}
-
-/** Assignments theo reviewer */
-export const getAssignmentsByReviewer = async (
-  reviewerId: IdLike
-): Promise<ReviewerAssignmentResponseDTO[]> => {
-  try {
-    const rid = encodeURIComponent(String(reviewerId));
-    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      `/reviewer-assignments/by-reviewer/${rid}`
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy assignments theo reviewer thất bại");
-    const data = res.data.data ?? [];
-    return data.map(d => ({
-      ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
-      status: normalizeAssignmentStatus(d.status) ?? d.status,
-    }));
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể lấy assignments theo reviewer");
-    toast.error(msg);
-    throw new Error(msg);
-  }
 };
 
 export interface ReviewerWorkloadDTO {
@@ -457,6 +529,63 @@ export interface ReviewerWorkloadDTO {
   };
 }
 
+/** Thống kê workload reviewers */
+export const getReviewersWorkload = async (
+  semesterId?: IdLike,
+): Promise<ReviewerWorkloadDTO[]> => {
+  try {
+    const res = await capBotAPI.get<ApiResponse<unknown>>(
+      `/reviewer-assignments/workload`,
+      {
+        params: semesterId != null ? { semesterId } : undefined,
+      },
+    );
+
+    if (!res.data.success)
+      throw new Error(res.data.message || "Lấy thống kê thất bại");
+
+    const raw = (res.data.data ?? []) as unknown[];
+
+    return raw.filter(isRecord).map((r) => {
+      const perf = getProp<unknown>(r, "performance");
+      const perfRec = isRecord(perf) ? perf : undefined;
+
+      return {
+        id: Number(getProp<unknown>(r, "id")),
+        userName: String(getProp<unknown>(r, "userName") ?? ""),
+        email: String(getProp<unknown>(r, "email") ?? ""),
+        phoneNumber: getProp<string>(r, "phoneNumber"),
+        currentAssignments: Number(
+          getProp<unknown>(r, "currentAssignments") ?? 0,
+        ),
+        skills: Array.isArray(getProp<unknown>(r, "skills"))
+          ? (getProp<unknown>(r, "skills") as string[])
+          : [],
+        isAvailable: Boolean(getProp<unknown>(r, "isAvailable") ?? false),
+        unavailableReason: getProp<string>(r, "unavailableReason"),
+        performance: perfRec
+          ? {
+              totalAssignments: Number(
+                getProp<unknown>(perfRec, "totalAssignments") ?? 0,
+              ),
+              completedAssignments: Number(
+                getProp<unknown>(perfRec, "completedAssignments") ?? 0,
+              ),
+              averageScoreGiven: Number(
+                getProp<unknown>(perfRec, "averageScoreGiven") ?? 0,
+              ),
+              onTimeRate: Number(getProp<unknown>(perfRec, "onTimeRate") ?? 0),
+            }
+          : undefined,
+      } as ReviewerWorkloadDTO;
+    });
+  } catch (e) {
+    const msg = getAxiosMessage(e, "Không thể lấy thống kê workload reviewer");
+    toast.error(msg);
+    throw new Error(msg);
+  }
+};
+
 export interface AnalyzeReviewerMatchDTO {
   reviewerId: IdLike;
   submissionId: IdLike;
@@ -471,63 +600,25 @@ export interface AnalyzeReviewerMatchDTO {
   ineligibilityReasons?: string[];
 }
 
-/** Thống kê workload reviewers */
-export const getReviewersWorkload = async (
-  semesterId?: IdLike
-): Promise<ReviewerWorkloadDTO[]> => {
-  try {
-    const res = await capBotAPI.get<ApiResponse<ReviewerWorkloadDTO[]>>(
-      `/reviewer-assignments/workload`,
-      { params: semesterId != null ? { semesterId } : undefined }
-    );
-
-    if (!res.data.success)
-      throw new Error(res.data.message || "Lấy thống kê thất bại");
-
-    const raw = res.data.data ?? [];
-
-    // Chuẩn hóa dữ liệu (tránh null)
-    return raw.map((r: any) => ({
-      id: r.id,
-      userName: r.userName,
-      email: r.email,
-      phoneNumber: r.phoneNumber,
-      currentAssignments: r.currentAssignments ?? 0,
-      skills: r.skills ?? [],
-      isAvailable: r.isAvailable ?? false,
-      unavailableReason: r.unavailableReason ?? null,
-      performance: r.performance
-        ? {
-          totalAssignments: r.performance.totalAssignments ?? 0,
-          completedAssignments: r.performance.completedAssignments ?? 0,
-          averageScoreGiven: r.performance.averageScoreGiven ?? 0,
-          onTimeRate: r.performance.onTimeRate ?? 0,
-        }
-        : undefined,
-    }));
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể lấy thống kê workload reviewer");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-};
-
-
 /** Phân tích matching */
 export const analyzeReviewerMatch = async (
   reviewerId: IdLike,
-  submissionId: IdLike
+  submissionId: IdLike,
 ): Promise<AnalyzeReviewerMatchDTO> => {
   try {
     const rid = encodeURIComponent(String(reviewerId));
     const sid = encodeURIComponent(String(submissionId));
     const res = await capBotAPI.get<ApiResponse<AnalyzeReviewerMatchDTO>>(
-      `/reviewer-assignments/analyze/${rid}/${sid}`
+      `/reviewer-assignments/analyze/${rid}/${sid}`,
     );
-    if (!res.data.success) throw new Error(res.data.message || "Phân tích thất bại");
+    if (!res.data.success)
+      throw new Error(res.data.message || "Phân tích thất bại");
     return res.data.data;
   } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể phân tích mức độ phù hợp reviewer");
+    const msg = getAxiosMessage(
+      e,
+      "Không thể phân tích mức độ phù hợp reviewer",
+    );
     toast.error(msg);
     throw new Error(msg);
   }
@@ -541,16 +632,20 @@ export interface MyAssignmentStatisticsDTO {
   overdue?: number;
 }
 
-export const getMyAssignments = async (): Promise<ReviewerAssignmentResponseDTO[]> => {
+export const getMyAssignments = async (): Promise<
+  ReviewerAssignmentResponseDTO[]
+> => {
   try {
-    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      `/reviewer-assignments/my-assignments`
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy phân công của bạn thất bại");
+    const res = await capBotAPI.get<
+      ApiResponse<ReviewerAssignmentResponseDTO[]>
+    >(`/reviewer-assignments/my-assignments`);
+    if (!res.data.success)
+      throw new Error(res.data.message || "Lấy phân công của bạn thất bại");
     const data = res.data.data ?? [];
-    return data.map(d => ({
+    return data.map((d) => ({
       ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
       status: normalizeAssignmentStatus(d.status) ?? d.status,
     }));
   } catch (e) {
@@ -561,18 +656,22 @@ export const getMyAssignments = async (): Promise<ReviewerAssignmentResponseDTO[
 };
 
 export const getMyAssignmentsByStatus = async (
-  status: AssignmentStatus
+  status: AssignmentStatus,
 ): Promise<ReviewerAssignmentResponseDTO[]> => {
   try {
     const s = encodeURIComponent(String(status));
-    const res = await capBotAPI.get<ApiResponse<ReviewerAssignmentResponseDTO[]>>(
-      `/reviewer-assignments/my-assignments/by-status/${s}`
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy phân công theo trạng thái thất bại");
+    const res = await capBotAPI.get<
+      ApiResponse<ReviewerAssignmentResponseDTO[]>
+    >(`/reviewer-assignments/my-assignments/by-status/${s}`);
+    if (!res.data.success)
+      throw new Error(
+        res.data.message || "Lấy phân công theo trạng thái thất bại",
+      );
     const data = res.data.data ?? [];
-    return data.map(d => ({
+    return data.map((d) => ({
       ...d,
-      assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
+      assignmentType:
+        normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
       status: normalizeAssignmentStatus(d.status) ?? d.status,
     }));
   } catch (e) {
@@ -582,16 +681,21 @@ export const getMyAssignmentsByStatus = async (
   }
 };
 
-export const getMyAssignmentStatistics = async (): Promise<MyAssignmentStatisticsDTO> => {
-  try {
-    const res = await capBotAPI.get<ApiResponse<MyAssignmentStatisticsDTO>>(
-      `/reviewer-assignments/my-assignments/statistics`
-    );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy thống kê phân công thất bại");
-    return res.data.data ?? {};
-  } catch (e) {
-    const msg = getAxiosMessage(e, "Không thể lấy thống kê phân công của bạn");
-    toast.error(msg);
-    throw new Error(msg);
-  }
-};
+export const getMyAssignmentStatistics =
+  async (): Promise<MyAssignmentStatisticsDTO> => {
+    try {
+      const res = await capBotAPI.get<ApiResponse<MyAssignmentStatisticsDTO>>(
+        `/reviewer-assignments/my-assignments/statistics`,
+      );
+      if (!res.data.success)
+        throw new Error(res.data.message || "Lấy thống kê phân công thất bại");
+      return res.data.data ?? {};
+    } catch (e) {
+      const msg = getAxiosMessage(
+        e,
+        "Không thể lấy thống kê phân công của bạn",
+      );
+      toast.error(msg);
+      throw new Error(msg);
+    }
+  };
