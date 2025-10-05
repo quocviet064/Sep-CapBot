@@ -210,7 +210,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
         {suggestLoading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70">
             <div className="flex flex-col items-center gap-2">
-              <svg className="animate-spin h-10 w-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
               </svg>
@@ -234,7 +234,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
               <span>Auto-create assignments on server</span>
             </label>
 
-            <label className="text-sm">Deadline (áp dụng khi assign) *</label>
+            <label className="text-sm">Deadline</label>
             <input
               type="date"
               value={globalDeadline}
@@ -248,14 +248,6 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
               <span>Số lượng</span>
               <input
                 type="number"
-                min={1}
-                max={50}
-                value={String(maxSuggestions)}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (Number.isNaN(val)) return setMaxSuggestions(1);
-                  setMaxSuggestions(Math.max(1, Math.min(50, val)));
-                }}
                 className="w-16 border rounded px-2 py-1 text-sm"
                 title="Số lượng reviewer AI sẽ đề xuất"
                 disabled={suggestLoading}
@@ -291,15 +283,15 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
               )}
             </button>
 
-            <button
+            {/* <button
               className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
               onClick={onAssignAllEligible}
               disabled={assignLoading || !(suggestions && suggestions.some((s) => s.isEligible)) || !globalDeadline || suggestLoading}
               title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : undefined}
             >
               Phân công tất cả hợp lệ
-            </button>
-
+            </button> */}
+  
             <button
               className="px-3 py-1 rounded border text-sm"
               onClick={() => {
@@ -386,8 +378,8 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                         <button
                           onClick={() => onAssign(s)}
                           className={`px-3 py-1 rounded text-sm ${s.isEligible
-                              ? "bg-green-600 text-white"
-                              : "bg-gray-200 text-gray-600 cursor-not-allowed"
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-200 text-gray-600 cursor-not-allowed"
                             }`}
                           disabled={!s.isEligible || assignLoading || !globalDeadline || suggestLoading}
                           title={
