@@ -59,7 +59,7 @@ export default function ReviewerReviewEditor() {
         {/* Right: review form */}
         <div>
           <ReviewForm
-            assignmentId={assignmentId ? Number(assignmentId) : undefined}
+            assignmentId={Number(assignmentId)}
             reviewId={reviewId ? Number(reviewId) : undefined}
             criteriaList={criteriaList}
           />
