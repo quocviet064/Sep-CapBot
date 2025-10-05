@@ -148,6 +148,7 @@ export interface TopicDetailResponse {
   createdBy: string;
   lastModifiedAt: string | null;
   lastModifiedBy: string | null;
+  status?: string;                    
 }
 
 export const createTopic = async (

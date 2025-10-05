@@ -108,16 +108,14 @@ export function useAssignReviewer() {
 /** Bulk assign */
 export function useBulkAssignReviewers() {
   const qc = useQueryClient();
-  return useMutation<ApiResponse<ReviewerAssignmentResponseDTO[]>, Error, BulkAssignReviewerDTO>({
+
+  return useMutation<ReviewerAssignmentResponseDTO[], Error, BulkAssignReviewerDTO>({
     mutationFn: (payload) => bulkAssignReviewers(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["assignmentsBySubmission"] });
       qc.invalidateQueries({ queryKey: ["availableReviewers"] });
       qc.invalidateQueries({ queryKey: ["recommendedReviewers"] });
       qc.invalidateQueries({ queryKey: ["my-assignments"] });
-    },
-    onError: (e) => {
-      toast.error(e.message || "Bulk assign thất bại");
     },
   });
 }

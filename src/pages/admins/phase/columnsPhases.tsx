@@ -1,4 +1,3 @@
-// src/components/phase/columnsPhases.tsx
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/globals/atoms/checkbox";
 import { Button } from "@/components/globals/atoms/button";

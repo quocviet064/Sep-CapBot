@@ -1,33 +1,20 @@
-// src/pages/reviewers/dashboard/index.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/globals/atoms/button";
 import LoadingPage from "@/pages/loading-page";
 import { useMyAssignments, useStartReview } from "@/hooks/useReviewerAssignment";
 import { useWithdrawReview } from "@/hooks/useReview";
 import { getReviewsByAssignment, type ReviewDTO } from "@/services/reviewService";
-import { Eye } from "lucide-react";
-
-/**
- * Reviewer Dashboard (FE-only statistics)
- * - uses useMyAssignments() for assignments
- * - computes cards from assignments (no statistics API)
- * - loads recent reviews by calling getReviewsByAssignment only for top recent assignments
- *
- * Goal: avoid reliance on /statistics API which currently returns a different shape.
- */
 
 export default function ReviewerDashboard() {
   const navigate = useNavigate();
 
-  // assignments
   const { data: assignmentsData, isLoading: assignmentsLoading, error: assignmentsError } = useMyAssignments();
   const assignments = assignmentsData ?? [];
 
   const startReviewMut = useStartReview();
   const withdrawMut = useWithdrawReview();
 
-  // recent assignments (top N)
   const RECENT_COUNT = 5;
   const recentAssignments = useMemo(() => {
     return [...assignments]
@@ -39,7 +26,6 @@ export default function ReviewerDashboard() {
       .slice(0, RECENT_COUNT);
   }, [assignments]);
 
-  // load reviews for recentAssignments (only top RECENT_COUNT)
   const [recentReviews, setRecentReviews] = useState<Array<ReviewDTO & { assignmentId?: number }>>([]);
   const [loadingRecentReviews, setLoadingRecentReviews] = useState(false);
 
@@ -52,17 +38,14 @@ export default function ReviewerDashboard() {
       }
       setLoadingRecentReviews(true);
       try {
-        // parallel fetch per assignment (limit to RECENT_COUNT)
         const promises = recentAssignments.map((a: any) =>
           getReviewsByAssignment(a.id).catch(() => [] as ReviewDTO[])
         );
         const results = await Promise.all(promises);
         if (!mounted) return;
 
-        // choose the "best" review per assignment: prefer Submitted, else latest by updatedAt/createdAt
         const flattened: Array<ReviewDTO & { assignmentId?: number }> = results.map((list, idx) => {
           if (!Array.isArray(list) || list.length === 0) return null;
-          // prefer Submitted
           const submitted = list.find((r) => r.status === "Submitted");
           const pick = submitted ?? list.sort((x, y) => {
             const tx = new Date(x.updatedAt ?? x.createdAt ?? 0).getTime();
@@ -75,7 +58,6 @@ export default function ReviewerDashboard() {
 
         setRecentReviews(flattened);
       } catch (e) {
-        // swallow — FE will still render assignments
         setRecentReviews([]);
       } finally {
         if (mounted) setLoadingRecentReviews(false);
@@ -87,7 +69,6 @@ export default function ReviewerDashboard() {
 
   const isLoading = assignmentsLoading || loadingRecentReviews;
 
-  // compute summary from assignments and recentReviews (FE-only)
   const summary = useMemo(() => {
     const s = {
       assigned: 0,
@@ -120,11 +101,6 @@ export default function ReviewerDashboard() {
           <h1 className="text-2xl font-semibold">Reviewer Dashboard</h1>
           <p className="text-sm text-muted-foreground">Tóm tắt nhanh các phân công và review của bạn</p>
         </div>
-
-        <div className="flex gap-2 items-center">
-          <Button size="sm" variant="secondary" onClick={() => navigate("/reviewers/assigned-topics")}>Danh sách phân công</Button>
-          <Button size="sm" variant="primary" onClick={() => navigate("/reviewers/evaluate-topics")}>Bắt đầu đánh giá</Button>
-        </div>
       </div>
 
       {/* Summary cards */}
@@ -154,7 +130,6 @@ export default function ReviewerDashboard() {
           ) : (
             <div className="space-y-3">
               {recentAssignments.map((a: any) => {
-                // safe reads with fallbacks
                 const topicTitle = a.topicTitle ?? a.submissionTitle ?? "Không có tiêu đề";
                 const assignedAt = a.assignedAt ? new Date(a.assignedAt).toLocaleString() : "--";
                 const reviewForAssignment = recentReviews.find((rv) => Number(rv.assignmentId) === Number(a.id));
@@ -174,10 +149,6 @@ export default function ReviewerDashboard() {
                         </div>
                       ) : null}
 
-                      <button title="Xem submission" onClick={() => navigate(`/reviewers/assigned-topics/detail?submissionId=${encodeURIComponent(String(a.submissionId ?? ""))}`)} className="p-2 rounded-md hover:bg-slate-100">
-                        <Eye className="h-4 w-4 text-slate-700" />
-                      </button>
-
                       <Button size="sm" onClick={() => {
                         if (reviewForAssignment && reviewForAssignment.status === "Draft") {
                           navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(a.id))}&reviewId=${encodeURIComponent(String(reviewForAssignment.id))}`);
@@ -187,7 +158,6 @@ export default function ReviewerDashboard() {
                             onError: (e: any) => alert(e?.message || "Không thể bắt đầu phiên đánh giá"),
                           });
                         } else {
-                          // fallback: open editor with assignmentId
                           navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(a.id))}`);
                         }
                       }}>Đánh giá</Button>
@@ -229,32 +199,11 @@ export default function ReviewerDashboard() {
                     </div>
 
                     <Button size="sm" onClick={() => navigate(`/reviewers/evaluate-topics/review?assignmentId=${encodeURIComponent(String(r.assignmentId))}&reviewId=${encodeURIComponent(String(r.id))}`)}>Mở</Button>
-
-                    {r.status === "Submitted" ? (
-                      <Button size="sm" variant="destructive" onClick={() => {
-                        const ok = window.confirm("Bạn có chắc muốn rút lại đánh giá này?");
-                        if (!ok) return;
-                        withdrawMut.mutate(r.id, {
-                          onSuccess: () => alert("Yêu cầu rút đánh giá đã gửi."),
-                          onError: (e: any) => alert(e?.message || "Rút thất bại"),
-                        });
-                      }}>Rút</Button>
-                    ) : null}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* quick actions */}
-      <div className="bg-white border rounded-lg p-4 shadow-sm">
-        <h3 className="text-sm font-medium mb-2">Hành động nhanh</h3>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => navigate("/reviewers/assigned-topics")}>Danh sách phân công</Button>
-          <Button size="sm" onClick={() => navigate("/reviewers/evaluate-topics")}>Bắt đầu đánh giá</Button>
-          <Button size="sm" variant="secondary" onClick={() => navigate("/reviewers/reviews")}>Quản lý reviews</Button>
         </div>
       </div>
     </div>

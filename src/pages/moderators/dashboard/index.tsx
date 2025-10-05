@@ -1,19 +1,10 @@
-// src/pages/moderators/dashboard/ModeratorDashboard.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { Chart, ChartConfiguration } from "chart.js/auto";
 import { useSubmissions } from "@/hooks/useSubmission";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { getReviewersWorkload } from "@/services/reviewerAssignmentService";
 import { getSubmissionDetail } from "@/services/submissionService";
 import { useNavigate } from "react-router-dom";
-
-/**
- * Moderator Dashboard (fixed)
- *
- * - Use `useSubmissions` to fetch list.
- * - Use `useQueries` (single-hook call) to fetch submission details for visible submissions.
- * - Compute KPIs & charts from details safely.
- */
 
 function escapeHtml(s?: unknown) {
   if (!s) return "";
@@ -27,7 +18,6 @@ function escapeHtml(s?: unknown) {
 export default function ModeratorDashboard(): JSX.Element {
   const navigate = useNavigate();
 
-  // Submissions list (page)
   const subsQuery = useSubmissions({
     PageNumber: 1,
     PageSize: 50,
@@ -35,8 +25,6 @@ export default function ModeratorDashboard(): JSX.Element {
 
   const submissions = subsQuery.data?.listObjects ?? [];
 
-  // Use queries to fetch details for current submissions (safe: single hook call)
-  // Build queries array from submissions (memoized to avoid re-creating unnecessarily)
   const detailQueries = useQueries({
     queries: submissions.map((s: any) => ({
       queryKey: ["submission-detail", s.id],
@@ -46,7 +34,6 @@ export default function ModeratorDashboard(): JSX.Element {
     })),
   });
 
-  // Build a map id -> detail.data (only include finished ones)
   const detailsMap = useMemo(() => {
     const m = new Map<string | number, any>();
     for (let i = 0; i < submissions.length; i++) {
@@ -57,14 +44,12 @@ export default function ModeratorDashboard(): JSX.Element {
     return m;
   }, [submissions, detailQueries]);
 
-  // Workload query (react-query v5 object form)
   const workloadQuery = useQuery({
     queryKey: ["reviewer-workload"],
     queryFn: () => getReviewersWorkload(),
     staleTime: 1000 * 60 * 5,
   });
 
-  // Helper to get AI score for a submission id using detailsMap
   const getAiScore = (id: number | string) => {
     const d = detailsMap.get(id);
     if (!d) return "-";
@@ -82,7 +67,6 @@ export default function ModeratorDashboard(): JSX.Element {
     return "-";
   };
 
-  // KPIs computed from detailsMap + submissions
   const kpis = useMemo(() => {
     const total = submissions.length;
     let approved = 0;
@@ -93,7 +77,6 @@ export default function ModeratorDashboard(): JSX.Element {
       const d = detailsMap.get(s.id);
       let pct: number | null = null;
       if (!d) {
-        // If no detail yet, count as underReview
         underReview++;
         return;
       }
@@ -107,8 +90,7 @@ export default function ModeratorDashboard(): JSX.Element {
           pct = d.aiCheckScore * 10;
         }
       } catch {
-        // parse error -> leave pct null
-      }
+        }
 
       if (pct != null && pct >= 80) approved++;
       else if (pct != null && pct < 60) needsRevision++;
@@ -118,7 +100,6 @@ export default function ModeratorDashboard(): JSX.Element {
     return { total, approved, needsRevision, underReview };
   }, [submissions, detailsMap]);
 
-  // Chart refs
   const lineRef = useRef<HTMLCanvasElement | null>(null);
   const pieRef = useRef<HTMLCanvasElement | null>(null);
   const barRef = useRef<HTMLCanvasElement | null>(null);
@@ -126,7 +107,6 @@ export default function ModeratorDashboard(): JSX.Element {
   const pieChart = useRef<Chart | null>(null);
   const barChart = useRef<Chart | null>(null);
 
-  // Build charts (react to submissions & detailsMap)
   useEffect(() => {
     const days = 10;
     const labels: string[] = [];
@@ -176,11 +156,9 @@ export default function ModeratorDashboard(): JSX.Element {
       if (pct < 50) buckets[0]++; else if (pct < 60) buckets[1]++; else if (pct < 70) buckets[2]++; else if (pct < 80) buckets[3]++; else buckets[4]++;
     });
 
-    // Line chart
     if (lineRef.current) {
       if (lineChart.current) {
         lineChart.current.data.labels = labels;
-        // @ts-ignore
         lineChart.current.data.datasets[0].data = counts;
         lineChart.current.update();
       } else {
@@ -217,7 +195,6 @@ export default function ModeratorDashboard(): JSX.Element {
       const dataPie = labelsPie.map((k) => statusMap[k]);
       if (pieChart.current) {
         pieChart.current.data.labels = labelsPie;
-        // @ts-ignore
         pieChart.current.data.datasets[0].data = dataPie;
         pieChart.current.update();
       } else {
@@ -245,7 +222,6 @@ export default function ModeratorDashboard(): JSX.Element {
     // Bar chart
     if (barRef.current) {
       if (barChart.current) {
-        // @ts-ignore
         barChart.current.data.datasets[0].data = buckets;
         barChart.current.update();
       } else {
@@ -310,7 +286,6 @@ export default function ModeratorDashboard(): JSX.Element {
             className="rounded px-3 py-2 border"
             onClick={() => {
               subsQuery.refetch();
-              // refetch detail queries by invalidating keys if needed; simplest: refetch all
               detailQueries.forEach((q) => q.refetch && q.refetch());
               workloadQuery.refetch();
             }}
@@ -358,26 +333,96 @@ export default function ModeratorDashboard(): JSX.Element {
         </div>
       </div>
 
-      {/* Workload quick view */}
-      <div className="rounded border p-4 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-semibold">Reviewer workload (top)</div>
-          <div className="text-xs text-muted-foreground">
-            {workloadQuery.isLoading ? "Loading..." : `Total: ${workloadQuery.data?.length ?? 0}`}
-          </div>
+      <div className="rounded-md border p-4 mb-6 bg-white shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-700">
+            Reviewer Workload
+          </h3>
+          <span className="text-xs text-slate-500">
+            {workloadQuery.isLoading
+              ? "Đang tải..."
+              : `Tổng reviewer: ${workloadQuery.data?.length ?? 0}`}
+          </span>
         </div>
-        <div>
-          {workloadQuery.data?.slice(0, 6).map((w: any) => (
-            <div key={w.reviewerId ?? w.reviewerName} className="flex items-center justify-between py-1">
-              <div>
-                <div className="font-medium">{w.reviewerName ?? w.email ?? `#${w.reviewerId}`}</div>
-                <div className="text-xs text-muted-foreground">Active: {w.currentActiveAssignments ?? 0}</div>
-              </div>
-              <div className="text-sm text-muted-foreground">{w.workloadScore ?? "-"}</div>
+
+        <div className="overflow-auto max-h-80 divide-y divide-slate-100">
+          {workloadQuery.isLoading ? (
+            <div className="text-sm text-slate-500 text-center py-6">
+              Đang tải dữ liệu...
             </div>
-          )) ?? <div className="text-sm text-muted-foreground">No data</div>}
+          ) : workloadQuery.data?.length ? (
+            workloadQuery.data.slice(0, 8).map((rev: any) => {
+              const p = rev.performance;
+              const completionRate =
+                p && p.totalAssignments > 0
+                  ? ((p.completedAssignments / p.totalAssignments) * 100).toFixed(0)
+                  : "-";
+
+              return (
+                <div
+                  key={rev.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3"
+                >
+                  {/* LEFT: Info */}
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-800 truncate">
+                      {rev.userName ?? rev.email}
+                    </div>
+                    <div className="text-xs text-slate-500 truncate">
+                      {rev.email}
+                    </div>
+
+                    {/* Skills tags */}
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {rev.skills?.length ? (
+                        rev.skills.map((skill: string, i: number) => (
+                          <span
+                            key={i}
+                            className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full border border-blue-100"
+                          >
+                            {skill}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-400">Không có kỹ năng</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Stats */}
+                  <div className="text-sm text-right text-slate-600 whitespace-nowrap">
+                    <div>
+                      <span className="text-xs text-slate-500">Assignments:</span>{" "}
+                      <span className="font-semibold">{rev.currentAssignments}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500">Completed:</span>{" "}
+                      <span className="font-semibold">{p?.completedAssignments ?? 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500">On-time:</span>{" "}
+                      <span className="font-semibold">
+                        {p?.onTimeRate ? (p.onTimeRate * 100).toFixed(0) + "%" : "-"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500">Avg Score:</span>{" "}
+                      <span className="font-semibold">
+                        {p?.averageScoreGiven ? p.averageScoreGiven.toFixed(1) : "-"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-sm text-slate-500 text-center py-6">
+              Không có dữ liệu reviewer
+            </div>
+          )}
         </div>
       </div>
+
 
       {/* Table */}
       <div className="rounded border p-4">

@@ -6,6 +6,7 @@ import {
   SidebarTrigger,
 } from "../atoms/sidebar";
 import { AppSidebar } from "../organisms/sidebar";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function LectureLayout() {
   return (
@@ -18,6 +19,9 @@ export default function LectureLayout() {
             <span className="font-medium">
               Hệ thống hỗ trợ quản lý đề tài đồ án tốt nghiệp
             </span>
+          </div>
+          <div className="flex  gap-8 absolute right-4">
+            <NotificationBell />
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">

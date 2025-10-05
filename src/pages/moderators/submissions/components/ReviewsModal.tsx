@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import ReviewItem from "./ReviewItem";
 import { useSubmissionReviewSummary } from "@/hooks/useSubmissionReview";
@@ -13,7 +13,7 @@ function getFirst(obj: any, keys: string[]) {
   return undefined;
 }
 
-function mapRecommendationToText(val: unknown): string | null { /* same as before */ 
+function mapRecommendationToText(val: unknown): string | null { 
   if (val == null) return null;
   if (typeof val === "number" && Number.isFinite(val)) {
     const n = Number(val);

@@ -23,7 +23,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
   const [autoAssignOnServer, setAutoAssignOnServer] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [globalDeadline, setGlobalDeadline] = useState<string>("");
-  const [maxSuggestions, setMaxSuggestions] = useState<number>(2); 
+  const [maxSuggestions, setMaxSuggestions] = useState<number>(2);
 
   const suggestMut = useMutation({
     mutationFn: (vars: { input: ReviewerSuggestionBySubmissionInputDTO; assign?: boolean }) =>
@@ -44,6 +44,9 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
       toast.error("Phân công thất bại");
     },
   });
+
+  const suggestLoading = Boolean((suggestMut as any).isLoading);
+  const assignLoading = Boolean((assignMut as any).isLoading);
 
   const output: ReviewerSuggestionOutputDTO | undefined = useMemo(() => {
     return (suggestMut.data as ReviewerSuggestionOutputDTO | undefined) ?? undefined;
@@ -120,14 +123,11 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     }
   };
 
-  // format as percent 
   const formatPercent = (val: any) => {
     if (val === null || val === undefined || val === "-") return "-";
     const num = Number(val);
     if (Number.isNaN(num)) return String(val);
-    // chuyển đổi số từ 0 đến 1 thành phần trăm
     if (num >= 0 && num <= 1) return `${(num * 100).toFixed(1)}%`;
-    // chuyển đổi số lớn hơn 1 thành phần trăm
     if (num > 1 && num <= 100) return `${num.toFixed(1)}%`;
     return `${num.toFixed(1)}%`;
   };
@@ -151,13 +151,10 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     );
   };
 
-  // Render matched skills: if array [] show "Không tìm thấy kỹ năng phù hợp"
   const renderMatchedSkills = (s: ReviewerSuggestionDTO) => {
     const matchedSkills = (s as any).matchedSkills ?? [];
     if (!Array.isArray(matchedSkills) || matchedSkills.length === 0) {
-      return (
-        <div className="mt-2 text-sm text-amber-700">Reviewer skill do not match with this type of topic</div>
-      );
+      return <div className="mt-2 text-sm text-amber-700">Reviewer skill do not match with this type of topic</div>;
     }
 
     return (
@@ -172,6 +169,32 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
     );
   };
 
+  const renderTopTokens = (s: ReviewerSuggestionDTO) => {
+    const topTokens = (s as any).skillMatchTopTokens ?? {};
+    if (!topTokens || typeof topTokens !== "object" || Object.keys(topTokens).length === 0) return null;
+
+    return (
+      <div className="mt-2">
+        <div className="font-medium text-sm mb-1">Top skill tokens</div>
+        <div className="flex flex-wrap gap-1">
+          {Object.entries(topTokens).map(([field, tokens]) =>
+            Array.isArray(tokens)
+              ? tokens.map((token: string, i: number) => (
+                <span
+                  key={`${field}-${i}`}
+                  className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 border border-blue-300 rounded-full"
+                  title={`Field: ${field}`}
+                >
+                  {token}
+                </span>
+              ))
+              : null
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (!open) return null;
 
   return (
@@ -179,15 +202,15 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
       <div
         className="absolute inset-0 bg-black/40"
         onClick={() => {
-          if (!suggestMut.isLoading && !assignMut.isLoading) onClose();
+          if (!suggestLoading && !assignLoading) onClose();
         }}
       />
 
       <div className="relative z-10 w-full max-w-6xl bg-white rounded shadow-lg overflow-hidden min-w-[640px] min-h-[320px]">
-        {suggestMut.isLoading && (
+        {suggestLoading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70">
             <div className="flex flex-col items-center gap-2">
-              <svg className="animate-spin h-10 w-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
               </svg>
@@ -200,43 +223,34 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
           <h3 className="text-lg font-semibold">Gợi ý reviewer (AI)</h3>
 
           <div className="flex items-center gap-2 ml-4">
-            <label className={`flex items-center gap-2 text-sm ${suggestMut.isLoading ? "opacity-50" : ""}`}>
+            <label className={`flex items-center gap-2 text-sm ${suggestLoading ? "opacity-50" : ""}`}>
               <input
                 type="checkbox"
                 checked={autoAssignOnServer}
                 onChange={(e) => setAutoAssignOnServer(e.target.checked)}
                 className="w-4 h-4"
-                disabled={suggestMut.isLoading}
+                disabled={suggestLoading}
               />
               <span>Auto-create assignments on server</span>
             </label>
 
-            <label className="text-sm">Deadline (áp dụng khi assign) *</label>
+            <label className="text-sm">Deadline</label>
             <input
               type="date"
               value={globalDeadline}
               onChange={(e) => setGlobalDeadline(e.target.value)}
               className="border rounded px-2 py-1 text-sm"
               title="Deadline áp dụng cho hành động Assign / Assign all (bắt buộc)"
-              disabled={suggestMut.isLoading || assignMut.isLoading}
+              disabled={suggestLoading || assignLoading}
             />
 
-            {/* number input for suggestions */}
-            <label className={`text-sm flex items-center gap-2 ${suggestMut.isLoading ? "opacity-50" : ""}`}>
+            <label className={`text-sm flex items-center gap-2 ${suggestLoading ? "opacity-50" : ""}`}>
               <span>Số lượng</span>
               <input
                 type="number"
-                min={1}
-                max={50}
-                value={String(maxSuggestions)}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (Number.isNaN(val)) return setMaxSuggestions(1);
-                  setMaxSuggestions(Math.max(1, Math.min(50, val)));
-                }}
                 className="w-16 border rounded px-2 py-1 text-sm"
                 title="Số lượng reviewer AI sẽ đề xuất"
-                disabled={suggestMut.isLoading}
+                disabled={suggestLoading}
               />
             </label>
 
@@ -253,10 +267,10 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                   assign: autoAssignOnServer,
                 })
               }
-              disabled={suggestMut.isLoading}
-              title={suggestMut.isLoading ? "Đang gợi ý..." : "Gợi ý reviewer"}
+              disabled={suggestLoading}
+              title={suggestLoading ? "Đang gợi ý..." : "Gợi ý reviewer"}
             >
-              {suggestMut.isLoading ? (
+              {suggestLoading ? (
                 <>
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -269,19 +283,19 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
               )}
             </button>
 
-            <button
+            {/* <button
               className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
               onClick={onAssignAllEligible}
-              disabled={assignMut.isLoading || !(suggestions && suggestions.some((s) => s.isEligible)) || !globalDeadline || suggestMut.isLoading}
+              disabled={assignLoading || !(suggestions && suggestions.some((s) => s.isEligible)) || !globalDeadline || suggestLoading}
               title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : undefined}
             >
               Phân công tất cả hợp lệ
-            </button>
-
+            </button> */}
+  
             <button
               className="px-3 py-1 rounded border text-sm"
               onClick={() => {
-                if (!suggestMut.isLoading && !assignMut.isLoading) onClose();
+                if (!suggestLoading && !assignLoading) onClose();
               }}
             >
               Đóng
@@ -298,7 +312,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                   <pre className="text-sm whitespace-pre-wrap">{aiExplanation}</pre>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button onClick={copyAiExplanation} className="px-2 py-1 rounded border text-sm" disabled={suggestMut.isLoading}>
+                  <button onClick={copyAiExplanation} className="px-2 py-1 rounded border text-sm" disabled={suggestLoading}>
                     Copy
                   </button>
                 </div>
@@ -328,7 +342,7 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
             </div>
           )}
 
-          {(!suggestions || suggestions.length === 0) && !suggestMut.isLoading && (
+          {(!suggestions || suggestions.length === 0) && !suggestLoading && (
             <div className="text-sm text-slate-500">Không có gợi ý</div>
           )}
 
@@ -342,16 +356,18 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                     <div className="min-w-0">
                       <div className="font-medium">{s.reviewerName ?? `Reviewer ${s.reviewerId}`}</div>
                       <div className="text-sm text-slate-600">
-                        Score: <span className="font-semibold">{formatPercent(s.skillMatchScore ?? s.overallScore ?? 0)}</span>
+                        Match Score: <span className="font-semibold">{formatPercent(s.skillMatchScore ?? s.overallScore ?? 0)}</span>
                         {" • "}Overall: <span className="font-semibold">{formatPercent(s.overallScore ?? 0)}</span>
-                        {" • "}Workload: <span className="font-semibold">{s.workloadScore ?? 0}</span>
+                        {/* {" • "}Workload: <span className="font-semibold">{s.workloadScore ?? 0}</span> */}
                         {" • "}Active: <span className="font-semibold">{s.currentActiveAssignments ?? 0}</span>
                       </div>
 
                       {renderMatchedSkills(s)}
 
                       {s.isEligible === false && (
-                        <div className="mt-1 text-sm text-rose-600">Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}</div>
+                        <div className="mt-1 text-sm text-rose-600">
+                          Ineligible: {(s.ineligibilityReasons ?? []).join(", ")}
+                        </div>
                       )}
                     </div>
 
@@ -361,15 +377,28 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                       <div className="flex gap-2">
                         <button
                           onClick={() => onAssign(s)}
-                          className={`px-3 py-1 rounded text-sm ${s.isEligible ? "bg-green-600 text-white" : "bg-gray-200 text-gray-600 cursor-not-allowed"}`}
-                          disabled={!s.isEligible || assignMut.isLoading || !globalDeadline || suggestMut.isLoading}
-                          title={!globalDeadline ? "Vui lòng chọn deadline trước khi phân công" : !s.isEligible ? "Reviewer không hợp lệ" : "Assign reviewer"}
+                          className={`px-3 py-1 rounded text-sm ${s.isEligible
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-200 text-gray-600 cursor-not-allowed"
+                            }`}
+                          disabled={!s.isEligible || assignLoading || !globalDeadline || suggestLoading}
+                          title={
+                            !globalDeadline
+                              ? "Vui lòng chọn deadline trước khi phân công"
+                              : !s.isEligible
+                                ? "Reviewer không hợp lệ"
+                                : "Assign reviewer"
+                          }
                         >
                           Assign
                         </button>
                       </div>
 
-                      <button onClick={() => toggleExpand(key)} className="text-xs text-slate-500 underline" disabled={suggestMut.isLoading}>
+                      <button
+                        onClick={() => toggleExpand(key)}
+                        className="text-xs text-slate-500 underline"
+                        disabled={suggestLoading}
+                      >
                         {expanded[key] ? "Hide details" : "Show details"}
                       </button>
                     </div>
@@ -393,12 +422,39 @@ export default function ReviewerSuggestionDialog({ submissionId, open, onClose }
                       )}
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 text-sm">
-                        <div>Completed: <span className="font-semibold">{s.completedAssignments ?? 0}</span></div>
-                        <div>Avg score: <span className="font-semibold">{s.averageScoreGiven === null || s.averageScoreGiven === undefined ? "-" : formatPercent(s.averageScoreGiven)}</span></div>
-                        <div>On-time rate: <span className="font-semibold">{s.onTimeRate === null || s.onTimeRate === undefined ? "-" : formatPercent(s.onTimeRate)}</span></div>
-                        <div>Quality rating: <span className="font-semibold">{s.qualityRating === null || s.qualityRating === undefined ? "-" : formatPercent(s.qualityRating)}</span></div>
-                        <div>Performance: <span className="font-semibold">{s.performanceScore === null || s.performanceScore === undefined ? "-" : formatPercent(s.performanceScore)}</span></div>
+                        <div>
+                          Completed: <span className="font-semibold">{s.completedAssignments ?? 0}</span>
+                        </div>
+                        <div>
+                          Avg score:{" "}
+                          <span className="font-semibold">
+                            {s.averageScoreGiven === null || s.averageScoreGiven === undefined
+                              ? "-"
+                              : formatPercent(s.averageScoreGiven)}
+                          </span>
+                        </div>
+                        <div>
+                          On-time rate:{" "}
+                          <span className="font-semibold">
+                            {s.onTimeRate === null || s.onTimeRate === undefined ? "-" : formatPercent(s.onTimeRate)}
+                          </span>
+                        </div>
+                        <div>
+                          Quality rating:{" "}
+                          <span className="font-semibold">
+                            {s.qualityRating === null || s.qualityRating === undefined ? "-" : formatPercent(s.qualityRating)}
+                          </span>
+                        </div>
+                        <div>
+                          Performance score:{" "}
+                          <span className="font-semibold">
+                            {s.performanceScore === null || s.performanceScore === undefined
+                              ? "-"
+                              : formatPercent(s.performanceScore)}
+                          </span>
+                        </div>
                       </div>
+                      {renderTopTokens(s)}
                     </div>
                   )}
                 </div>

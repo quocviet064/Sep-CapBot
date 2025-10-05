@@ -18,9 +18,13 @@ import TopicCreateConfirmPage from "./pages/supervisors/topic-version/TopicVersi
 import WelcomeCreateTopicPage from "./pages/supervisors/WelcomeCreateTopicPage";
 import AISuggestPage from "./pages/supervisors/AISuggestPage";
 import MyTopicsDashboard from "./pages/supervisors/my-topics-dashboard";
+
+import useNotificationHub from "./hooks/useNotificationHub";
+
 import TopicListVersionDetailPage from "./pages/supervisors/all-topics-list/TopicListVersionDetailPage";
 import AdminUserDetailPage from "./pages/admins/auth-management/AdminUserDetailPage";
 import AdminUsersPerformanceDashboard from "./pages/admins/admin-dashboard/AdminUsersPerformanceDashboard";
+
 
 const LectureLayout = lazy(
   () => import("./components/globals/layouts/lecture"),
@@ -122,10 +126,6 @@ const ReviewerDashboard = lazy(() => import("./pages/reviewers/dashboard"));
 const ReviewerAssignedList = lazy(
   () => import("./pages/reviewers/assigned-topics/list"),
 );
-const ReviewerAssignedDetail = lazy(
-  () => import("./pages/reviewers/assigned-topics/detail"),
-);
-const ReviewerStats = lazy(() => import("./pages/reviewers/evaluation-stats"));
 const ReviewerReview = lazy(
   () => import("./pages/reviewers/evaluate-topics/review"),
 );
@@ -137,10 +137,6 @@ const SubmissionsListPage = lazy(
 const SubmissionDetailPage = lazy(
   () => import("./pages/moderators/submissions/SubmissionDetailPage"),
 );
-const ModeratorFeedbackEval = lazy(
-  () => import("./pages/moderators/feedback-evaluation"),
-);
-const ModeratorReports = lazy(() => import("./pages/moderators/reports"));
 const ModeratorCategoryPage = lazy(
   () => import("./pages/moderators/category-manager/category-page"),
 );
@@ -151,6 +147,7 @@ const ModeratorSemesterPhase = lazy(
 const NotFoundPage = lazy(() => import("./pages/not-found-page"));
 
 function App() {
+  useNotificationHub();
   return (
     <Suspense fallback={<LoadingPage />}>
       <Routes>
@@ -331,14 +328,6 @@ function App() {
             element={<ReviewerAssignedList />}
           />
           <Route
-            path="/reviewers/assigned-topics/detail/:submissionId"
-            element={<ReviewerAssignedDetail />}
-          />
-          <Route
-            path="/reviewers/evaluation-stats"
-            element={<ReviewerStats />}
-          />
-          <Route
             path="/reviewers/evaluate-topics/:assignmentId"
             element={<ReviewerReview />}
           />
@@ -355,11 +344,6 @@ function App() {
             path="/moderators/submissions/:submissionId"
             element={<SubmissionDetailPage />}
           />
-          <Route
-            path="/moderators/feedback-evaluation"
-            element={<ModeratorFeedbackEval />}
-          />
-          <Route path="/moderators/reports" element={<ModeratorReports />} />
           <Route
             path="/moderators/category-manager/category-page"
             element={<ModeratorCategoryPage />}

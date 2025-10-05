@@ -12,6 +12,14 @@ type ApiResponse<T> = {
   message: string | null;
 };
 
+export type ModeratorFinalPayload = {
+  submissionId: number;
+  finalRecommendation: number | string;
+  finalScore?: number | null;
+  moderatorNotes?: string | null;
+  revisionDeadline?: string | null;
+};
+
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError(e)) {
     const data = e.response?.data as any;
@@ -21,7 +29,7 @@ const getAxiosMessage = (e: unknown, fallback: string) => {
   return fallback;
 };
 
-export type ReviewerRecommendation = 1 | 2 | 3 | 4; // 1 Approve, 2 Minor, 3 Major, 4 Reject
+export type ReviewerRecommendation = 1 | 2 | 3 | 4; // Approve, Revision, Reject
 
 export type SubmissionReviewSummaryDTO = {
   submissionId: IdLike;
@@ -52,7 +60,6 @@ export type SubmissionReviewSummaryDTO = {
   } | null;
 };
 
-// helper: map bất kỳ value nào về ReviewerRecommendation
 const mapRecommendation = (val: unknown): ReviewerRecommendation | undefined => {
   if (val == null) return undefined;
 
@@ -67,7 +74,6 @@ const mapRecommendation = (val: unknown): ReviewerRecommendation | undefined => 
     if (v === "major" || v.includes("major")) return 3;
     if (v === "reject" || v === "rejected" || v === "decline") return 4;
 
-    // tiếng Việt
     if (v.includes("chấp nhận") || v.includes("đồng ý")) return 1;
     if (v.includes("nhỏ")) return 2;
     if (v.includes("lớn")) return 3;
@@ -87,7 +93,7 @@ const mapRecommendation = (val: unknown): ReviewerRecommendation | undefined => 
         const mapped = mapRecommendation(c);
         if (mapped) return mapped;
       }
-    } catch {}
+    } catch { }
   }
 
   return undefined;
@@ -104,44 +110,37 @@ export const getSubmissionReviewSummary = async (
     if (!res.data.success) throw new Error((res.data as any).message || "Không lấy được summary");
 
     const raw: any = res.data.data ?? {};
-
-    // Normalize reviews array (accept camelCase / PascalCase)
     const rawReviews = raw.reviews ?? raw.Reviews ?? [];
     const reviews = Array.isArray(rawReviews)
       ? rawReviews.map((r: any) => {
-          const recommendationRaw =
-            r.recommendation ?? r.Recommendation ?? r.recommend ?? r.Recommend;
-          const recommendation = mapRecommendation(recommendationRaw);
+        const recommendationRaw =
+          r.recommendation ?? r.Recommendation ?? r.recommend ?? r.Recommend;
+        const recommendation = mapRecommendation(recommendationRaw);
 
-          return {
-            reviewId: r.reviewId ?? r.ReviewId ?? r.id,
-            reviewerId: r.reviewerId ?? r.ReviewerId ?? r.reviewerId,
-            reviewerName:
-              r.reviewerName ??
-              r.ReviewerName ??
-              r.reviewerName ??
-              r.reviewer ??
-              undefined,
-            overallScore:
-              r.overallScore ?? r.OverallScore ?? r.overall_score ?? null,
-            recommendation,
-            submittedAt: r.submittedAt ?? r.SubmittedAt ?? null,
-          };
-        })
+        return {
+          reviewId: r.reviewId ?? r.ReviewId ?? r.id,
+          reviewerId: r.reviewerId ?? r.ReviewerId ?? r.reviewerId,
+          reviewerName:
+            r.reviewerName ??
+            r.ReviewerName ??
+            r.reviewerName ??
+            r.reviewer ??
+            undefined,
+          overallScore:
+            r.overallScore ?? r.OverallScore ?? r.overall_score ?? null,
+          recommendation,
+          submittedAt: r.submittedAt ?? r.SubmittedAt ?? null,
+        };
+      })
       : [];
 
-    // totalReviews: prefer explicit field from backend, fallback to reviews.length
     const totalReviews =
       (Number.isFinite(Number(raw.completedReviewCount))
         ? Number(raw.completedReviewCount)
         : Number.isFinite(Number(raw.completedReviews))
-        ? Number(raw.completedReviews)
-        : reviews.length) || 0;
-
-    // averageScore: map from finalScore or FinalScore
+          ? Number(raw.completedReviews)
+          : reviews.length) || 0;
     const averageScore = raw.finalScore ?? raw.FinalScore ?? null;
-
-    // recommendations count
     const recCounts = { approve: 0, minor: 0, major: 0, reject: 0 };
     for (const rv of reviews) {
       const rec = rv.recommendation;
@@ -151,7 +150,6 @@ export const getSubmissionReviewSummary = async (
       else if (rec === 4) recCounts.reject++;
     }
 
-    // finalDecision mapping (if provided)
     const hasFinal =
       raw.finalRecommendation ??
       raw.FinalRecommendation ??
@@ -160,18 +158,18 @@ export const getSubmissionReviewSummary = async (
 
     const finalDecision = hasFinal
       ? {
-          finalRecommendation: mapRecommendation(
-            raw.finalRecommendation ??
-              raw.FinalRecommendation ??
-              raw.finalRecommendationValue
-          ),
-          finalScore: raw.finalScore ?? raw.FinalScore ?? null,
-          moderatorNotes: raw.moderatorNotes ?? raw.ModeratorNotes ?? null,
-          revisionDeadline: raw.revisionDeadline ?? raw.RevisionDeadline ?? null,
-          decidedAt: raw.decidedAt ?? raw.DecidedAt ?? null,
-          decidedBy: raw.decidedBy ?? raw.DecidedBy ?? null,
-          decidedByName: raw.decidedByName ?? raw.DecidedByName ?? null,
-        }
+        finalRecommendation: mapRecommendation(
+          raw.finalRecommendation ??
+          raw.FinalRecommendation ??
+          raw.finalRecommendationValue
+        ),
+        finalScore: raw.finalScore ?? raw.FinalScore ?? null,
+        moderatorNotes: raw.moderatorNotes ?? raw.ModeratorNotes ?? null,
+        revisionDeadline: raw.revisionDeadline ?? raw.RevisionDeadline ?? null,
+        decidedAt: raw.decidedAt ?? raw.DecidedAt ?? null,
+        decidedBy: raw.decidedBy ?? raw.DecidedBy ?? null,
+        decidedByName: raw.decidedByName ?? raw.DecidedByName ?? null,
+      }
       : null;
 
     const mapped: SubmissionReviewSummaryDTO = {
@@ -192,21 +190,21 @@ export const getSubmissionReviewSummary = async (
 };
 
 /** POST /api/submission-reviews/moderator-final-review */
-export const moderatorFinalReview = async (payload: {
-  submissionId: IdLike;
-  finalRecommendation: ReviewerRecommendation; // 1 approve, 2 minor, 3 major, 4 reject
-  finalScore?: number;
-  moderatorNotes?: string;
-  revisionDeadline?: string;
-}): Promise<void> => {
+export const moderatorFinalReview = async (payload: ModeratorFinalPayload) => {
   try {
+    const payloadForApi = {
+      SubmissionId: Number(payload.submissionId),
+      FinalRecommendation: Number(payload.finalRecommendation), 
+      FinalScore: payload.finalScore ?? null,
+      ModeratorNotes: payload.moderatorNotes ?? null,
+      RevisionDeadline: payload.revisionDeadline ?? null,
+    };
+
     const res = await capBotAPI.post<ApiResponse<null>>(
       `/submission-reviews/moderator-final-review`,
-      payload
+      payloadForApi
     );
-    if (!res.data.success)
-      throw new Error(res.data.message || "Không lưu được quyết định");
-    toast.success("Đã lưu quyết định của Moderator");
+    if (!res.data.success) throw new Error(res.data.message || "Không lưu được quyết định");
   } catch (e) {
     const msg = getAxiosMessage(e, "Không lưu được quyết định");
     toast.error(msg);

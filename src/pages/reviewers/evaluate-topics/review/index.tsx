@@ -1,13 +1,12 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import LoadingPage from "@/pages/loading-page";
 import { useSubmissionDetail } from "@/hooks/useSubmission";
 import { useTopicDetail } from "@/hooks/useTopic";
 import { useMyAssignments } from "@/hooks/useReviewerAssignment";
 import { useCriteria } from "@/hooks/useEvaluationCriteria";
-import TopicSubmissionDetail from "./TopicSubmissionDetail";
 import ReviewForm from "./ReviewForm";
-import AICheckSection from "@/pages/moderators/submissions/components/AICheckSection";
+import ReviewerTopicSummary from "./ReviewerTopicSummary"; 
 
 export default function ReviewerReviewEditor() {
   const [qs] = useSearchParams();
@@ -27,33 +26,40 @@ export default function ReviewerReviewEditor() {
   }, [assignmentId, myAssignments]);
 
   const effectiveSubmissionId = submissionIdFromQs ?? submissionIdFromAssignment;
-  const { data: submissionDetailFromAssignment, isLoading: subLoading2 } = useSubmissionDetail(effectiveSubmissionId ?? undefined);
-
+  const { data: submissionDetailFromAssignment, isLoading: subLoading2 } =
+    useSubmissionDetail(
+      effectiveSubmissionId ? String(effectiveSubmissionId) : undefined
+    );
   const finalSubmissionDetail = submissionDetail ?? submissionDetailFromAssignment;
   const topicId = finalSubmissionDetail?.topicId ?? undefined;
-  const { data: topicDetail, isLoading: topicLoading } = useTopicDetail(topicId);
-  const { data: criteriaPaged } = useCriteria({ PageNumber: 1, PageSize: 100, Keyword: null });
-  const criteriaList = criteriaPaged?.listObjects ?? [];
+  const { data: topicDetail, isLoading: topicLoading } = useTopicDetail(
+    topicId ? String(topicId) : undefined
+  );
+  const { data: criteriaPaged } = useCriteria({
+    PageNumber: 1,
+    PageSize: 100,
+    Keyword: undefined,
+  }); const criteriaList = criteriaPaged?.listObjects ?? [];
 
   const isLoading = subLoading || subLoading2 || topicLoading;
 
   if (isLoading) return <LoadingPage />;
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
+    <div className="p-3 max-w-[1400px] mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: topic + submission details + AI check */}
+        {/* Left: topic summary + submission details + AI check */}
         <div className="space-y-4">
-          <TopicSubmissionDetail
-            submissionDetail={finalSubmissionDetail}
+          <ReviewerTopicSummary
             topicDetail={topicDetail}
+            submissionDetail={finalSubmissionDetail}
+            showAISection
           />
         </div>
-
         {/* Right: review form */}
         <div>
           <ReviewForm
-            assignmentId={assignmentId ? Number(assignmentId) : undefined}
+            assignmentId={Number(assignmentId)}
             reviewId={reviewId ? Number(reviewId) : undefined}
             criteriaList={criteriaList}
           />

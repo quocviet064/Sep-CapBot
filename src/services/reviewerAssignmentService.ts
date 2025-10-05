@@ -100,7 +100,6 @@ export interface RecommendedReviewerDTO {
   ineligibilityReasons: string[];
 }
 
-/** New DTOs for suggestion flow (FE-side convenience types) */
 export interface SuggestedReviewerItem {
   reviewerId: IdLike;
   assignmentType?: AssignmentTypes | null;
@@ -125,7 +124,6 @@ export interface AssignFromSuggestionDTO {
   createdBy?: number | string | null;
 }
 
-/** Generic ApiResponse type */
 interface ApiResponse<T> {
   statusCode: number | string;
   success: boolean;
@@ -133,27 +131,17 @@ interface ApiResponse<T> {
   errors: unknown;
   message: string | null;
 }
-
-/** Utility: extract friendly message from axios error */
 const getAxiosMessage = (e: unknown, fallback: string) => {
   if (axios.isAxiosError(e)) {
     const data = (e.response?.data ?? (e as any).data) as any;
-
-    // If server returned plain string
     if (typeof data === "string") return data || fallback;
-
     if (data && typeof data === "object") {
-      // Common: { message: "..." }
       if (typeof data.message === "string" && data.message.trim()) return data.message;
-
-      // Common: { errors: [ "err1", ... ] } or [{ message: "..." }]
       if (Array.isArray(data.errors) && data.errors.length > 0) {
         const first = data.errors[0];
         if (typeof first === "string") return first;
         if (first && typeof first.message === "string") return first.message;
       }
-
-      // errors as object: { fieldName: ["err1", ...], ... }
       if (data.errors && typeof data.errors === "object") {
         const keys = Object.keys(data.errors);
         if (keys.length > 0) {
@@ -162,24 +150,16 @@ const getAxiosMessage = (e: unknown, fallback: string) => {
           if (typeof val === "string") return val;
         }
       }
-
-      // fallback to data.title or data.detail (sometimes used)
       if (typeof data.title === "string" && data.title.trim()) return data.title;
       if (typeof data.detail === "string" && data.detail.trim()) return data.detail;
     }
-
-    // fallback to axios error message
     return (e as any).message ?? fallback;
   }
   return fallback;
 };
 
-/** Helper to normalize possible PascalCase/camelCase keys for arrays/objects from risky endpoints */
 const normalizeArray = <T = any>(value: unknown): T[] =>
   Array.isArray(value) ? (value as T[]) : Array.isArray((value as any)?.items) ? ((value as any).items as T[]) : [];
-
-/** --- Enum normalization helpers --- */
-/** Some endpoints may return enum as string (e.g. "Primary"), some as number. Normalize both. */
 const AssignmentTypeStringToNumber: Record<string, AssignmentTypes> = {
   Primary: AssignmentTypes.Primary,
   Secondary: AssignmentTypes.Secondary,
@@ -197,7 +177,6 @@ const normalizeAssignmentType = (v: any): AssignmentTypes | undefined => {
   if (v === null || v === undefined) return undefined;
   if (typeof v === "number") return v as AssignmentTypes;
   if (typeof v === "string") {
-    // try mapping by known names
     if (AssignmentTypeStringToNumber[v]) return AssignmentTypeStringToNumber[v];
     const parsed = Number(v);
     if (!Number.isNaN(parsed)) return parsed as AssignmentTypes;
@@ -216,8 +195,6 @@ const normalizeAssignmentStatus = (v: any): AssignmentStatus | undefined => {
   return undefined;
 };
 
-/** --- Service functions --- */
-
 /** Phân công 1 reviewer */
 export const assignReviewer = async (
   payload: AssignReviewerDTO
@@ -230,7 +207,6 @@ export const assignReviewer = async (
     if (!res.data.success) throw new Error(res.data.message || "Phân công thất bại");
     toast.success("Đã phân công reviewer");
     const d = res.data.data;
-    // normalize enums before returning
     return {
       ...d,
       assignmentType: normalizeAssignmentType(d.assignmentType) ?? d.assignmentType,
@@ -238,7 +214,6 @@ export const assignReviewer = async (
     };
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể phân công reviewer");
-    toast.error(msg);
     throw new Error(msg);
   }
 };
@@ -262,7 +237,6 @@ export const bulkAssignReviewers = async (
     }));
   } catch (e) {
     const msg = getAxiosMessage(e, "Bulk assign thất bại");
-    toast.error(msg);
     throw new Error(msg);
   }
 };
@@ -335,10 +309,8 @@ export const cancelAssignment = async (assignmentId: IdLike): Promise<void> => {
       `/reviewer-assignments/${id}`
     );
     if (!res.data.success) throw new Error(res.data.message || "Hủy assignment thất bại");
-    toast.success("Hủy assignment thành công");
   } catch (e) {
     const msg = getAxiosMessage(e, "Hủy assignment thất bại");
-    toast.error(msg);
     throw new Error(msg);
   }
 };
@@ -377,7 +349,7 @@ export const getReviewerSuggestions = async (
   maxSuggestions = 5,
   usePrompt = true,
   deadline?: string | null,
-  assign = false 
+  assign = false
 ): Promise<SuggestedReviewerItem[]> => {
   try {
     const payload: ReviewerSuggestionInputDTO = {
@@ -412,7 +384,6 @@ export const getReviewerSuggestions = async (
   }
 };
 
-/** Assign from suggestion helper */
 export const assignFromSuggestion = async (
   payload: AssignFromSuggestionDTO
 ): Promise<ReviewerAssignmentResponseDTO> => {
@@ -427,7 +398,6 @@ export const assignFromSuggestion = async (
   return assignReviewer(assignPayload);
 };
 
-/** Original GET-style recommendations endpoint */
 export async function getRecommendedReviewers(
   submissionId: IdLike,
   query?: RecommendationQuery
@@ -471,15 +441,20 @@ export const getAssignmentsByReviewer = async (
 };
 
 export interface ReviewerWorkloadDTO {
-  reviewerId: IdLike;
-  reviewerName?: string;
-  email?: string;
-  currentActiveAssignments: number;
-  completedAssignments?: number;
-  pendingAssignments?: number;
-  onTimeRate?: number;
-  averageScoreGiven?: number;
-  workloadScore?: number;
+  id: number;
+  userName: string;
+  email: string;
+  phoneNumber?: string;
+  currentAssignments: number;
+  skills: string[];
+  isAvailable: boolean;
+  unavailableReason?: string;
+  performance?: {
+    totalAssignments: number;
+    completedAssignments: number;
+    averageScoreGiven: number;
+    onTimeRate: number;
+  };
 }
 
 export interface AnalyzeReviewerMatchDTO {
@@ -505,14 +480,38 @@ export const getReviewersWorkload = async (
       `/reviewer-assignments/workload`,
       { params: semesterId != null ? { semesterId } : undefined }
     );
-    if (!res.data.success) throw new Error(res.data.message || "Lấy thống kê thất bại");
-    return res.data.data ?? [];
+
+    if (!res.data.success)
+      throw new Error(res.data.message || "Lấy thống kê thất bại");
+
+    const raw = res.data.data ?? [];
+
+    // Chuẩn hóa dữ liệu (tránh null)
+    return raw.map((r: any) => ({
+      id: r.id,
+      userName: r.userName,
+      email: r.email,
+      phoneNumber: r.phoneNumber,
+      currentAssignments: r.currentAssignments ?? 0,
+      skills: r.skills ?? [],
+      isAvailable: r.isAvailable ?? false,
+      unavailableReason: r.unavailableReason ?? null,
+      performance: r.performance
+        ? {
+          totalAssignments: r.performance.totalAssignments ?? 0,
+          completedAssignments: r.performance.completedAssignments ?? 0,
+          averageScoreGiven: r.performance.averageScoreGiven ?? 0,
+          onTimeRate: r.performance.onTimeRate ?? 0,
+        }
+        : undefined,
+    }));
   } catch (e) {
     const msg = getAxiosMessage(e, "Không thể lấy thống kê workload reviewer");
     toast.error(msg);
     throw new Error(msg);
   }
 };
+
 
 /** Phân tích matching */
 export const analyzeReviewerMatch = async (

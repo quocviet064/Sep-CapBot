@@ -62,8 +62,8 @@ export default function SemesterDetailDialog({
       await updateSemester({
         id: data.id,
         name,
-        startDate, // YYYY-MM-DD
-        endDate,   // YYYY-MM-DD
+        startDate, 
+        endDate,   
       });
       toast.success("✅ Cập nhật thành công!", { id: tid });
       setIsEditing(false);
